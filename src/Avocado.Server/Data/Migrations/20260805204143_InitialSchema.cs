@@ -196,6 +196,7 @@ namespace Avocado.Server.Data.Migrations
                     file_name = table.Column<string>(type: "TEXT", maxLength: 400, nullable: false),
                     size_bytes = table.Column<long>(type: "INTEGER", nullable: false),
                     mime_type = table.Column<string>(type: "TEXT", maxLength: 160, nullable: true),
+                    type = table.Column<string>(type: "TEXT", maxLength: 60, nullable: true),
                     document_date = table.Column<DateOnly>(type: "TEXT", nullable: true),
                     added_at = table.Column<string>(type: "TEXT", nullable: false),
                     exhibit_number = table.Column<int>(type: "INTEGER", nullable: true),

@@ -33,6 +33,13 @@ public class Document
 
     public string? MimeType { get; set; }
 
+    /// <summary>
+    /// The « Type » column: Contrat, Extrait, Comptable, Attestation, Acte, Rapport, Écriture,
+    /// Courrier, Procédure, Note, Photo, Statuts… Free text, like <c>MatterParty.Role</c> and for the
+    /// same reason — the UI offers the common ones, and a new kind never needs a release.
+    /// </summary>
+    public string? Type { get; set; }
+
     /// <summary>The date on the document itself, which is rarely the date it was filed.</summary>
     public DateOnly? DocumentDate { get; set; }
 

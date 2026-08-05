@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avocado.Server.Data.Migrations
 {
     [DbContext(typeof(AvocadoDbContext))]
-    [Migration("20260805203146_InitialSchema")]
+    [Migration("20260805204143_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -349,6 +349,11 @@ namespace Avocado.Server.Data.Migrations
                     b.Property<long>("SizeBytes")
                         .HasColumnType("INTEGER")
                         .HasColumnName("size_bytes");
+
+                    b.Property<string>("Type")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("type");
 
                     b.HasKey("Id");
 

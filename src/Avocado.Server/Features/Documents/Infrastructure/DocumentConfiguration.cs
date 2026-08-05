@@ -13,6 +13,7 @@ internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
         builder.Property(document => document.BlobSha256).HasMaxLength(64).IsRequired();
         builder.Property(document => document.FileName).HasMaxLength(400).IsRequired();
         builder.Property(document => document.MimeType).HasMaxLength(160);
+        builder.Property(document => document.Type).HasMaxLength(60);
         builder.Property(document => document.ExhibitLabel).HasMaxLength(500);
 
         builder.Ignore(document => document.IsExhibit);

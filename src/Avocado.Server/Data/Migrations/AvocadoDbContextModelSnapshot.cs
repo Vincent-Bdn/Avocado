@@ -347,6 +347,11 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("size_bytes");
 
+                    b.Property<string>("Type")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("type");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActivityId");
