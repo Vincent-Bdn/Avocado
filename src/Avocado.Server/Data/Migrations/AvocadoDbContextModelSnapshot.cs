@@ -499,6 +499,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("matter_id");
 
+                    b.Property<TimeOnly?>("StartedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("started_at");
+
                     b.Property<string>("Task")
                         .IsRequired()
                         .HasMaxLength(400)

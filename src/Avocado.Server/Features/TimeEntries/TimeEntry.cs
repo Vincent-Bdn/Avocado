@@ -13,6 +13,14 @@ public class TimeEntry
 
     public DateOnly Date { get; set; }
 
+    /// <summary>
+    /// When the work started, where that is known — the entry list renders « 13/03 · 16:42 » and the
+    /// chronometer « démarré à 16:24 ». Nullable and separate from <see cref="Date"/>, like
+    /// <c>Deadline</c>: a manually recorded « 1 h 30 le 13/03 » genuinely has no time of day, and a
+    /// midnight placeholder would be a lie the UI would then have to render.
+    /// </summary>
+    public TimeOnly? StartedAt { get; set; }
+
     /// <summary>Minutes, not a <c>TimeSpan</c>: SQLite has no duration type worth trusting.</summary>
     public int DurationMinutes { get; set; }
 

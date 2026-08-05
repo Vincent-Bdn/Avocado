@@ -226,6 +226,7 @@ namespace Avocado.Server.Data.Migrations
                     id = table.Column<Guid>(type: "TEXT", nullable: false),
                     matter_id = table.Column<Guid>(type: "TEXT", nullable: false),
                     date = table.Column<DateOnly>(type: "TEXT", nullable: false),
+                    started_at = table.Column<TimeOnly>(type: "TEXT", nullable: true),
                     duration_minutes = table.Column<int>(type: "INTEGER", nullable: false),
                     task = table.Column<string>(type: "TEXT", maxLength: 400, nullable: false),
                     is_billable = table.Column<bool>(type: "INTEGER", nullable: false),

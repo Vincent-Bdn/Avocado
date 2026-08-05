@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avocado.Server.Data.Migrations
 {
     [DbContext(typeof(AvocadoDbContext))]
-    [Migration("20260805204143_InitialSchema")]
+    [Migration("20260805205706_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -501,6 +501,10 @@ namespace Avocado.Server.Data.Migrations
                     b.Property<Guid>("MatterId")
                         .HasColumnType("TEXT")
                         .HasColumnName("matter_id");
+
+                    b.Property<TimeOnly?>("StartedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("started_at");
 
                     b.Property<string>("Task")
                         .IsRequired()

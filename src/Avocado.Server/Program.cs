@@ -3,11 +3,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avocado.Server.Data;
 using Avocado.Server.Features.Activities.Endpoints;
+using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
 using Avocado.Server.Features.Documents.Endpoints;
 using Avocado.Server.Features.Matters.Endpoints;
 using Avocado.Server.Features.Searches.Endpoints;
+using Avocado.Server.Features.TimeEntries.Endpoints;
 using Avocado.Server.Hosting;
 using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -81,6 +83,8 @@ app.MapActivities();
 app.MapDashboard();
 app.MapSearch();
 app.MapDocuments();
+app.MapTimeEntries();
+app.MapBilling();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.
