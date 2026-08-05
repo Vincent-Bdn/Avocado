@@ -57,34 +57,19 @@ namespace Avocado.Server.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "activities",
+                name: "users",
                 columns: table => new
                 {
                     id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    matter_id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    occurred_at = table.Column<string>(type: "TEXT", nullable: false),
-                    type = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
-                    contact_id = table.Column<Guid>(type: "TEXT", nullable: true),
-                    subject = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true),
-                    body = table.Column<string>(type: "TEXT", nullable: true),
-                    tracking_number = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    display_name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    email = table.Column<string>(type: "TEXT", maxLength: 320, nullable: true),
+                    hourly_rate_cents = table.Column<long>(type: "INTEGER", nullable: false),
+                    is_active = table.Column<bool>(type: "INTEGER", nullable: false),
                     created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_activities", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_activities_contacts_contact_id",
-                        column: x => x.contact_id,
-                        principalTable: "contacts",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_activities_matters_matter_id",
-                        column: x => x.matter_id,
-                        principalTable: "matters",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
+                    table.PrimaryKey("PK_users", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -186,6 +171,44 @@ namespace Avocado.Server.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "activities",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    matter_id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    occurred_at = table.Column<string>(type: "TEXT", nullable: false),
+                    type = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
+                    contact_id = table.Column<Guid>(type: "TEXT", nullable: true),
+                    subject = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true),
+                    body = table.Column<string>(type: "TEXT", nullable: true),
+                    tracking_number = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    user_id = table.Column<Guid>(type: "TEXT", nullable: true),
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_activities", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_activities_contacts_contact_id",
+                        column: x => x.contact_id,
+                        principalTable: "contacts",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_activities_matters_matter_id",
+                        column: x => x.matter_id,
+                        principalTable: "matters",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_activities_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "documents",
                 columns: table => new
                 {
@@ -232,6 +255,7 @@ namespace Avocado.Server.Data.Migrations
                     is_billable = table.Column<bool>(type: "INTEGER", nullable: false),
                     hourly_rate_cents_override = table.Column<long>(type: "INTEGER", nullable: true),
                     activity_id = table.Column<Guid>(type: "TEXT", nullable: true),
+                    user_id = table.Column<Guid>(type: "TEXT", nullable: true),
                     created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -249,6 +273,12 @@ namespace Avocado.Server.Data.Migrations
                         principalTable: "matters",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_time_entries_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateIndex(
@@ -260,6 +290,11 @@ namespace Avocado.Server.Data.Migrations
                 name: "IX_activities_matter_id_occurred_at",
                 table: "activities",
                 columns: new[] { "matter_id", "occurred_at" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_activities_user_id",
+                table: "activities",
+                column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_contacts_last_name",
@@ -364,6 +399,16 @@ namespace Avocado.Server.Data.Migrations
                 name: "IX_time_entries_matter_id_date",
                 table: "time_entries",
                 columns: new[] { "matter_id", "date" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_time_entries_user_id",
+                table: "time_entries",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_users_is_active",
+                table: "users",
+                column: "is_active");
         }
 
         /// <inheritdoc />
@@ -395,6 +440,9 @@ namespace Avocado.Server.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "matters");
+
+            migrationBuilder.DropTable(
+                name: "users");
         }
     }
 }

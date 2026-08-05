@@ -62,9 +62,15 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("type");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContactId");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("MatterId", "OccurredAt");
 
@@ -509,15 +515,59 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("task");
 
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("user_id");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ActivityId");
 
                     b.HasIndex("Date");
 
+                    b.HasIndex("UserId");
+
                     b.HasIndex("MatterId", "Date");
 
                     b.ToTable("time_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Avocado.Server.Features.Users.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("email");
+
+                    b.Property<long>("HourlyRateCents")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("hourly_rate_cents");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_active");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("users", (string)null);
                 });
 
             modelBuilder.Entity("Avocado.Server.Features.Activities.Activity", b =>
@@ -533,9 +583,16 @@ namespace Avocado.Server.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Avocado.Server.Features.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Contact");
 
                     b.Navigation("Matter");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Avocado.Server.Features.Billings.BillingInvoice", b =>
@@ -621,9 +678,16 @@ namespace Avocado.Server.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Avocado.Server.Features.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Activity");
 
                     b.Navigation("Matter");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Avocado.Server.Features.Matters.Matter", b =>

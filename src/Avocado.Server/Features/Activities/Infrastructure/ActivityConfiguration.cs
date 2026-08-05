@@ -25,6 +25,12 @@ internal sealed class ActivityConfiguration : IEntityTypeConfiguration<Activity>
             .HasForeignKey(activity => activity.ContactId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Deactivating a user must not erase what they recorded.
+        builder.HasOne(activity => activity.User)
+            .WithMany()
+            .HasForeignKey(activity => activity.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // The journal is always read newest-first for one matter.
         builder.HasIndex(activity => new { activity.MatterId, activity.OccurredAt });
     }

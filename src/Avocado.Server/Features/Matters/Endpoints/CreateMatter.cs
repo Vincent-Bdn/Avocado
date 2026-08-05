@@ -6,12 +6,10 @@ namespace Avocado.Server.Features.Matters.Endpoints;
 
 public static class CreateMatter
 {
-    /// <summary>Fallback when no practice default is configured yet. 280 €/h.</summary>
-    private const long DefaultHourlyRateCents = 28_000;
-
     public static async Task<IResult> HandleAsync(
         MatterInput input,
         AvocadoDbContext database,
+        CurrentUser currentUser,
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
@@ -49,8 +47,10 @@ public static class CreateMatter
             Name = input.Name.Trim(),
             Description = input.Description,
             OpenedOn = input.OpenedOn ?? today,
-            // Frozen here on purpose: changing the practice default later must not reprice this matter.
-            HourlyRateCents = input.HourlyRateCents ?? DefaultHourlyRateCents,
+            // Seeded from the practice default and frozen here on purpose: raising that default later
+            // must not reprice this matter.
+            HourlyRateCents = input.HourlyRateCents
+                              ?? (await currentUser.GetAsync(cancellationToken)).HourlyRateCents,
             CourtCaseNumber = string.IsNullOrWhiteSpace(input.CourtCaseNumber)
                 ? null
                 : input.CourtCaseNumber.Trim(),

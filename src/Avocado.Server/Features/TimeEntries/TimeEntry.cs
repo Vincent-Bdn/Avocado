@@ -45,6 +45,14 @@ public class TimeEntry
     public Guid? ActivityId { get; set; }
     public Activity? Activity { get; set; }
 
+    /// <summary>
+    /// Whose time this was. The rate still comes from the matter, not from here: a convention
+    /// d'honoraires fixes one rate for the dossier. Recording the person is what would let a
+    /// per-person rate be introduced later without rewriting history.
+    /// </summary>
+    public Guid? UserId { get; set; }
+    public Users.User? User { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public long AmountCents(long matterHourlyRateCents) =>

@@ -23,6 +23,11 @@ internal sealed class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntr
             .HasForeignKey(entry => entry.ActivityId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        builder.HasOne(entry => entry.User)
+            .WithMany()
+            .HasForeignKey(entry => entry.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(entry => new { entry.MatterId, entry.Date });
         builder.HasIndex(entry => entry.Date);
     }

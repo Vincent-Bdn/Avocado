@@ -1,0 +1,170 @@
+/* ==========================================================================
+   Avocado — design tokens
+   Drop into src/styles/tokens.css and import before Tailwind's directives.
+   Two complete themes. Dark is the default; light is composed, not inverted.
+   Contrast ratios in comments are measured against --surface-panel.
+   ========================================================================== */
+
+/* --- Communs aux deux thèmes ---------------------------------------------- */
+:root {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  /* type steps: font shorthand + matching letter-spacing */
+  --text-display:     600 28px/34px var(--font-sans);  --ls-display: -0.02em;
+  --text-title-lg:    600 20px/26px var(--font-sans);  --ls-title-lg: -0.015em;
+  --text-title:       600 15px/21px var(--font-sans);  --ls-title: -0.01em;
+  --text-body:        400 13px/20px var(--font-sans);  --ls-body: -0.005em;
+  --text-body-strong: 500 13px/20px var(--font-sans);
+  --text-label:       500 12px/16px var(--font-sans);  --ls-label: 0;
+  --text-caption:     400 11px/15px var(--font-sans);  --ls-caption: 0.01em;
+  --text-kbd:         500 11px/14px var(--font-mono);
+
+  --space-1: 2px;  --space-2: 4px;  --space-3: 6px;  --space-4: 8px;
+  --space-5: 12px; --space-6: 16px; --space-7: 20px; --space-8: 24px;
+  --space-9: 32px; --space-10: 48px;
+
+  --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px;
+  --radius-lg: 8px; --radius-xl: 10px; --radius-full: 999px;
+
+  --border-width: 1px;
+  --border-width-marker: 2px;   /* left selection marker */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 1px;
+
+  /* density + shell geometry */
+  --row-h-dense: 30px;   --row-h-comfort: 36px;
+  --control-h-sm: 24px;  --control-h-md: 28px;  --control-h-lg: 32px;
+  --menu-item-h: 26px;   --palette-item-h: 34px;
+  --table-header-h: 28px;
+  --rail-w: 48px;        --rail-w-expanded: 176px;
+  --panel-secondary-w: 232px;  /* resizable 200–360 */
+  --panel-context-w: 208px;    /* collapsible */
+  --dossier-header-h: 52px;
+  --tabbar-h: 32px;
+  --statusbar-h: 22px;
+  --panel-gutter: 6px;
+
+  --duration-instant: 0ms;
+  --duration-fast: 110ms;
+  --duration-base: 170ms;
+  --duration-slow: 240ms;
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+  --ease-inout: cubic-bezier(.4,0,.2,1);
+}
+
+/* --- Thème clair ---------------------------------------------------------- */
+[data-theme="light"] {
+  --surface-app:       #F3F5F0;
+  --surface-panel:     #FFFFFF;
+  --surface-raised:    #FFFFFF;
+  --surface-hover:     #EDEFE8;
+  --surface-sunken:    #E9ECE4;
+  --surface-scrim:     rgb(22 33 26 / 0.32);
+
+  --text-primary:      #1A1F1B;  /* 16.6:1  AAA */
+  --text-secondary:    #4A524B;  /*  8.0:1  AAA */
+  --text-muted:        #6D756B;  /*  4.8:1  AA  */
+  --text-disabled:     #A3A99E;  /*  2.4:1  non-text only */
+  --text-on-brand:     #FFFFFF;  /*  9.8:1  on --brand */
+
+  --border-subtle:     #E5E8E0;  /*  1.2:1  decorative rules */
+  --border-default:    #D2D7CB;  /*  1.4:1  panel edges */
+  --border-strong:     #8E9787;  /*  3.0:1  interactive controls */
+
+  --brand:             #2C4A38;  /*  9.8:1  AAA */
+  --brand-hover:       #223B2C;
+  --brand-active:      #16281F;
+  --brand-subtle:      #E7EEE8;
+  --brand-on-subtle:   #22523C;  /*  7.4:1 on --brand-subtle */
+  --accent:            #8A5A10;  /*  5.9:1  AA — "flesh" ochre, urgency only */
+  --accent-subtle:     #FAF0DE;
+
+  --focus-ring:        #37785A;  /*  5.5:1  AA */
+
+  --status-success:    #2F6B47;  /*  6.3:1  AA  */
+  --status-success-bg: #E5F0E8;
+  --status-warning:    #8A5A10;  /*  5.9:1  AA  */
+  --status-warning-bg: #FAF0DE;
+  --status-danger:     #A32A22;  /*  7.2:1  AAA */
+  --status-danger-bg:  #FBE9E7;
+  --status-info:       #2B5578;  /*  7.9:1  AAA */
+  --status-info-bg:    #E6EEF6;
+
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px rgb(22 33 26 / 0.07);
+  --elevation-2: 0 2px 6px -1px rgb(22 33 26 / 0.10), 0 1px 2px rgb(22 33 26 / 0.06);
+  --elevation-3: 0 14px 32px -10px rgb(22 33 26 / 0.22), 0 2px 6px rgb(22 33 26 / 0.08);
+}
+
+/* --- Thème sombre (défaut) ------------------------------------------------ */
+[data-theme="dark"] {
+  --surface-app:       #101310;
+  --surface-panel:     #171B18;
+  --surface-raised:    #1E231F;
+  --surface-hover:     #232823;
+  --surface-sunken:    #0B0D0B;
+  --surface-scrim:     rgb(0 0 0 / 0.60);
+
+  --text-primary:      #E8ECE6;  /* 14.1:1  AAA */
+  --text-secondary:    #AEB6AC;  /*  8.1:1  AAA */
+  --text-muted:        #838C82;  /*  4.8:1  AA  */
+  --text-disabled:     #5C645B;  /*  2.5:1  non-text only */
+  --text-on-brand:     #0E1710;  /*  9.1:1  on --brand */
+
+  --border-subtle:     #242923;  /*  1.5:1  decorative rules */
+  --border-default:    #333A32;  /*  2.0:1  panel edges */
+  --border-strong:     #6A7468;  /*  3.5:1  interactive controls */
+
+  --brand:             #7FB894;  /*  7.4:1  AAA — lightens, never inverts */
+  --brand-hover:       #96C9A8;
+  --brand-active:      #6BA681;
+  --brand-subtle:      #1C2A21;
+  --brand-on-subtle:   #9ED3B0;  /*  6.1:1 on --brand-subtle */
+  --accent:            #D9A85E;  /*  7.8:1  AAA */
+  --accent-subtle:     #2A2113;
+
+  --focus-ring:        #7FB894;  /*  7.4:1  AAA */
+
+  --status-success:    #6FBF8B;  /*  8.0:1  AAA */
+  --status-success-bg: #16281C;
+  --status-warning:    #D9A93F;  /*  7.5:1  AAA */
+  --status-warning-bg: #2A2113;
+  --status-danger:     #E8736A;  /*  6.6:1  AA  */
+  --status-danger-bg:  #2C1917;
+  --status-info:       #6FA8DC;  /*  6.9:1  AA  */
+  --status-info-bg:    #16232E;
+
+  /* Shadows don't read on near-black. Elevation = a lighter surface step +
+     a luminous top hairline. The black halo only detaches from the ground. */
+  --elevation-0: none;
+  --elevation-1: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --elevation-2: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 20px -8px rgb(0 0 0 / 0.60);
+  --elevation-3: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 18px 44px -12px rgb(0 0 0 / 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0ms; --duration-base: 0ms; --duration-slow: 0ms; }
+}
+
+/* --- Base ----------------------------------------------------------------- */
+html, body {
+  background: var(--surface-app);
+  color: var(--text-primary);
+  font: var(--text-body);
+  letter-spacing: var(--ls-body);
+}
+
+/* Every date, duration, amount and reference number. */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* The one focus treatment. Visible on light, dark and on --brand alike. */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 var(--focus-ring-offset) var(--surface-panel),
+              0 0 0 calc(var(--focus-ring-offset) + var(--focus-ring-width)) var(--focus-ring);
+}
+/* In table/list rows use an inset ring so the grid never shifts. */
+.row:focus-visible {
+  box-shadow: inset 0 0 0 var(--focus-ring-width) var(--focus-ring);
+}

@@ -17,6 +17,7 @@ namespace Avocado.Server.Data;
 /// </summary>
 public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options) : DbContext(options)
 {
+    public DbSet<Features.Users.User> Users => Set<Features.Users.User>();
     public DbSet<Contact> Contacts => Set<Contact>();
     public DbSet<Matter> Matters => Set<Matter>();
     public DbSet<MatterParty> MatterParties => Set<MatterParty>();

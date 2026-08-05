@@ -37,5 +37,9 @@ public class Activity
     /// </summary>
     public string? TrackingNumber { get; set; }
 
+    /// <summary>Who recorded it. Null on entries written before the practice had named users.</summary>
+    public Guid? UserId { get; set; }
+    public Users.User? User { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

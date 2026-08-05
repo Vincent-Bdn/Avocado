@@ -1,3 +1,4 @@
+﻿using System.Net;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,6 +11,7 @@ using Avocado.Server.Features.Documents.Endpoints;
 using Avocado.Server.Features.Matters.Endpoints;
 using Avocado.Server.Features.Searches.Endpoints;
 using Avocado.Server.Features.TimeEntries.Endpoints;
+using Avocado.Server.Features.Users.Endpoints;
 using Avocado.Server.Hosting;
 using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -31,7 +33,11 @@ var apiToken =
     ?? Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
 // Loopback only, and port 0 so the OS picks one. The shell learns both from the handshake below.
-builder.WebHost.ConfigureKestrel(kestrel => kestrel.ListenLocalhost(
+//
+// Listen(IPAddress.Loopback, port) rather than ListenLocalhost(port): the latter binds both IPv4 and
+// IPv6, and therefore rejects port 0 outright since it cannot guarantee the same free port on both.
+builder.WebHost.ConfigureKestrel(kestrel => kestrel.Listen(
+    IPAddress.Loopback,
     int.TryParse(Environment.GetEnvironmentVariable("AVOCADO_PORT"), out var fixedPort) ? fixedPort : 0));
 
 builder.Services.AddSingleton<IVaultStore>(_ =>
@@ -42,6 +48,7 @@ builder.Services.AddScoped(services =>
 builder.Services.AddScoped(services =>
     services.GetRequiredService<VaultDbContextFactory>()
         .Create(services.GetRequiredService<TenantContext>().VaultId));
+builder.Services.AddScoped<CurrentUser>();
 
 builder.Services.AddProblemDetails();
 
@@ -77,6 +84,7 @@ app.MapGet("/health", (IVaultStore store) =>
     });
 });
 
+app.MapUsers();
 app.MapContacts();
 app.MapMatters();
 app.MapActivities();
@@ -105,3 +113,4 @@ await app.RunAsync();
 
 /// <summary>Exposed so the integration tests can drive the real host.</summary>
 public partial class Program;
+

@@ -11,6 +11,7 @@ public static class CreateActivity
         Guid matterId,
         ActivityInput input,
         AvocadoDbContext database,
+        CurrentUser currentUser,
         TimeProvider clock,
         CancellationToken cancellationToken)
     {
@@ -40,6 +41,7 @@ public static class CreateActivity
         }
 
         var occurredAt = input.OccurredAt ?? clock.GetLocalNow();
+        var author = await currentUser.GetAsync(cancellationToken);
 
         var activity = new Activity
         {
@@ -52,6 +54,7 @@ public static class CreateActivity
             TrackingNumber = string.IsNullOrWhiteSpace(input.TrackingNumber)
                 ? null
                 : input.TrackingNumber.Trim(),
+            UserId = author.Id,
         };
 
         database.Activities.Add(activity);
@@ -66,6 +69,7 @@ public static class CreateActivity
                 Date = DateOnly.FromDateTime(occurredAt.DateTime),
                 DurationMinutes = minutes,
                 IsBillable = input.DurationIsBillable,
+                UserId = author.Id,
                 Task = activity.Subject ?? input.Type.ToString(),
             });
         }

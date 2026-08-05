@@ -10,6 +10,7 @@ public static class CreateTimeEntry
         Guid matterId,
         TimeEntryInput input,
         AvocadoDbContext database,
+        CurrentUser currentUser,
         CancellationToken cancellationToken)
     {
         if (input.Validate() is { } error)
@@ -31,6 +32,7 @@ public static class CreateTimeEntry
             DurationMinutes = input.DurationMinutes,
             IsBillable = input.IsBillable,
             HourlyRateCentsOverride = input.HourlyRateCentsOverride,
+            UserId = (await currentUser.GetAsync(cancellationToken)).Id,
         };
 
         database.TimeEntries.Add(entry);
