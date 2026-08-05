@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avocado.Server.Data.Migrations
 {
     [DbContext(typeof(AvocadoDbContext))]
-    [Migration("20260805194946_InitialSchema")]
+    [Migration("20260805200013_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -282,9 +282,9 @@ namespace Avocado.Server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MatterId");
-
                     b.HasIndex("IsDone", "Date");
+
+                    b.HasIndex("MatterId", "IsDone", "Date");
 
                     b.ToTable("deadlines", (string)null);
                 });

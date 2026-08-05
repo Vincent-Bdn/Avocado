@@ -280,9 +280,9 @@ namespace Avocado.Server.Data.Migrations
                 columns: new[] { "is_done", "date" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_deadlines_matter_id",
+                name: "IX_deadlines_matter_id_is_done_date",
                 table: "deadlines",
-                column: "matter_id");
+                columns: new[] { "matter_id", "is_done", "date" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_documents_activity_id",

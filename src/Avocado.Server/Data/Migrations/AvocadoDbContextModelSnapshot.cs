@@ -279,9 +279,9 @@ namespace Avocado.Server.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MatterId");
-
                     b.HasIndex("IsDone", "Date");
+
+                    b.HasIndex("MatterId", "IsDone", "Date");
 
                     b.ToTable("deadlines", (string)null);
                 });
