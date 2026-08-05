@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Avocado.Cli/Avocado.Cli.csproj" />
+    <Project Path="src/Avocado.Vault/Avocado.Vault.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Avocado.Vault.Tests/Avocado.Vault.Tests.csproj" />
+  </Folder>
+</Solution>

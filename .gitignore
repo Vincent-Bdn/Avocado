@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+artifacts/
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# Local vaults must never be committed
+*.db
+*.db-wal
+*.db-shm
+vault.json

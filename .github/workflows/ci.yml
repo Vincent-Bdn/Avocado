@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # The vault has to behave identically on all three, so the tests run on all three. The device-key
+  # tests use a fake OS key store precisely so they are not Windows-only.
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - run: dotnet restore
+
+      - run: dotnet build --no-restore -c Release
+
+      - run: dotnet test --no-build -c Release --verbosity normal
+
+  # Proves the "no runtime install required" promise for every platform we ship to, and that the
+  # SQLCipher native libraries survive being bundled into a single file.
+  publish:
+    name: Publish (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64,     runner: windows-latest }
+          - { rid: win-arm64,   runner: windows-latest }
+          - { rid: linux-x64,   runner: ubuntu-latest }
+          - { rid: linux-arm64, runner: ubuntu-latest }
+          - { rid: osx-x64,     runner: macos-latest }
+          - { rid: osx-arm64,   runner: macos-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish self-contained
+        run: dotnet publish src/Avocado.Cli -c Release -r ${{ matrix.rid }} -o artifacts/${{ matrix.rid }}
+
+      # A framework-dependent publish looks fine until a user without .NET installed tries to run it,
+      # so assert the runtime really was bundled rather than trusting the property took effect.
+      - name: Assert the publish is self-contained
+        shell: bash
+        run: |
+          binary=$(ls artifacts/${{ matrix.rid }}/avocado artifacts/${{ matrix.rid }}/avocado.exe 2>/dev/null | head -1)
+          size=$(wc -c < "$binary")
+          echo "$binary is $size bytes"
+          if [ "$size" -lt 20000000 ]; then
+            echo "::error::Only $size bytes - the .NET runtime was not bundled."
+            exit 1
+          fi
+
+      # Only where the runner can actually execute what was built; cross-compiled arm64 output cannot
+      # run on an x64 runner.
+      - name: Smoke test
+        if: matrix.rid == 'win-x64' || matrix.rid == 'linux-x64' || matrix.rid == 'osx-arm64'
+        shell: bash
+        run: |
+          binary=$(ls artifacts/${{ matrix.rid }}/avocado artifacts/${{ matrix.rid }}/avocado.exe 2>/dev/null | head -1)
+          chmod +x "$binary" 2>/dev/null || true
+
+          "$binary" create "$RUNNER_TEMP/smoke-vault" | tee create.log
+          "$binary" info "$RUNNER_TEMP/smoke-vault"
+
+          # Windows unlocks via DPAPI and ignores stdin. Linux and macOS have no OS key store wired up
+          # yet, so they fall through to the recovery key - which exercises that path for free.
+          code=$(grep -oE '[0-9A-Z]{6}(-[0-9A-Z]{6}){8}' create.log | head -1)
+          echo "$code" | "$binary" backup "$RUNNER_TEMP/smoke-vault"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avocado-cli-${{ matrix.rid }}
+          path: artifacts/${{ matrix.rid }}
+          retention-days: 7

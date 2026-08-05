@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Executables publish self-contained and single-file: a lawyer installing Avocado must never be
+    told to go and install a .NET runtime first.
+
+        dotnet publish src/Avocado.Cli -c Release -r <rid>
+
+    Supported RIDs are in .github/workflows/ci.yml.
+
+    This lives in Directory.Build.targets rather than .props on purpose. MSBuild imports .props
+    *before* the project body, where OutputType has not been set yet, so the condition below would
+    silently never match — and the publish would quietly come out framework-dependent.
+  -->
+  <PropertyGroup Condition="'$(OutputType)' == 'Exe' AND '$(RuntimeIdentifier)' != ''">
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+</Project>
