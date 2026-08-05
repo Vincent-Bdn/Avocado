@@ -101,8 +101,18 @@ multi-user possible later with no re-encryption.
 
 ### Unlock paths
 
-1. **Device key (default, and the only one most users see).** DEK wrapped by a KEK held in the OS keychain
-   — **DPAPI** on Windows, **Keychain** on macOS. Double-click, the app opens. **No passphrase.**
+1. **Device key (default, and the only one most users see).** Double-click, the app opens. **No
+   passphrase.** DEK wrapped by a KEK that never leaves the machine:
+   - **Windows** — DPAPI, scoped to the current user account.
+   - **macOS / Linux** — a random machine key in the user's config directory at `0600`, outside the
+     vault folder. *(`FileDeviceKeyStore`)*
+   - [ ] **TODO: macOS Keychain** via Security.framework (`SecItemAdd` / `SecItemCopyMatching`), which
+     adds per-application ACLs on top of the login password. Deliberately not written yet: ~250 lines
+     of CoreFoundation interop guarding the key to the whole practice, unverifiable from a Windows dev
+     box, where a bug is either silent data loss or a silent hole. What it would add over the current
+     store is protection from another process running as the same user — which the threat model below
+     already excludes. `IDeviceKeyStore` is unchanged when it lands, and existing vaults keep working
+     through their recovery key.
 2. **Recovery file.** A recovery KEK wrapping the same DEK. This is the disaster path.
 3. **Passphrase (opt-in, off by default).** For users who want a prompt at launch.
 
@@ -111,6 +121,12 @@ multi-user possible later with no re-encryption.
 Protects against: **stolen laptop drive, stolen backup file, stolen NAS, curious cloud-sync provider.**
 Does **not** protect against malware or anyone already logged into the user's OS session — same model as
 Signal Desktop and Chrome. That session already has a password.
+
+The device key lives outside the vault folder on every platform, so copying the vault — to a backup, a
+USB stick, a synced folder — never carries the means to open it. On a machine with FileVault, BitLocker
+or LUKS on, a stolen disk is covered too; without full-disk encryption, the device key is readable from
+the raw disk, and so, for practical purposes, is a DPAPI master key. Full-disk encryption is part of the
+recommended setup, not an optional extra.
 
 ### Recovery UX — the hard design problem
 

@@ -86,10 +86,14 @@ jobs:
           "$binary" create "$RUNNER_TEMP/smoke-vault" | tee create.log
           "$binary" info "$RUNNER_TEMP/smoke-vault"
 
-          # Windows unlocks via DPAPI and ignores stdin. Linux and macOS have no OS key store wired up
-          # yet, so they fall through to the recovery key - which exercises that path for free.
+          # Unlocks via the device key on every platform - DPAPI on Windows, the owner-only machine
+          # key file on Linux and macOS. Nothing is read from stdin, so this hanging would itself be
+          # the failure signal.
+          "$binary" backup "$RUNNER_TEMP/smoke-vault" < /dev/null
+
+          # And the recovery path, which is what a replacement machine would use.
           code=$(grep -oE '[0-9A-Z]{6}(-[0-9A-Z]{6}){8}' create.log | head -1)
-          echo "$code" | "$binary" backup "$RUNNER_TEMP/smoke-vault"
+          echo "$code" | "$binary" verify-recovery "$RUNNER_TEMP/smoke-vault"
 
       - uses: actions/upload-artifact@v4
         with:

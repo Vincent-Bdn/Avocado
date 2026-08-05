@@ -2,14 +2,51 @@
 bin/
 obj/
 artifacts/
+publish/
+project.lock.json
+project.assets.json
+
+# Test output
+[Tt]est[Rr]esult*/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.trx
 
 # IDE
 .vs/
+.vscode/
 .idea/
 *.user
+*.suo
+*.DotSettings.user
 
-# Local vaults must never be committed
-*.db
-*.db-wal
-*.db-shm
+# Node / Electron, arriving with the front end
+node_modules/
+dist/
+dist-electron/
+out/
+release/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# A real vault must never reach the repository. These are the exact on-disk names from
+# VaultPaths — losing this rule means publishing a lawyer's practice to a public repo.
+# Tests build their vaults under the system temp folder, so nothing here hides a fixture.
 vault.json
+avocado.db
+avocado.db-wal
+avocado.db-shm
+blobs/
+backups/
+*.blob

@@ -26,9 +26,12 @@ public interface IDeviceKeyStore
 
 public static class DeviceKeyStore
 {
-    /// <summary>Returns the OS-backed key store for the current platform.</summary>
+    /// <summary>
+    /// The device key store for the current platform: DPAPI on Windows, an owner-only machine key
+    /// file elsewhere. Every supported platform opens without a passphrase.
+    /// </summary>
     public static IDeviceKeyStore ForCurrentPlatform() =>
-        OperatingSystem.IsWindows()
-            ? new WindowsDeviceKeyStore()
-            : new UnsupportedDeviceKeyStore();
+        OperatingSystem.IsWindows() ? new WindowsDeviceKeyStore()
+        : OperatingSystem.IsMacOS() || OperatingSystem.IsLinux() ? new FileDeviceKeyStore()
+        : new UnsupportedDeviceKeyStore();
 }
