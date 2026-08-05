@@ -1,7 +1,5 @@
 using Avocado.Server.Features.Activities;
 using Avocado.Server.Features.Matters;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Avocado.Server.Features.Documents;
 
@@ -50,39 +48,4 @@ public class Document
     public string? ExhibitLabel { get; set; }
 
     public bool IsExhibit => ExhibitNumber is not null;
-}
-
-internal sealed class DocumentConfiguration : IEntityTypeConfiguration<Document>
-{
-    public void Configure(EntityTypeBuilder<Document> builder)
-    {
-        builder.ToTable("documents");
-        builder.HasKey(d => d.Id);
-
-        builder.Property(d => d.BlobSha256).HasMaxLength(64).IsRequired();
-        builder.Property(d => d.FileName).HasMaxLength(400).IsRequired();
-        builder.Property(d => d.MimeType).HasMaxLength(160);
-        builder.Property(d => d.ExhibitLabel).HasMaxLength(500);
-
-        builder.Ignore(d => d.IsExhibit);
-
-        builder.HasOne(d => d.Matter)
-            .WithMany()
-            .HasForeignKey(d => d.MatterId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // Deleting a journal entry must not take its attachments with it.
-        builder.HasOne(d => d.Activity)
-            .WithMany()
-            .HasForeignKey(d => d.ActivityId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasIndex(d => d.MatterId);
-        builder.HasIndex(d => d.BlobSha256);
-
-        // Two pièces n° 7 in one dossier would make every citation in the conclusions ambiguous.
-        builder.HasIndex(d => new { d.MatterId, d.ExhibitNumber })
-            .IsUnique()
-            .HasFilter("exhibit_number IS NOT NULL");
-    }
 }

@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avocado.Server.Data.Migrations
 {
     [DbContext(typeof(AvocadoDbContext))]
-    [Migration("20260805150110_InitialSchema")]
+    [Migration("20260805194946_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -52,6 +52,11 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("subject");
 
+                    b.Property<string>("TrackingNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("tracking_number");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -67,7 +72,7 @@ namespace Avocado.Server.Data.Migrations
                     b.ToTable("activities", (string)null);
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Billing.Invoice", b =>
+            modelBuilder.Entity("Avocado.Server.Features.Billings.BillingInvoice", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -112,7 +117,7 @@ namespace Avocado.Server.Data.Migrations
                     b.ToTable("invoices", (string)null);
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Billing.LedgerEntry", b =>
+            modelBuilder.Entity("Avocado.Server.Features.Billings.BillingLedgerEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -432,7 +437,7 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnName("matter_id");
 
                     b.Property<string>("Role")
-                        .HasMaxLength(120)
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT")
                         .HasColumnName("role");
 
@@ -446,7 +451,7 @@ namespace Avocado.Server.Data.Migrations
                     b.ToTable("matter_parties", (string)null);
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Time.TimeEntry", b =>
+            modelBuilder.Entity("Avocado.Server.Features.TimeEntries.TimeEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -516,7 +521,7 @@ namespace Avocado.Server.Data.Migrations
                     b.Navigation("Matter");
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Billing.Invoice", b =>
+            modelBuilder.Entity("Avocado.Server.Features.Billings.BillingInvoice", b =>
                 {
                     b.HasOne("Avocado.Server.Features.Matters.Matter", "Matter")
                         .WithMany()
@@ -527,7 +532,7 @@ namespace Avocado.Server.Data.Migrations
                     b.Navigation("Matter");
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Billing.LedgerEntry", b =>
+            modelBuilder.Entity("Avocado.Server.Features.Billings.BillingLedgerEntry", b =>
                 {
                     b.HasOne("Avocado.Server.Features.Matters.Matter", "Matter")
                         .WithMany()
@@ -586,7 +591,7 @@ namespace Avocado.Server.Data.Migrations
                     b.Navigation("Matter");
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Time.TimeEntry", b =>
+            modelBuilder.Entity("Avocado.Server.Features.TimeEntries.TimeEntry", b =>
                 {
                     b.HasOne("Avocado.Server.Features.Activities.Activity", "Activity")
                         .WithMany()

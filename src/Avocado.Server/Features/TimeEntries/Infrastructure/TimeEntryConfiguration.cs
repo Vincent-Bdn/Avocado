@@ -1,0 +1,29 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Avocado.Server.Features.TimeEntries.Infrastructure;
+
+internal sealed class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
+{
+    public void Configure(EntityTypeBuilder<TimeEntry> builder)
+    {
+        builder.ToTable("time_entries");
+        builder.HasKey(entry => entry.Id);
+
+        builder.Property(entry => entry.Task).HasMaxLength(400).IsRequired();
+
+        builder.HasOne(entry => entry.Matter)
+            .WithMany()
+            .HasForeignKey(entry => entry.MatterId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Deleting a journal entry must not silently delete the billable time attached to it.
+        builder.HasOne(entry => entry.Activity)
+            .WithMany()
+            .HasForeignKey(entry => entry.ActivityId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(entry => new { entry.MatterId, entry.Date });
+        builder.HasIndex(entry => entry.Date);
+    }
+}

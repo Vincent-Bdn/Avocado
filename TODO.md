@@ -195,11 +195,42 @@ src/
   indirection; middleware and endpoint filters already cover the cross-cutting concerns. (Its licensing also
   went commercial.)
 - **The DbContext is horizontal and that's fine.** One context, but each `IEntityTypeConfiguration<T>` lives
-  in its slice folder next to the entity; `ApplyConfigurationsFromAssembly` collects them.
+  in its slice's `Infrastructure/`; `ApplyConfigurationsFromAssembly` collects them.
 - **Join entities live with their aggregate root** (`MatterParty` in `Matters/`).
 - **Tenancy plumbing lives in the composition root, once**: `TenantContext` → `IVaultStore.Open(id)` →
   keyed `SqliteConnection` → `AvocadoDbContext`. On desktop `TenantContext` is a constant. No slice ever
   thinks about it.
+
+### Slice layout — vertical slices are not "everything in one file"
+
+Every slice has the same shape. A file holds one thing.
+
+```
+Features/Billings/
+├── BillingInvoice.cs                       one entity per file
+├── BillingLedgerEntry.cs
+├── Enums/                                  one enum per file
+├── ValueObjects/BillingSummary.cs
+├── Infrastructure/                         EF configurations, and any other infrastructure concern
+│   ├── BillingInvoiceConfiguration.cs
+│   └── BillingLedgerEntryConfiguration.cs
+└── Endpoints/
+    ├── BillingEndpoints.cs                 routing only
+    ├── ListInvoices.cs                     one file per endpoint
+    └── Dtos/                               request and response shapes shared across endpoints
+```
+
+Three naming rules, all of them about avoiding collisions rather than aesthetics:
+
+1. **Namespaces are plural, always** — `Billings`, not `Billing`, even where English resists it. A
+   namespace sharing a name with a type in it is a permanent source of ambiguity.
+2. **Types are prefixed with the slice name in the singular** — `BillingInvoice`, not `Invoice`;
+   `BillingLedgerEntry`, not `LedgerEntry`. Slices are effectively bounded contexts, and two of them
+   will eventually both want an `Entry` or a `Summary`.
+3. **Sub-namespaces follow the folders**: `Avocado.Server.Features.Billings.Infrastructure`.
+
+Table names stay domain-natural (`invoices`, `ledger_entries`) — the prefix solves a C# problem, and
+carrying it into SQL buys nothing.
 
 ### Naming: code English, UI French
 

@@ -1,9 +1,7 @@
 using Avocado.Server.Features.Activities;
 using Avocado.Server.Features.Matters;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Avocado.Server.Features.Time;
+namespace Avocado.Server.Features.TimeEntries;
 
 /// <summary>Temps passé.</summary>
 public class TimeEntry
@@ -31,9 +29,9 @@ public class TimeEntry
     /// <summary>
     /// The journal entry this time was spent on.
     /// <para>
-    /// Logging « appel client, 20 min » should create the activity and the time entry in one
-    /// keystroke. In Gestisoft those are two separate screens, which is precisely why solo lawyers
-    /// under-record their billable time — this link is the highest-value thing in the model.
+    /// Logging « appel client, 20 min » creates the activity and the time entry in one keystroke —
+    /// the composer's ochre duration chip writes this link. In Gestisoft those are two separate
+    /// screens, which is precisely why solo lawyers under-record their billable time.
     /// </para>
     /// </summary>
     public Guid? ActivityId { get; set; }
@@ -45,29 +43,4 @@ public class TimeEntry
         IsBillable
             ? (HourlyRateCentsOverride ?? matterHourlyRateCents) * DurationMinutes / 60
             : 0;
-}
-
-internal sealed class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
-{
-    public void Configure(EntityTypeBuilder<TimeEntry> builder)
-    {
-        builder.ToTable("time_entries");
-        builder.HasKey(t => t.Id);
-
-        builder.Property(t => t.Task).HasMaxLength(400).IsRequired();
-
-        builder.HasOne(t => t.Matter)
-            .WithMany()
-            .HasForeignKey(t => t.MatterId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // Deleting a journal entry must not silently delete the billable time attached to it.
-        builder.HasOne(t => t.Activity)
-            .WithMany()
-            .HasForeignKey(t => t.ActivityId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        builder.HasIndex(t => new { t.MatterId, t.Date });
-        builder.HasIndex(t => t.Date);
-    }
 }

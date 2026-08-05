@@ -1,10 +1,10 @@
 using Avocado.Server.Features.Activities;
-using Avocado.Server.Features.Billing;
+using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Contacts;
 using Avocado.Server.Features.Deadlines;
 using Avocado.Server.Features.Documents;
 using Avocado.Server.Features.Matters;
-using Avocado.Server.Features.Time;
+using Avocado.Server.Features.TimeEntries;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Data;
@@ -24,8 +24,8 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<Deadline> Deadlines => Set<Deadline>();
     public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
-    public DbSet<Invoice> Invoices => Set<Invoice>();
-    public DbSet<LedgerEntry> LedgerEntries => Set<LedgerEntry>();
+    public DbSet<BillingInvoice> Invoices => Set<BillingInvoice>();
+    public DbSet<BillingLedgerEntry> LedgerEntries => Set<BillingLedgerEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

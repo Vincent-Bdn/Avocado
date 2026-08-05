@@ -67,6 +67,7 @@ namespace Avocado.Server.Data.Migrations
                     contact_id = table.Column<Guid>(type: "TEXT", nullable: true),
                     subject = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true),
                     body = table.Column<string>(type: "TEXT", nullable: true),
+                    tracking_number = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
@@ -165,7 +166,7 @@ namespace Avocado.Server.Data.Migrations
                     matter_id = table.Column<Guid>(type: "TEXT", nullable: false),
                     contact_id = table.Column<Guid>(type: "TEXT", nullable: false),
                     is_client = table.Column<bool>(type: "INTEGER", nullable: false),
-                    role = table.Column<string>(type: "TEXT", maxLength: 120, nullable: true)
+                    role = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true)
                 },
                 constraints: table =>
                 {

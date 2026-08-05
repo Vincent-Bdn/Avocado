@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avocado.Server.Data;
-using Avocado.Server.Features.Contacts;
+using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Hosting;
 using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
