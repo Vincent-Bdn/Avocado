@@ -2,7 +2,11 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avocado.Server.Data;
+using Avocado.Server.Features.Activities.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
+using Avocado.Server.Features.Dashboards.Endpoints;
+using Avocado.Server.Features.Matters.Endpoints;
+using Avocado.Server.Features.Searches.Endpoints;
 using Avocado.Server.Hosting;
 using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -38,6 +42,10 @@ builder.Services.AddScoped(services =>
 
 builder.Services.AddProblemDetails();
 
+// Injected rather than DateTime.Now: every screen's urgency tiers and relative distances are computed
+// against "today", and a fixed clock is the only way to test that boundary.
+builder.Services.AddSingleton(TimeProvider.System);
+
 // Enums cross the wire as their names, never as integers. The front end owns the French labels and
 // maps from keys like `IncomingLetter`, so a renumbering here would silently relabel history.
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -67,6 +75,10 @@ app.MapGet("/health", (IVaultStore store) =>
 });
 
 app.MapContacts();
+app.MapMatters();
+app.MapActivities();
+app.MapDashboard();
+app.MapSearch();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.

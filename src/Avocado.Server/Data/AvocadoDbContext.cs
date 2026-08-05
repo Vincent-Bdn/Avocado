@@ -27,6 +27,14 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<BillingInvoice> Invoices => Set<BillingInvoice>();
     public DbSet<BillingLedgerEntry> LedgerEntries => Set<BillingLedgerEntry>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Applies to nullable properties too. See UtcTimestampConverter for why this is not optional.
+        configurationBuilder.Properties<DateTimeOffset>().HaveConversion<UtcTimestampConverter>();
+
+        base.ConfigureConventions(configurationBuilder);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AvocadoDbContext).Assembly);

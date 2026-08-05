@@ -32,7 +32,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("contact_id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -40,7 +41,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("matter_id");
 
-                    b.Property<DateTimeOffset>("OccurredAt")
+                    b.Property<string>("OccurredAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("occurred_at");
 
@@ -80,7 +82,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("amount_excl_vat_cents");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -125,7 +128,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("amount_cents");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -166,7 +170,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("civility");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -219,7 +224,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("type");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
+                    b.Property<string>("UpdatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("updated_at");
 
@@ -241,7 +247,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -297,7 +304,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("activity_id");
 
-                    b.Property<DateTimeOffset>("AddedAt")
+                    b.Property<string>("AddedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("added_at");
 
@@ -370,7 +378,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("court_case_number");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 
@@ -398,7 +407,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("reference");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
+                    b.Property<string>("UpdatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("updated_at");
 
@@ -459,7 +469,8 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("activity_id");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT")
                         .HasColumnName("created_at");
 

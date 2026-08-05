@@ -28,8 +28,8 @@ namespace Avocado.Server.Data.Migrations
                     phone = table.Column<string>(type: "TEXT", maxLength: 40, nullable: true),
                     address = table.Column<string>(type: "TEXT", nullable: true),
                     notes = table.Column<string>(type: "TEXT", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    updated_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false),
+                    updated_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -48,8 +48,8 @@ namespace Avocado.Server.Data.Migrations
                     closed_on = table.Column<DateOnly>(type: "TEXT", nullable: true),
                     hourly_rate_cents = table.Column<long>(type: "INTEGER", nullable: false),
                     court_case_number = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    updated_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false),
+                    updated_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -62,13 +62,13 @@ namespace Avocado.Server.Data.Migrations
                 {
                     id = table.Column<Guid>(type: "TEXT", nullable: false),
                     matter_id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    occurred_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    occurred_at = table.Column<string>(type: "TEXT", nullable: false),
                     type = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     contact_id = table.Column<Guid>(type: "TEXT", nullable: true),
                     subject = table.Column<string>(type: "TEXT", maxLength: 300, nullable: true),
                     body = table.Column<string>(type: "TEXT", nullable: true),
                     tracking_number = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -99,7 +99,7 @@ namespace Avocado.Server.Data.Migrations
                     label = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
                     remind_days_before = table.Column<int>(type: "INTEGER", nullable: false),
                     is_done = table.Column<bool>(type: "INTEGER", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -123,7 +123,7 @@ namespace Avocado.Server.Data.Migrations
                     external_reference = table.Column<string>(type: "TEXT", maxLength: 120, nullable: true),
                     is_paid = table.Column<bool>(type: "INTEGER", nullable: false),
                     paid_on = table.Column<DateOnly>(type: "TEXT", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -145,7 +145,7 @@ namespace Avocado.Server.Data.Migrations
                     date = table.Column<DateOnly>(type: "TEXT", nullable: false),
                     amount_cents = table.Column<long>(type: "INTEGER", nullable: false),
                     label = table.Column<string>(type: "TEXT", maxLength: 300, nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -197,7 +197,7 @@ namespace Avocado.Server.Data.Migrations
                     size_bytes = table.Column<long>(type: "INTEGER", nullable: false),
                     mime_type = table.Column<string>(type: "TEXT", maxLength: 160, nullable: true),
                     document_date = table.Column<DateOnly>(type: "TEXT", nullable: true),
-                    added_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    added_at = table.Column<string>(type: "TEXT", nullable: false),
                     exhibit_number = table.Column<int>(type: "INTEGER", nullable: true),
                     exhibit_label = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true)
                 },
@@ -230,7 +230,7 @@ namespace Avocado.Server.Data.Migrations
                     is_billable = table.Column<bool>(type: "INTEGER", nullable: false),
                     hourly_rate_cents_override = table.Column<long>(type: "INTEGER", nullable: true),
                     activity_id = table.Column<Guid>(type: "TEXT", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "TEXT", nullable: false)
+                    created_at = table.Column<string>(type: "TEXT", nullable: false)
                 },
                 constraints: table =>
                 {
