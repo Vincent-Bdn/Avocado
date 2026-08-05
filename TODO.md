@@ -148,33 +148,145 @@ Decided now even though SaaS is hypothetical, because it costs nothing today and
 
 ---
 
-## 6. Data model
+## 6. Architecture: vertical slices
 
-**Documents are not a journal type.** Collapsing them loses the bordereau feature. The journal is a *stream
-of events*; a document is an *object with a life* — it arrives once, then gets re-scanned, communicated to
-the adverse party, deposited at court, cited in conclusions. Several journal entries, one document.
+Layered projects buy nothing at this size. One file per use case — request DTO, validation, handler and
+`MapXxx()` endpoint together.
 
 ```
-Tiers            (personne physique | morale, N roles across dossiers:
-                  client, partie adverse, confrère, magistrat, expert,
-                  commissaire de justice, notaire)
-
-Dossier          (réf auto 2026-0042, client(s), adverses + leurs avocats,
-                  nature, juridiction, n° RG, date d'ouverture, statut)
-├── JournalEntry (date, type, sens entrant/sortant, tiers?, texte, → Document[])
-├── Document     (fichier/blob, type, nom, date)        — any file
-├── Piece        (numéro, → Document)                   — a Document promoted to a numbered exhibit
-├── Bordereau    (date, destinataire, → Piece[])        — immutable snapshot → PDF
-├── Echeance     (audience, délai, date, rappel)
-├── TempsPasse   (date, durée, tâche, facturable o/n, taux)
-├── Provision    (date, montant)                        — advance payments received
-├── Debours      (date, montant, nature)                — costs advanced on the dossier
-└── Facturation  (date, montant HT, réf externe, payé o/n)  — tracking only, no generation
+src/
+├── Avocado.Vault/                  # shared kernel — NOT a slice
+│   ├── Crypto/                     # AEAD, KDF
+│   ├── Keys/                       # DEK/KEK envelope, OS keychain, recovery file
+│   ├── Storage/                    # SQLCipher connection, interceptor, migrate-with-backup
+│   ├── Blobs/                      # content-addressed encrypted blob store
+│   └── IVaultStore.cs              # the tenancy seam
+├── Avocado.Server/
+│   ├── Features/
+│   │   ├── Contacts/  Matters/  Activities/  Documents/
+│   │   ├── Deadlines/  Time/  Billing/
+│   │   ├── Search/                 # read-only, queries FTS5 directly
+│   │   └── Export/                 # reads everything
+│   ├── Data/AvocadoDbContext.cs
+│   └── Program.cs
+└── Avocado.Cli/                    # recover / export / verify-backup
 ```
 
-Key distinction in French procedure: **pièces are numbered and communicated with a bordereau; conclusions
-and courriers are not pièces.** So `Document` is the file, and `Piece` is "this document, promoted to
-exhibit n°7 in this dossier". The bordereau is an immutable snapshot of "pièces 1–12 communicated on date X".
+- **The vault is a separate assembly** because it is the security boundary (making "what touches keys"
+  auditable), it needs its own test suite, and **the CLI must use it without the web host** — when the app
+  won't start, `avocado recover` is the difference between "annoying" and "her practice is gone".
+- **No MediatR.** Minimal API endpoints calling handlers via DI give identical cohesion without the pipeline
+  indirection; middleware and endpoint filters already cover the cross-cutting concerns. (Its licensing also
+  went commercial.)
+- **The DbContext is horizontal and that's fine.** One context, but each `IEntityTypeConfiguration<T>` lives
+  in its slice folder next to the entity; `ApplyConfigurationsFromAssembly` collects them.
+- **Join entities live with their aggregate root** (`MatterParty` in `Matters/`).
+- **Tenancy plumbing lives in the composition root, once**: `TenantContext` → `IVaultStore.Open(id)` →
+  keyed `SqliteConnection` → `AvocadoDbContext`. On desktop `TenantContext` is a constant. No slice ever
+  thinks about it.
+
+### Naming: code English, UI French
+
+Nothing French crosses the API boundary. The backend sends enum keys (`IncomingLetter`); the React side owns
+a single `fr.ts` label map. That rule is what stops the two languages drifting into each other.
+
+| French | Code | Note |
+|---|---|---|
+| Dossier | `Matter` | The term of art in legal software. Not `Case`. |
+| Tiers | `Contact` | It's an address book; *tiers* only means "third party" generically. |
+| Pièce | `Exhibit` | Exact equivalent. |
+| Temps passé | `TimeEntry` | |
+| Échéance | `Deadline` | Lossy — also covers audiences — so `Type` includes `Hearing`. |
+| Facturation | `Invoice` | |
+| Provision | a `LedgerEntry` | Legal-English term of art: *retainer*. |
+| Débours | a `LedgerEntry` | Term of art: *disbursement*. |
+| N° RG | `CourtCaseNumber` | |
+
+`Activity`, not `JournalEntry`: *journal* and *ledger* are both accounting words, and this entity has
+nothing to do with accounting.
+
+- [ ] Keep [docs/GLOSSARY.md](docs/GLOSSARY.md) current — when she reports « le bordereau ne marche pas »,
+      the mapping to the English type has to live somewhere.
+
+---
+
+## 6b. Data model
+
+```
+Contact       Type (Individual | Organisation)
+              [individual:   Civility, LastName, FirstName, DateOfBirth]
+              [organisation: LegalName, Siren, LegalForm]
+              Email, Phone, Address, Notes
+
+Matter        Reference, Name, Description, OpenedOn, ClosedOn?,
+              HourlyRateCents, CourtCaseNumber?
+MatterParty   MatterId, ContactId, IsClient, Role (free text)
+
+Activity      MatterId, OccurredAt, Type, ContactId?, Subject, Body
+              Type: Call | IncomingEmail | OutgoingEmail | IncomingLetter
+                  | OutgoingLetter | Meeting | Note | Hearing | Other
+
+Document      MatterId, ActivityId?, BlobHash, FileName, SizeBytes,
+              MimeType, DocumentDate, AddedAt,
+              ExhibitNumber?, ExhibitLabel?
+
+Deadline      MatterId, Date, Time?, Type, Label, RemindDaysBefore, IsDone
+
+TimeEntry     MatterId, Date, DurationMinutes, Task, IsBillable,
+              HourlyRateCentsOverride?, ActivityId?
+
+LedgerEntry   MatterId, Date, AmountCents (signed), Label
+Invoice       MatterId, Date, AmountExclVatCents, ExternalReference,
+              IsPaid, PaidOn?
+```
+
+Eleven tables became nine. The decisions behind them:
+
+- **`HourlyRateCents` is non-nullable and snapshotted at matter creation.** Never resolve it dynamically —
+  a cabinet raising its rate must not silently reprice two years of history. `TimeEntry`'s nullable override
+  falls back to the matter's frozen rate, so it cannot drift either.
+- **`ClosedOn == null` *is* the status.** No status column needed for v1.
+- **`MatterParty.Role` is free text** so a new role never needs a release, but `IsClient` stays structural —
+  otherwise "who is this matter for" and "who do I bill" are unanswerable and the matter list has no
+  Client column.
+- **Direction is folded into `Activity.Type`**, not a separate field. It's meaningless for calls and notes,
+  but for letters « envoyé le 12/03 » vs « reçu le 15/03 » starts délais and proves diligence.
+- **`Exhibit` collapsed into `Document`** as two nullable columns — the relationship is 1:1. In French
+  procedure, pièces are evidence *communicated to the other side*, numbered, and cited in conclusions
+  (« la pièce n°7 »), with a label written for the judge — « Contrat de travail de M. Dupont du 12 mars
+  2019 », not `scan_003.pdf`. Conclusions and client correspondence are never pièces.
+- **`CourtCaseNumber` (n° RG)** is nullable — conseil, rédaction d'actes and transactions never go to court.
+  It's kept for one reason: when the greffe calls they say the RG number, not the client's name. It is a
+  **search key**. *(pending her confirmation)*
+- **`Document.ActivityId?`** is a nullable FK, not a join table.
+
+### The billing boundary — one rule
+
+The fuzzy part, and where getting her workflow wrong makes the headline number silently wrong:
+
+> **`Invoice`** = what has been billed (has an external ref and a paid state).
+> **`LedgerEntry`** = money that moved *without* an invoice — provision reçue sans facture, débours,
+> correction. Signed: **positive = received from the client, negative = advanced on the matter**.
+
+Never enter the same money as both. Then:
+
+```
+Left to bill = Σ(billable time) − Σ(ledger entries) − Σ(invoiced)
+```
+
+- [ ] Never expose a raw signed field in the UI. Two buttons — **Encaissement** / **Débours** — that set the
+      sign. Otherwise débours get entered as positive and every balance is wrong.
+- [ ] Confirm this rule with her specifically; accounting habits vary a lot between practices.
+
+### Storage footguns
+
+- [ ] **Money as `long` cents, never `decimal`.** SQLite has no decimal type; EF stores it as TEXT, and then
+      `ORDER BY amount` sorts lexicographically. Durations as `int` minutes for the same reason.
+- [ ] **`Guid.CreateVersion7()` for PKs**, not int identity. Monotonic so index locality is fine, and it
+      costs nothing today while removing a painful migration if two vaults are ever merged, her old data is
+      imported, or a second user is added.
+- [ ] **`DateTimeOffset` for activity timestamps** (ISO 8601 TEXT sorts correctly), **`DateOnly` for
+      deadlines** — a délai has no time, an audience does, hence the separate nullable `Time`.
 
 ---
 
@@ -187,15 +299,15 @@ exhibit n°7 in this dossier". The bordereau is an immutable snapshot of "pièce
 - [ ] **Dossiers** — the central object.
 - [ ] **Journal** — appels, mails, RDV, notes. This *is* « le suivi ».
       **Make it the single fastest interaction in the app.**
-- [ ] **Documents** — drag & drop, typage, PDF preview.
-- [ ] **Pièces + bordereau de communication** — numbering + PDF generation.
-      Small to build, daily pain, this is the "oh, this is better than Gestisoft" moment.
+- [ ] **Documents** — drag & drop, typage, PDF preview, **numérotation des pièces** (numéro + libellé).
 - [ ] **Échéances / agenda** — audiences et délais, exposed as a **read-only ICS feed** so it lands on her
       phone. Read-only feed, not two-way sync: 10× cheaper, 90% of the value.
-- [ ] **Temps passé** — timer + manual entry, taux horaire, facturable o/n.
-- [ ] **Détail à facturer** — per-dossier: temps passé + débours − provisions déjà reçues = reste à
-      facturer. **Not** an invoice; the content to paste into her invoicing platform.
-      Without provisions tracking this number is simply wrong.
+- [ ] **Temps passé** — timer + manual entry, taux horaire, facturable o/n. Logging « appel client, 20 min »
+      must create the activity **and** the time entry in one keystroke (`TimeEntry.ActivityId`). In
+      Gestisoft those are two separate screens, which is why lawyers under-record billable time.
+      This single link is probably the highest-value thing in the model.
+- [ ] **Détail à facturer** — per-matter: `Σ(billable time) − Σ(ledger) − Σ(invoiced)`. **Not** an invoice;
+      the content to paste into her invoicing platform.
 - [ ] **Recherche globale ⌘K** — instant, fuzzy, across everything. Alone, this will feel like a different
       century than Gestisoft.
 
@@ -213,6 +325,11 @@ exhibit n°7 in this dossier". The bordereau is an immutable snapshot of "pièce
 
 ## 8. Deferred (post-v1)
 
+- **Bordereau de communication de pièces** — she says it isn't mandatory, so it's out of v1. Because
+  `Document.ExhibitNumber` / `ExhibitLabel` are kept, adding it later is **purely additive**: two tables
+  (`ExhibitList` + `ExhibitListLine`, a frozen snapshot so a bordereau sent in March still shows what was
+  actually sent in March) and a PDF. No migration of existing data. PDF via **QuestPDF** (Community
+  License free under $1M revenue).
 - Modèles de courriers / publipostage (DOCX templating) — high value, likely v1.5.
 - Calcul automatique des délais de procédure — high value **and** high liability. Advisory only, with an
   explicit disclaimer, if ever.
@@ -250,9 +367,10 @@ rewritten in an afternoon.
 3. **Backup + restore**, tested in CI.
 4. Design system from Claude Design → see [docs/DESIGN-BRIEF.md](docs/DESIGN-BRIEF.md).
 5. Electron shell + hardened localhost API.
-6. Domain CRUD: Tiers → Dossiers → Journal → Documents.
-7. Pièces + bordereau.
-8. Temps passé + détail à facturer.
-9. Échéances + ICS feed.
+6. Domain CRUD: `Contact` → `Matter` + `MatterParty` → `Activity` → `Document`.
+   **These seven tables are a working, useful app on their own** — with `Deadline` and `TimeEntry` below.
+7. `TimeEntry` (incl. the one-keystroke activity+time link) → « détail à facturer ».
+8. `Deadline` + ICS feed.
+9. `LedgerEntry` + `Invoice` — additive, nothing above depends on them.
 10. Recherche globale ⌘K.
 11. « Tout exporter ».
