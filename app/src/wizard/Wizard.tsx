@@ -2,8 +2,11 @@ import { useState } from 'react'
 import { Check, Clock, Lock, ShieldCheck } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
+import { Button } from '../components/ui/button.js'
+import { cn } from '../lib/utils.js'
 import { StepRecovery } from './StepRecovery.js'
 import { StepVault } from './StepVault.js'
+import { Point, Points, WizardFootnote, WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
 const steps = ['Bienvenue', 'Coffre', 'Clé de récupération', 'Terminé'] as const
 
@@ -28,23 +31,34 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
   }
 
   return (
-    <div className="wizard">
-      <header className="wizard-bar">
-        <img src="./icon.png" alt="" className="wizard-mark" />
-        <span className="wizard-word">Avocado</span>
+    <div className="grid h-full grid-rows-[56px_minmax(0,1fr)] bg-app">
+      <header className="flex items-center gap-3 border-b border-line-subtle bg-panel px-7">
+        <img src="./icon.png" alt="" className="h-6 w-6 rounded-lg" />
+        <span className="flex-1 text-title font-semibold tracking-[-0.02em]">Avocado</span>
 
-        <ol className="wizard-steps">
+        <ol className="m-0 flex list-none items-center gap-2 p-0 text-[11.5px]">
           {steps.map((label, index) => (
-            <li key={label}>
-              {index > 0 && <span className="step-link" aria-hidden="true" />}
+            <li key={label} className="flex items-center gap-2">
+              {/* The 18px rule between steps is what makes the row read as a sequence. */}
+              {index > 0 && <span aria-hidden="true" className="h-px w-[18px] bg-line" />}
 
               <span
-                className={index < step ? 'step-done' : index === step ? 'step-current' : 'step-later'}
+                className={cn(
+                  'flex items-center gap-1.5 leading-4',
+                  index < step && 'text-ink-secondary',
+                  index === step && 'font-medium text-ink',
+                  index > step && 'text-muted',
+                )}
               >
                 {index < step ? (
-                  <Check size={12} strokeWidth={3} className="step-check" />
+                  <Check size={12} strokeWidth={3} className="text-brand" />
                 ) : (
-                  <span className="step-dot" />
+                  <span
+                    className={cn(
+                      'h-[7px] w-[7px] rounded-full',
+                      index === step ? 'bg-brand' : 'border-[1.5px] border-[#c0c6bb]',
+                    )}
+                  />
                 )}
                 {label}
               </span>
@@ -53,7 +67,7 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
         </ol>
       </header>
 
-      <main className="wizard-content">
+      <main className="grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
         {step === 0 && <StepWelcome onContinue={() => setStep(1)} />}
 
         {step === 1 && (
@@ -92,65 +106,42 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
 function StepWelcome({ onContinue }: { onContinue: () => void }) {
   return (
     <>
-      <div className="wizard-scroll">
-        <div className="wizard-column">
-          <h1>Bonjour, et bienvenue dans Avocado.</h1>
+      <WizardScroll>
+        <WizardTitle>Bonjour, et bienvenue dans Avocado.</WizardTitle>
 
-          <p className="lead">
-            Trois minutes de réglages, puis vous n’entendrez plus parler de tout ceci. Deux choses
-            méritent votre attention : <strong>où vivront vos dossiers</strong>, et{' '}
-            <strong>comment les retrouver si cet ordinateur disparaît</strong>.
-          </p>
+        <WizardLead>
+          Trois minutes de réglages, puis vous n’entendrez plus parler de tout ceci. Deux choses
+          méritent votre attention : <strong>où vivront vos dossiers</strong>, et{' '}
+          <strong>comment les retrouver si cet ordinateur disparaît</strong>.
+        </WizardLead>
 
-          <div className="points">
-            <article className="point">
-              <Lock size={16} strokeWidth={1.75} />
-              <div>
-                <span className="point-title">Tout reste sur votre ordinateur, chiffré</span>
-                <span className="point-body">
-                  Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien
-                  à négocier avec un hébergeur.
-                </span>
-              </div>
-            </article>
+        <Points>
+          <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Tout reste sur votre ordinateur, chiffré">
+            Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien à
+            négocier avec un hébergeur.
+          </Point>
 
-            <article className="point">
-              <Clock size={16} strokeWidth={1.75} />
-              <div>
-                <span className="point-title">Aucun mot de passe à retenir au quotidien</span>
-                <span className="point-body">
-                  La clé est gardée par votre système et liée à cette machine et à votre session. Vous
-                  ouvrez l’application, elle s’ouvre.
-                </span>
-              </div>
-            </article>
+          <Point icon={<Clock size={16} strokeWidth={1.75} />} title="Aucun mot de passe à retenir au quotidien">
+            La clé est gardée par votre système et liée à cette machine et à votre session. Vous
+            ouvrez l’application, elle s’ouvre.
+          </Point>
 
-            <article className="point">
-              <ShieldCheck size={16} strokeWidth={1.75} />
-              <div>
-                <span className="point-title">
-                  Une clé de récupération, à mettre à l’abri une bonne fois
-                </span>
-                <span className="point-body">
-                  C’est elle qui rendra vos sauvegardes lisibles sur une autre machine. Nous y
-                  viendrons à la troisième étape.
-                </span>
-              </div>
-            </article>
-          </div>
+          <Point
+            icon={<ShieldCheck size={16} strokeWidth={1.75} />}
+            title="Une clé de récupération, à mettre à l’abri une bonne fois"
+          >
+            C’est elle qui rendra vos sauvegardes lisibles sur une autre machine. Nous y viendrons à
+            la troisième étape.
+          </Point>
+        </Points>
 
-          <p className="footnote muted">
-            Version 1.0 · logiciel libre · aucune donnée ne quitte ce poste
-          </p>
-        </div>
-      </div>
+        <WizardFootnote>Version 1.0 · logiciel libre · aucune donnée ne quitte ce poste</WizardFootnote>
+      </WizardScroll>
 
-      <footer className="wizard-gate">
-        <span className="grow" />
-        <button type="button" onClick={onContinue}>
-          Commencer
-        </button>
-      </footer>
+      <WizardGate>
+        <span className="flex-1" />
+        <Button size="lg" onClick={onContinue}>Commencer</Button>
+      </WizardGate>
     </>
   )
 }
@@ -187,46 +178,34 @@ function StepDone({ directory, created, onCommit, onFinish }: {
 
   return (
     <>
-      <div className="wizard-scroll">
-        <div className="wizard-column">
-          <h1>Tout est prêt.</h1>
+      <WizardScroll>
+        <WizardTitle>Tout est prêt.</WizardTitle>
 
-          <div className="points">
-            <article className="point">
-              <Lock size={16} strokeWidth={1.75} />
-              <div>
-                <span className="point-title">Le coffre sera créé et chiffré</span>
-                <span className="point-body mono">{directory}</span>
-              </div>
-            </article>
+        <Points>
+          <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Le coffre sera créé et chiffré" mono>
+            {directory}
+          </Point>
 
-            <article className="point">
-              <ShieldCheck size={16} strokeWidth={1.75} />
-              <div>
-                <span className="point-title">Clé de récupération mise à l’abri</span>
-                <span className="point-body">
-                  Elle seule rouvrira vos sauvegardes sur un autre ordinateur.
-                </span>
-              </div>
-            </article>
-          </div>
+          <Point icon={<ShieldCheck size={16} strokeWidth={1.75} />} title="Clé de récupération mise à l’abri">
+            Elle seule rouvrira vos sauvegardes sur un autre ordinateur.
+          </Point>
+        </Points>
 
-          <p className="footnote muted">
-            Les sauvegardes automatiques et le choix de leur destination arriveront avec les réglages.
-            Une sauvegarde est un fichier fermé, que la synchronisation copie sans risque : c’est le
-            coffre lui-même qui ne devait pas s’y trouver.
-          </p>
+        <WizardFootnote>
+          Les sauvegardes automatiques et le choix de leur destination arriveront avec les réglages.
+          Une sauvegarde est un fichier fermé, que la synchronisation copie sans risque : c’est le
+          coffre lui-même qui ne devait pas s’y trouver.
+        </WizardFootnote>
 
-          {error && <p className="danger">{error}</p>}
-        </div>
-      </div>
+        {error && <p className="mt-3 mb-0 text-danger">{error}</p>}
+      </WizardScroll>
 
-      <footer className="wizard-gate">
-        <span className="grow" />
-        <button type="button" disabled={busy} onClick={() => void finish()}>
+      <WizardGate>
+        <span className="flex-1" />
+        <Button size="lg" disabled={busy} onClick={() => void finish()}>
           {busy ? 'Création du coffre…' : 'Créer le coffre et ouvrir Avocado'}
-        </button>
-      </footer>
+        </Button>
+      </WizardGate>
     </>
   )
 }

@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Clock,
-  Gavel,
-  Mail,
-  MailOpen,
-  Paperclip,
-  Pencil,
-  Phone,
-  StickyNote,
-  Trash2,
-  Users,
-  X,
+  Clock, Gavel, Mail, MailOpen, Paperclip, Pencil, Phone, StickyNote, Trash2, Users, X,
 } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
+import { Button } from './components/ui/button.js'
+import { Chip, ChipSpan } from './components/ui/chip.js'
+import { EmptyState } from './components/ui/empty-state.js'
+import { Input } from './components/ui/input.js'
+import { Textarea } from './components/ui/textarea.js'
+import { cn } from './lib/utils.js'
+import { formatSize } from './lib/urgency.js'
 import { activityLabels, composerTypes, formatDate, formatDuration, formatTime, weekLabel } from './labels.js'
 import type { ActivityListItem, ActivityListPage, ActivityType } from './types.js'
 
@@ -63,31 +60,23 @@ export function Journal({ matterId, isOpen, onChanged }: {
     }, UNDO_MS)
   }
 
-  function undo() {
-    if (undoTimer.current) clearTimeout(undoTimer.current)
-    setPendingDelete(null)
-  }
-
   const visible = page?.items.filter((entry) => entry.id !== pendingDelete?.id) ?? []
 
   return (
-    <div className="journal">
+    <div className="relative flex min-w-0 flex-col overflow-hidden">
       {isOpen ? (
         <Composer matterId={matterId} onAdded={() => { reload(); onChanged() }} />
       ) : (
         <ClosedNotice />
       )}
 
-      {error && <p className="danger">{error}</p>}
+      {error && <p className="px-4 text-danger">{error}</p>}
 
-      <div className="timeline">
+      <div className="flex-1 overflow-y-auto px-4 pb-4">
         {visible.length === 0 && (
-          <div className="empty">
-            <h3>Le journal est vide</h3>
-            <p className="muted">
-              Notez le prochain appel dès que vous raccrochez : deux lignes suffisent.
-            </p>
-          </div>
+          <EmptyState title="Le journal est vide" className="mt-4">
+            Notez le prochain appel dès que vous raccrochez : deux lignes suffisent.
+          </EmptyState>
         )}
 
         {visible.map((entry, index) => {
@@ -97,7 +86,11 @@ export function Journal({ matterId, isOpen, onChanged }: {
 
           return (
             <div key={entry.id}>
-              {showSeparator && <div className="week">{separator}</div>}
+              {showSeparator && (
+                <div className="pt-[11px] pb-[5px] font-mono text-[10px] tracking-[0.05em] uppercase text-muted">
+                  {separator}
+                </div>
+              )}
 
               {editing === entry.id ? (
                 <EditEntry
@@ -121,9 +114,19 @@ export function Journal({ matterId, isOpen, onChanged }: {
       </div>
 
       {pendingDelete && (
-        <div className="toast" role="status">
+        <div
+          role="status"
+          className="absolute right-4 bottom-4 flex items-center gap-3 rounded-lg border border-line border-l-[3px] border-l-info bg-raised px-3 py-2 text-[12px] shadow-e1"
+        >
           <span>Entrée supprimée</span>
-          <button type="button" className="link-button" onClick={undo}>
+          <button
+            type="button"
+            className="underline text-ink-secondary"
+            onClick={() => {
+              if (undoTimer.current) clearTimeout(undoTimer.current)
+              setPendingDelete(null)
+            }}
+          >
             Annuler
           </button>
         </div>
@@ -135,11 +138,13 @@ export function Journal({ matterId, isOpen, onChanged }: {
 /** Frame 1d: the composer is replaced, not disabled, and the copy explains rather than forbids. */
 function ClosedNotice() {
   return (
-    <div className="frozen">
-      <Clock size={15} strokeWidth={1.75} />
+    <div className="m-4 flex items-start gap-3 rounded-lg border border-line-subtle bg-app px-3.5 py-3">
+      <Clock size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-muted" />
       <div>
-        <p><strong>Ce dossier est clôturé, le journal est donc figé.</strong></p>
-        <p className="muted">
+        <p className="m-0 text-[12.5px] leading-[19px]">
+          <strong>Ce dossier est clôturé, le journal est donc figé.</strong>
+        </p>
+        <p className="m-0 mt-1 text-[12.5px] leading-[19px] text-muted">
           Les entrées, les documents et les heures saisies restent consultables et cherchables. Rien
           n’a été supprimé. Pour reprendre l’écriture, rouvrez le dossier : la date de clôture est
           effacée, le dossier repasse « en cours » et le journal note la réouverture.
@@ -159,6 +164,19 @@ const typeIcons: Record<ActivityType, typeof Phone> = {
   Note: StickyNote,
   Hearing: Gavel,
   Other: StickyNote,
+}
+
+/** Brand for calls, info for mail and meetings, neutral otherwise. Tint fill, never full colour. */
+const typeTone: Record<ActivityType, string> = {
+  Call: 'bg-brand-subtle border-brand text-brand',
+  IncomingEmail: 'bg-sunken border-info text-info',
+  OutgoingEmail: 'bg-sunken border-info text-info',
+  IncomingLetter: 'bg-sunken border-line text-ink-secondary',
+  OutgoingLetter: 'bg-sunken border-line text-ink-secondary',
+  Meeting: 'bg-sunken border-info text-info',
+  Note: 'bg-sunken border-line text-ink-secondary',
+  Hearing: 'bg-sunken border-line text-ink-secondary',
+  Other: 'bg-sunken border-line text-ink-secondary',
 }
 
 function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
@@ -182,36 +200,45 @@ function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
   }
 
   return (
-    <article className="entry">
-      <div className="gutter mono">
+    <article className="group relative grid grid-cols-[58px_20px_minmax(0,1fr)] gap-2 border-t border-line-subtle py-2 hover:bg-app hover:shadow-[inset_2px_0_0_var(--border-default)]">
+      <div className="font-mono text-[11px] leading-[15px] tnum">
         <div>{formatDate(entry.occurredAt)}</div>
-        <div className="disabled">{formatTime(entry.occurredAt)}</div>
+        <div className="text-disabled">{formatTime(entry.occurredAt)}</div>
       </div>
 
-      <div className={`dot dot-${toneOf(entry.type)}`}>
+      <div className={cn('grid h-5 w-5 place-items-center rounded-full border', typeTone[entry.type])}>
         <Icon size={11} strokeWidth={2} />
       </div>
 
-      <div className="body">
-        <div className="line1">
-          <strong>{activityLabels[entry.type]}</strong>
-          {entry.contactName && <span className="entry-contact">{entry.contactName}</span>}
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-baseline gap-1.5 text-[12.5px] leading-[17px]">
+          <strong className="font-medium">{activityLabels[entry.type]}</strong>
+          {entry.contactName && (
+            <span className="text-[11.5px] text-ink-secondary">{entry.contactName}</span>
+          )}
           {entry.durationMinutes && (
-            <span className="chip-time mono">
+            <ChipSpan tone="time" className="font-mono tnum">
               <Clock size={10} strokeWidth={2} />
               {formatDuration(entry.durationMinutes)}
-            </span>
+            </ChipSpan>
           )}
-          {entry.trackingNumber && <span className="muted mono micro">{entry.trackingNumber}</span>}
+          {entry.trackingNumber && (
+            <span className="font-mono text-[11px] text-muted">{entry.trackingNumber}</span>
+          )}
         </div>
 
-        {entry.subject && <div className="subject">{entry.subject}</div>}
-        {entry.body && <p>{entry.body}</p>}
+        {entry.subject && <div className="text-[12.5px] leading-[19px]">{entry.subject}</div>}
+        {entry.body && (
+          <p className="m-0 mt-0.5 text-[12.5px] leading-[19px] text-ink-secondary">{entry.body}</p>
+        )}
 
         {entry.attachments.length > 0 && (
-          <div className="attachments">
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             {entry.attachments.map((attachment) => (
-              <span key={attachment.id} className="attachment mono">
+              <span
+                key={attachment.id}
+                className="rounded-sm border border-line-subtle bg-app px-1.5 py-px font-mono text-[10.5px] text-ink-secondary"
+              >
                 {attachment.name} · {formatSize(attachment.sizeBytes)}
                 {attachment.exhibitNumber !== null && ` · pièce n° ${attachment.exhibitNumber}`}
               </span>
@@ -220,18 +247,18 @@ function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
         )}
       </div>
 
-      {/* Revealed on hover in a fourth column, so the row height never changes. */}
+      {/* Always present, only its opacity changes, so the row never reflows on hover. */}
       {canEdit && (
-        <div className="entry-actions">
-          <button type="button" title="Modifier" onClick={onEdit}>
+        <div className="absolute top-1.5 right-0 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <EntryAction label="Modifier" onClick={onEdit}>
             <Pencil size={13} strokeWidth={1.75} />
-          </button>
-          <button type="button" title="Joindre un fichier" onClick={() => file.current?.click()}>
+          </EntryAction>
+          <EntryAction label="Joindre un fichier" onClick={() => file.current?.click()}>
             <Paperclip size={13} strokeWidth={1.75} />
-          </button>
-          <button type="button" className="danger-action" title="Supprimer" onClick={onDelete}>
+          </EntryAction>
+          <EntryAction label="Supprimer" danger onClick={onDelete}>
             <Trash2 size={13} strokeWidth={1.75} />
-          </button>
+          </EntryAction>
 
           <input
             ref={file}
@@ -243,6 +270,28 @@ function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
         </div>
       )}
     </article>
+  )
+}
+
+function EntryAction({ label, danger, onClick, children }: {
+  label: string
+  danger?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={cn(
+        'grid h-6 w-6 place-items-center rounded-md border border-line-subtle bg-panel hover:bg-hover',
+        danger ? 'text-danger hover:border-danger' : 'text-ink-secondary',
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -279,48 +328,28 @@ function EditEntry({ entry, onCancel, onSaved }: {
   }
 
   return (
-    <div className="entry-edit">
-      <div className="types">
+    <div className="grid gap-2 border-t border-line-subtle py-3">
+      <div className="flex flex-wrap gap-[5px]">
         {composerTypes.map((candidate) => (
-          <button
+          <Chip
             key={candidate}
-            type="button"
-            className={`chip ${candidate === type ? 'chip-active' : ''}`}
+            tone={candidate === type ? 'active' : 'idle'}
             onClick={() => setType(candidate)}
           >
             {activityLabels[candidate]}
-          </button>
+          </Chip>
         ))}
       </div>
 
-      <input value={subject} onChange={(event) => setSubject(event.target.value)} />
-      <textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
+      <Input value={subject} onChange={(event) => setSubject(event.target.value)} />
+      <Textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
 
-      <div className="composer-actions">
-        <span className="grow" />
-        <button type="button" className="secondary-button" onClick={onCancel}>
-          Annuler
-        </button>
-        <button type="button" disabled={busy || !subject.trim()} onClick={() => void save()}>
-          Enregistrer
-        </button>
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onCancel}>Annuler</Button>
+        <Button disabled={busy || !subject.trim()} onClick={() => void save()}>Enregistrer</Button>
       </div>
     </div>
   )
-}
-
-/** Colour family of the type dot: brand for calls, info for mail and meetings, neutral otherwise. */
-function toneOf(type: ActivityType): 'brand' | 'info' | 'neutral' {
-  if (type === 'Call') return 'brand'
-  if (type === 'IncomingEmail' || type === 'OutgoingEmail' || type === 'Meeting') return 'info'
-  return 'neutral'
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-
-  return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`
 }
 
 function Composer({ matterId, onAdded }: { matterId: string; onAdded: () => void }) {
@@ -346,9 +375,7 @@ function Composer({ matterId, onAdded }: { matterId: string; onAdded: () => void
     return () => window.removeEventListener('keydown', focus)
   }, [])
 
-  const durationMinutes = timeAttached
-    ? Number(hours || 0) * 60 + Number(minutes || 0)
-    : 0
+  const durationMinutes = timeAttached ? Number(hours || 0) * 60 + Number(minutes || 0) : 0
 
   async function add() {
     if (!text.trim()) return
@@ -379,21 +406,20 @@ function Composer({ matterId, onAdded }: { matterId: string; onAdded: () => void
   }
 
   return (
-    <div className="composer">
-      <div className="types">
+    <div className="grid shrink-0 gap-2 border-b border-line-subtle px-4 py-3">
+      <div className="flex flex-wrap gap-[5px]">
         {composerTypes.map((candidate) => (
-          <button
+          <Chip
             key={candidate}
-            type="button"
-            className={`chip ${candidate === type ? 'chip-active' : ''}`}
+            tone={candidate === type ? 'active' : 'idle'}
             onClick={() => setType(candidate)}
           >
             {activityLabels[candidate]}
-          </button>
+          </Chip>
         ))}
       </div>
 
-      <textarea
+      <Textarea
         ref={textarea}
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -407,45 +433,51 @@ function Composer({ matterId, onAdded }: { matterId: string; onAdded: () => void
         }}
       />
 
-      <div className="composer-actions">
+      <div className="flex items-center gap-2">
         {!timeAttached ? (
-          <button type="button" className="chip chip-dashed" onClick={() => setTimeAttached(true)}>
-            ＋ temps passé
-          </button>
+          <Chip tone="dashed" onClick={() => setTimeAttached(true)}>＋ temps passé</Chip>
         ) : (
-          <span className="chip-time duration-entry">
+          <ChipSpan tone="time">
             <Clock size={11} strokeWidth={2} />
-            <input
-              className="mono unit"
-              inputMode="numeric"
-              placeholder="0"
-              value={hours}
-              onChange={(event) => setHours(event.target.value.replace(/\D/g, ''))}
-              aria-label="Heures"
-            />
-            h
-            <input
-              className="mono unit"
-              inputMode="numeric"
-              placeholder="00"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ''))}
-              aria-label="Minutes"
-            />
+            <UnitInput value={hours} onChange={setHours} label="Heures" placeholder="0" />h
+            <UnitInput value={minutes} onChange={setMinutes} label="Minutes" placeholder="00" />
             · facturable
-            <button type="button" className="unchip" onClick={() => setTimeAttached(false)} aria-label="Retirer">
+            <button
+              type="button"
+              aria-label="Retirer"
+              className="ml-0.5"
+              onClick={() => setTimeAttached(false)}
+            >
               <X size={11} strokeWidth={2.5} />
             </button>
-          </span>
+          </ChipSpan>
         )}
 
-        <span className="grow" />
-        {error && <span className="danger">{error}</span>}
-        <span className="muted mono kbd-hint">⌘⏎</span>
-        <button type="button" disabled={busy || !text.trim()} onClick={() => void add()}>
-          Ajouter
-        </button>
+        <span className="flex-1" />
+        {error && <span className="text-danger">{error}</span>}
+        <span className="font-mono text-kbd text-muted">⌘⏎</span>
+        <Button disabled={busy || !text.trim()} onClick={() => void add()}>Ajouter</Button>
       </div>
     </div>
+  )
+}
+
+/** Two numeric fields rather than parsed prose: « 30 minutes » is a sentence, and guessing at
+ *  sentences is how a duration silently lands wrong. */
+function UnitInput({ value, onChange, label, placeholder }: {
+  value: string
+  onChange: (next: string) => void
+  label: string
+  placeholder: string
+}) {
+  return (
+    <input
+      aria-label={label}
+      inputMode="numeric"
+      placeholder={placeholder}
+      value={value}
+      onChange={(event) => onChange(event.target.value.replace(/\D/g, ''))}
+      className="h-4 w-[26px] border-0 bg-transparent p-0 text-center font-mono text-[11px] text-inherit focus-visible:outline-none tnum"
+    />
   )
 }

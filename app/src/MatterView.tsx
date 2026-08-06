@@ -10,8 +10,9 @@ import { Badge } from './components/ui/badge.js'
 import { Button } from './components/ui/button.js'
 import { Panel } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
+import { TierBullet, distance, initials, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
-import type { DeadlineUrgency, MatterDetail } from './types.js'
+import type { MatterDetail } from './types.js'
 
 type Tab = 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 
@@ -264,47 +265,3 @@ const ContextTitle = ({ children }: { children: string }) => (
     {children}
   </h3>
 )
-
-const tierBorder: Record<DeadlineUrgency, string> = {
-  Overdue: 'border-l-danger',
-  Today: 'border-l-accent',
-  ThisWeek: 'border-l-info',
-  Later: 'border-l-line',
-}
-
-/** Four tiers, four shapes, so a black and white printout stays readable. */
-function TierBullet({ urgency }: { urgency: DeadlineUrgency }) {
-  const shape: Record<DeadlineUrgency, string> = {
-    Overdue: 'bg-danger rotate-45',
-    Today: 'bg-accent rounded-full',
-    ThisWeek: 'rounded-full border-[1.5px] border-info',
-    Later: 'rounded-full bg-[#c0c6bb]',
-  }
-
-  return <span aria-hidden="true" className={cn('h-[7px] w-[7px] shrink-0', shape[urgency])} />
-}
-
-/** « 11/03 · dépassée de 3 j », « aujourd'hui · 17:00 », « 19/03 · dans 4 j ». */
-function distance(date: string, time: string | null): string {
-  const day = new Date(`${date}T00:00:00`)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const days = Math.round((day.getTime() - today.getTime()) / 86_400_000)
-  const shown = day.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-
-  if (days === 0) return time ? `aujourd’hui · ${time.slice(0, 5)}` : 'aujourd’hui'
-  if (days < 0) return `${shown} · dépassée de ${-days} j`
-  if (days < 31) return `${shown} · dans ${days} j`
-
-  return `${shown} · dans ${Math.round(days / 30)} mois`
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('')
-}

@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { ApiError, api } from '../api.js'
-import { urgencyLabels } from '../labels.js'
+import { EmptyState } from '../components/ui/empty-state.js'
+import { PageHeader } from '../components/ui/page-header.js'
+import { Panel } from '../components/ui/panel.js'
+import { cn } from '../lib/utils.js'
+import { TierCaption, tierBorder } from '../lib/urgency.js'
+import { RowAction, TabPanel } from '../tabs/shared.js'
 import type { DeadlineUrgency } from '../types.js'
 
 interface MatterDeadline {
@@ -44,27 +49,24 @@ export function UpcomingDeadlines({ onOpenMatter }: { onOpenMatter: (id: string)
   }
 
   return (
-    <div className="content">
-      <header className="matter-header">
-        <div className="line1">
-          <h2>Échéances</h2>
-        </div>
-        <div className="line2">
-          {items.length} échéance{items.length > 1 ? 's' : ''} à surveiller, tous dossiers confondus
-        </div>
-      </header>
+    <Panel>
+      <PageHeader
+        title="Échéances"
+        meta={
+          <span>
+            {items.length} échéance{items.length > 1 ? 's' : ''} à surveiller, tous dossiers confondus
+          </span>
+        }
+      />
 
-      <div className="tab-panel">
-        {error && <p className="danger">{error}</p>}
+      <TabPanel className="flex-1">
+        {error && <p className="m-0 text-danger">{error}</p>}
 
         {items.length === 0 && (
-          <div className="empty">
-            <h3>Rien à surveiller</h3>
-            <p className="muted">
-              Les audiences et les délais que vous notez dans un dossier apparaissent ici, du plus
-              urgent au plus lointain.
-            </p>
-          </div>
+          <EmptyState title="Rien à surveiller">
+            Les audiences et les délais que vous notez dans un dossier apparaissent ici, du plus
+            urgent au plus lointain.
+          </EmptyState>
         )}
 
         {tiers.map((tier) => {
@@ -73,43 +75,44 @@ export function UpcomingDeadlines({ onOpenMatter }: { onOpenMatter: (id: string)
 
           return (
             <div key={tier}>
-              <div className="tier-caption mono">
-                <span className={`tier tier-${tier.toLowerCase()}`} />
-                {urgencyLabels[tier]} · {group.length}
-              </div>
+              <TierCaption urgency={tier} count={group.length} />
 
               {group.map((deadline) => (
-                <div key={deadline.id} className={`home-deadline urgency-${tier.toLowerCase()}`}>
+                <div
+                  key={deadline.id}
+                  className={cn(
+                    'group flex items-center gap-2.5 border-t border-line-subtle border-l-[3px] px-2 py-1.5',
+                    tierBorder[tier],
+                  )}
+                >
                   <button
                     type="button"
-                    className="home-deadline-text as-link"
                     onClick={() => onOpenMatter(deadline.matterId)}
+                    className="grid min-w-0 flex-1 text-left"
                   >
-                    <span className="deadline-label">{deadline.label}</span>
-                    <span className="muted micro">
+                    <span className="truncate text-[12.5px]">{deadline.label}</span>
+                    <span className="truncate text-[11px] text-muted">
                       {deadline.matterReference} · {deadline.matterName}
                     </span>
                   </button>
 
-                  <span className="mono micro nowrap">
+                  <span className="shrink-0 font-mono text-[11px] whitespace-nowrap text-ink-secondary tnum">
                     {new Date(deadline.date).toLocaleDateString('fr-FR')}
                     {deadline.time && ` · ${deadline.time.slice(0, 5)}`}
                   </span>
 
-                  <button
-                    type="button"
-                    className="ghost-button"
-                    title="Marquer comme faite"
-                    onClick={() => void markDone(deadline)}
-                  >
-                    <Check size={13} strokeWidth={2} />
-                  </button>
+                  {/* The action appears on hover so the list stays a list, not a wall of buttons. */}
+                  <span className="opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                    <RowAction label="Marquer comme faite" onClick={() => void markDone(deadline)}>
+                      <Check size={13} strokeWidth={2} />
+                    </RowAction>
+                  </span>
                 </div>
               ))}
             </div>
           )
         })}
-      </div>
-    </div>
+      </TabPanel>
+    </Panel>
   )
 }

@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, FileDown, Printer, Usb } from 'lucide-react'
+import { Badge } from '../components/ui/badge.js'
+import { Button } from '../components/ui/button.js'
+import { cn } from '../lib/utils.js'
 
 interface Drive {
   path: string
@@ -74,130 +77,142 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
     }
   }
 
-  return (
-    <div className="secure-options">
-      <section className="option option-recommended">
-        <header>
-          <Printer size={16} strokeWidth={1.75} />
-          <h3>L’imprimer</h3>
-          <span className="badge-recommended">recommandé</span>
-        </header>
+  function print() {
+    onSecured({ ...secured, printed: true })
+    window.print()
+  }
 
-        <p>
+  return (
+    <div className="mt-2 grid items-stretch gap-3 sm:grid-cols-2">
+      <Option
+        recommended
+        icon={<Printer size={16} strokeWidth={1.75} />}
+        title="L’imprimer"
+      >
+        <p className="m-0 text-[12.5px] leading-[19px] text-ink-secondary">
           Une page A4 avec un QR code, la clé en toutes lettres et une ligne pour noter où vous la
           rangez. À classer là où vous classez déjà ce qui compte.
         </p>
 
-        <span className="grow" />
+        <span className="flex-1" />
 
-        <div className="split-button">
-          <button
-            type="button"
-            onClick={() => {
-              onSecured({ ...secured, printed: true })
-              window.print()
-            }}
-          >
-            Imprimer la fiche
-          </button>
+        {/* Split button: the common action, and the two honest ways to get the sheet behind it. */}
+        <div className="relative flex self-start">
+          <Button className="rounded-r-none" onClick={print}>Imprimer la fiche</Button>
 
-          <button
-            type="button"
-            className="split-toggle"
+          <Button
             aria-label="Autres façons d’obtenir la fiche"
             onClick={() => setMenuOpen((open) => !open)}
+            className="w-[26px] rounded-l-none border-l border-l-white/20 px-0"
           >
             <ChevronDown size={13} strokeWidth={2} />
-          </button>
+          </Button>
 
           {menuOpen && (
-            <div className="split-menu">
-              <button
-                type="button"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onSecured({ ...secured, printed: true })
-                  window.print()
-                }}
-              >
+            <div className="absolute top-[calc(100%+4px)] left-0 z-10 grid min-w-[232px] gap-0.5 rounded-lg border border-line bg-raised p-[3px] shadow-e2">
+              <MenuItem onClick={() => { setMenuOpen(false); print() }}>
                 <Printer size={13} strokeWidth={1.75} />
                 Utiliser une imprimante
-              </button>
+              </MenuItem>
 
-              <button type="button" onClick={() => void exportPdf()}>
+              <MenuItem onClick={() => void exportPdf()}>
                 <FileDown size={13} strokeWidth={1.75} />
                 Télécharger le fichier PDF
-              </button>
+              </MenuItem>
             </div>
           )}
         </div>
 
-        {secured.printed && (
-          <p className="done">
-            <Check size={12} strokeWidth={2.5} /> Impression lancée
-          </p>
-        )}
-        {secured.exportedTo && (
-          <p className="done">
-            <Check size={12} strokeWidth={2.5} /> PDF enregistré dans {secured.exportedTo}
-          </p>
-        )}
-      </section>
+        {secured.printed && <Done>Impression lancée</Done>}
+        {secured.exportedTo && <Done>PDF enregistré dans {secured.exportedTo}</Done>}
+      </Option>
 
-      <section className="option">
-        <header>
-          <Usb size={16} strokeWidth={1.75} />
-          <h3>L’enregistrer sur une clé USB</h3>
-        </header>
-
-        <p>
+      <Option icon={<Usb size={16} strokeWidth={1.75} />} title="L’enregistrer sur une clé USB">
+        <p className="m-0 text-[12.5px] leading-[19px] text-ink-secondary">
           Un petit fichier texte sur un support amovible, rangé ailleurs que près de l’ordinateur.
         </p>
 
         {drives.length === 0 ? (
-          <div className="no-drive">
-            <strong>Aucun support amovible branché</strong>
-            <span className="muted">
+          <div className="grid gap-[5px] rounded-lg border border-dashed border-line-strong p-3.5 text-[12px]">
+            <strong className="font-medium">Aucun support amovible branché</strong>
+            <span className="text-muted">
               Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
             </span>
-            <span className="mono muted searching">recherche en cours…</span>
+            <span className="font-mono text-[11px] text-muted">recherche en cours…</span>
           </div>
         ) : (
-          <ul className="drives">
+          <ul className="m-0 grid list-none gap-2 p-0">
             {drives.map((drive) => (
-              <li key={drive.path}>
-                <span className="drive-name">
-                  <span className="mono">{drive.path}</span> {drive.label}
+              <li key={drive.path} className="grid gap-1.5 text-[12px]">
+                <span className="truncate">
+                  <span className="font-mono">{drive.path}</span> {drive.label}
                   {drive.freeBytes > 0 && (
-                    <span className="muted"> ({formatBytes(drive.freeBytes)} libres)</span>
+                    <span className="text-muted"> ({formatBytes(drive.freeBytes)} libres)</span>
                   )}
                 </span>
 
-                <button type="button" className="secondary-button" onClick={() => void saveToDrive(drive)}>
+                <Button variant="secondary" size="sm" className="justify-self-start" onClick={() => void saveToDrive(drive)}>
                   Enregistrer sur {drive.path}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
 
-        <span className="grow" />
+        <span className="flex-1" />
 
-        <p className="muted micro">
+        <p className="m-0 text-[11px] leading-4 text-muted">
           Les disques internes sont exclus volontairement : une clé enregistrée sur le disque de cet
           ordinateur disparaîtrait avec lui.
         </p>
 
-        {secured.savedTo && (
-          <p className="done">
-            <Check size={12} strokeWidth={2.5} /> Écrite dans {secured.savedTo}
-          </p>
-        )}
-        {error && <p className="danger">{error}</p>}
-      </section>
+        {secured.savedTo && <Done>Écrite dans {secured.savedTo}</Done>}
+        {error && <p className="m-0 text-danger">{error}</p>}
+      </Option>
     </div>
   )
 }
+
+function Option({ icon, title, recommended, children }: {
+  icon: ReactNode
+  title: string
+  recommended?: boolean
+  children: ReactNode
+}) {
+  return (
+    <section
+      className={cn(
+        'flex flex-col gap-2 rounded-lg px-[15px] py-3.5',
+        recommended ? 'border-[1.5px] border-brand bg-[#f4f8f5]' : 'border border-line bg-panel',
+      )}
+    >
+      <header className="flex items-center gap-2">
+        <span className="shrink-0 text-brand">{icon}</span>
+        <h3 className="m-0 text-[13.5px] leading-[19px] font-semibold">{title}</h3>
+        {recommended && <Badge tone="brand" className="bg-brand text-on-brand">recommandé</Badge>}
+      </header>
+
+      {children}
+    </section>
+  )
+}
+
+const MenuItem = ({ onClick, children }: { onClick: () => void; children: ReactNode }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex h-[26px] w-full items-center gap-2 rounded-sm px-2 text-left text-[12.5px] hover:bg-hover"
+  >
+    {children}
+  </button>
+)
+
+const Done = ({ children }: { children: ReactNode }) => (
+  <p className="m-0 flex items-center gap-1.5 text-[12px] text-success">
+    <Check size={12} strokeWidth={2.5} />
+    {children}
+  </p>
+)
 
 export const isSecured = (secured: SecuredBy): boolean =>
   secured.printed || secured.savedTo !== null || secured.exportedTo !== null

@@ -1,0 +1,92 @@
+/* The printed recovery sheet, and nothing else.
+
+   This is the one surface in the application that is not rendered for a screen, so it is not styled
+   with utilities: an A4 page has its own measurements in millimetres, and it must stay legible from a
+   nearly empty cartridge. Pure black on white, no colour, no grey. */
+
+/* Off-screen until printing, and portalled to <body> so the print rules can hide the application
+   without hiding the sheet along with it. */
+.sheet {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 210mm;
+}
+
+@media print {
+  /* #root, not the wizard: the sheet lives outside #root. Hiding the wizard hid the sheet with it,
+     which is exactly why printing produced a blank page. */
+  #root {
+    display: none !important;
+  }
+
+  .sheet {
+    position: static;
+    left: 0;
+    width: auto;
+    padding: 0;
+    color: #000;
+    background: #fff;
+    font-family: var(--font-sans);
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid #000;
+}
+
+.sheet-mark { flex: 0 0 auto; }
+
+.sheet-title { font-size: 16px; font-weight: 600; }
+.sheet-date { font-size: 11px; }
+.sheet-lead { margin: 12px 0 16px; font-size: 11.5px; line-height: 18px; }
+
+.sheet-body { display: flex; gap: 20px; align-items: flex-start; }
+.sheet-qr { margin: 0; width: 148px; }
+.sheet-qr img { width: 148px; height: 148px; border: 1px solid #000; }
+.sheet-qr figcaption { margin-top: 4px; font-size: 9.5px; text-align: center; }
+
+.sheet-key { flex: 1; }
+.sheet-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+
+.sheet-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+.sheet-groups span {
+  padding: 6px 0;
+  border: 1px solid #000;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.sheet-note { margin: 8px 0 0; font-size: 9.5px; line-height: 14px; }
+
+.sheet-box { margin-top: 18px; padding: 10px 12px; border: 1px solid #000; }
+.sheet-box ol { margin: 0; padding-left: 18px; }
+.sheet-box li { font-size: 11px; line-height: 18px; }
+
+.sheet-filed { margin-top: 18px; }
+.sheet-filed .rule { height: 1px; background: #000; margin: 14px 0; }
+
+.sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 22px;
+  padding-top: 8px;
+  border-top: 1px solid #000;
+  font-size: 9px;
+  line-height: 13px;
+}
+
+.sheet-fingerprint { text-align: right; white-space: nowrap; font-family: var(--font-mono); }

@@ -58,9 +58,10 @@ export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 }
 
-/** « il y a 2 h », « hier », « 3 j » — the right-hand column of every recency list. */
+/** « il y a 2 h », « hier », « 3 j » : the right-hand column of every recency list. */
 export function formatRelative(iso: string | null): string {
-  if (!iso) return '—'
+  // Nothing rather than a placeholder glyph. An empty cell reads as "rien", a dash reads as a value.
+  if (!iso) return ''
 
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
 

@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
+import { Button } from '../components/ui/button.js'
+import { EmptyState } from '../components/ui/empty-state.js'
+import { Input } from '../components/ui/input.js'
+import { Select } from '../components/ui/select.js'
+import { cn } from '../lib/utils.js'
+import { tierBorder } from '../lib/urgency.js'
 import { urgencyLabels } from '../labels.js'
+import { InlineForm, Micro, Row, RowAction, RowDate, RowMain, TabPanel } from './shared.js'
 import type { DeadlineUrgency } from '../types.js'
 
 type DeadlineType = 'Hearing' | 'ProceduralDeadline' | 'Appointment' | 'Other'
@@ -79,48 +86,38 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
   }
 
   return (
-    <div className="tab-panel">
+    <TabPanel>
       {isOpen && (
-        <div className="inline-form">
-          <input
-            type="date"
-            value={date}
-            onChange={(event) => setDate(event.target.value)}
-            aria-label="Date"
-          />
+        <InlineForm>
+          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
 
-          <select value={type} onChange={(event) => setType(event.target.value as DeadlineType)}>
+          <Select value={type} onChange={(event) => setType(event.target.value as DeadlineType)}>
             {Object.entries(typeLabels).map(([value, text]) => (
               <option key={value} value={value}>{text}</option>
             ))}
-          </select>
+          </Select>
 
-          <input
-            className="flex"
+          <Input
+            className="flex-1 basis-[200px]"
             value={label}
             placeholder="Conclusions à déposer, audience de mise en état…"
             onChange={(event) => setLabel(event.target.value)}
           />
 
-          <button type="button" disabled={!date || !label.trim()} onClick={() => void add()}>
-            Ajouter
-          </button>
-        </div>
+          <Button disabled={!date || !label.trim()} onClick={() => void add()}>Ajouter</Button>
+        </InlineForm>
       )}
 
-      {error && <p className="danger">{error}</p>}
+      {error && <p className="m-0 text-danger">{error}</p>}
 
       {items.length === 0 && (
-        <div className="empty">
-          <h3>Aucune échéance</h3>
-          <p className="muted">
-            Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas
-            être manqué.
-          </p>
-        </div>
+        <EmptyState title="Aucune échéance">
+          Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas être
+          manqué.
+        </EmptyState>
       )}
 
-      <div className="rows">
+      <div className="grid">
         {items.map((item) =>
           editing === item.id ? (
             <EditRow
@@ -130,49 +127,43 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
               onSave={(changes) => void save(item, changes)}
             />
           ) : (
-            <div
+            <Row
               key={item.id}
-              className={`deadline-row urgency-${item.urgency.toLowerCase()} ${item.isDone ? 'row-done' : ''}`}
+              className={cn('border-l-[3px]', tierBorder[item.urgency], item.isDone && 'text-muted')}
             >
-              <span className="mono row-date">
+              <RowDate>
                 {new Date(item.date).toLocaleDateString('fr-FR')}
                 {item.time && ` · ${item.time.slice(0, 5)}`}
-              </span>
+              </RowDate>
 
-              <span className="row-main">
+              <RowMain>
                 <span>{item.label}</span>
-                <span className="muted micro">{typeLabels[item.type]}</span>
-              </span>
+                <Micro>{typeLabels[item.type]}</Micro>
+              </RowMain>
 
-              <span className="muted micro">{item.isDone ? 'Faite' : urgencyLabels[item.urgency]}</span>
+              <Micro>{item.isDone ? 'Faite' : urgencyLabels[item.urgency]}</Micro>
 
               {isOpen && (
-                <span className="row-actions">
-                  <button
-                    type="button"
-                    title={item.isDone ? 'Rouvrir' : 'Marquer comme faite'}
+                <span className="flex gap-0.5">
+                  <RowAction
+                    label={item.isDone ? 'Rouvrir' : 'Marquer comme faite'}
                     onClick={() => void save(item, { isDone: !item.isDone })}
                   >
                     <Check size={13} strokeWidth={2} />
-                  </button>
-                  <button type="button" title="Modifier" onClick={() => setEditing(item.id)}>
+                  </RowAction>
+                  <RowAction label="Modifier" onClick={() => setEditing(item.id)}>
                     <Pencil size={13} strokeWidth={1.75} />
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-action"
-                    title="Supprimer"
-                    onClick={() => void remove(item)}
-                  >
+                  </RowAction>
+                  <RowAction label="Supprimer" danger onClick={() => void remove(item)}>
                     <Trash2 size={13} strokeWidth={1.75} />
-                  </button>
+                  </RowAction>
                 </span>
               )}
-            </div>
+            </Row>
           ),
         )}
       </div>
-    </div>
+    </TabPanel>
   )
 }
 
@@ -186,23 +177,25 @@ function EditRow({ item, onCancel, onSave }: {
   const [type, setType] = useState<DeadlineType>(item.type)
 
   return (
-    <div className="inline-form editing">
-      <input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
+    <InlineForm editing>
+      <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
 
-      <select value={type} onChange={(event) => setType(event.target.value as DeadlineType)}>
+      <Select value={type} onChange={(event) => setType(event.target.value as DeadlineType)}>
         {Object.entries(typeLabels).map(([value, text]) => (
           <option key={value} value={value}>{text}</option>
         ))}
-      </select>
+      </Select>
 
-      <input className="flex" value={label} onChange={(event) => setLabel(event.target.value)} />
+      <Input
+        className="flex-1 basis-[200px]"
+        value={label}
+        onChange={(event) => setLabel(event.target.value)}
+      />
 
-      <button type="button" disabled={!label.trim()} onClick={() => onSave({ date, label, type })}>
-        Enregistrer
-      </button>
-      <button type="button" className="secondary-button" onClick={onCancel}>
+      <Button disabled={!label.trim()} onClick={() => onSave({ date, label, type })}>Enregistrer</Button>
+      <Button variant="secondary" size="icon" onClick={onCancel} aria-label="Annuler">
         <X size={13} strokeWidth={2} />
-      </button>
-    </div>
+      </Button>
+    </InlineForm>
   )
 }

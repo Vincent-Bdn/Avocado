@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
+import { Badge } from '../components/ui/badge.js'
+import { Button } from '../components/ui/button.js'
+import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
+import { EmptyState } from '../components/ui/empty-state.js'
+import { Input } from '../components/ui/input.js'
+import { MetaDivider, PageHeader } from '../components/ui/page-header.js'
+import { Panel, PanelHeader } from '../components/ui/panel.js'
+import { cn } from '../lib/utils.js'
+import { initials } from '../lib/urgency.js'
 import { activityLabels, formatDate } from '../labels.js'
+import { Micro } from '../tabs/shared.js'
 import type { ActivityType, ContactSummary, ContactType } from '../types.js'
 
 interface ContactRole {
@@ -67,58 +77,61 @@ export function Contacts({ selected, onSelect, onOpenMatter }: {
 
   return (
     <>
-      <aside className="secondary-panel">
-        <header className="panel-header">
+      <Panel>
+        <PanelHeader>
           <span>Tiers · {items.length}</span>
-          <button type="button" className="icon-button" title="Nouveau tiers" onClick={() => setCreating(true)}>
+          <Button variant="ghost" size="iconSm" title="Nouveau tiers" onClick={() => setCreating(true)}>
             <Plus size={14} strokeWidth={2} />
-          </button>
-        </header>
+          </Button>
+        </PanelHeader>
 
-        <div className="filters">
-          <input
-            className="panel-search"
+        <div className="shrink-0 border-b border-line-subtle px-1.5 py-1">
+          <Input
+            className="h-6 w-full text-[11.5px]"
             value={search}
             placeholder="Nom, raison sociale…"
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
 
-        <div className="matter-list">
-          {error && <p className="danger">{error}</p>}
+        <div className="flex-1 overflow-y-auto p-1">
+          {error && <p className="p-2 text-danger">{error}</p>}
 
-          {items.length === 0 && <p className="muted empty-list">Aucun tiers.</p>}
+          {items.length === 0 && <p className="px-2 py-3 text-muted">Aucun tiers.</p>}
 
           {items.map((contact) => (
             <button
               key={contact.id}
               type="button"
-              className={`matter-row ${contact.id === selected ? 'matter-row-selected' : ''}`}
               onClick={() => onSelect(contact.id)}
+              className={cn(
+                'grid h-9 w-full content-center rounded-md px-2 py-1 text-left transition-colors',
+                contact.id === selected
+                  ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
+                  : 'hover:bg-hover',
+              )}
             >
-              <span className="matter-name">{contact.displayName}</span>
-              <span className="matter-meta">
+              <span className="truncate text-[12px] leading-4">{contact.displayName}</span>
+              <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
                 {contact.type === 'Organisation' ? 'Personne morale' : 'Personne physique'}
               </span>
             </button>
           ))}
         </div>
-      </aside>
+      </Panel>
 
       {selected ? (
         <ContactView contactId={selected} onOpenMatter={onOpenMatter} />
       ) : (
-        <div className="content">
-          <div className="empty centred">
-            <h3>Votre premier tiers</h3>
-            <p className="muted">
-              Clients, parties adverses, confrères, experts : tous ceux avec qui le cabinet traite.
-            </p>
-            <button type="button" onClick={() => setCreating(true)}>
-              Ajouter un tiers
-            </button>
-          </div>
-        </div>
+        <Panel className="items-center justify-center">
+          <EmptyState
+            title="Votre premier tiers"
+            className="max-w-[460px]"
+            actions={<Button onClick={() => setCreating(true)}>Ajouter un tiers</Button>}
+          >
+            Clients, parties adverses, confrères, experts : tous ceux avec qui le cabinet traite.
+          </EmptyState>
+        </Panel>
       )}
 
       {creating && (
@@ -145,50 +158,56 @@ function ContactView({ contactId, onOpenMatter }: {
     api<ContactDetail>(`/api/contacts/${contactId}`).then(setContact).catch(() => setContact(null))
   }, [contactId])
 
-  if (!contact) return <div className="content" />
+  if (!contact) return <Panel />
 
   const clientRoles = contact.roles.filter((role) => role.isClient)
   const otherRoles = contact.roles.filter((role) => !role.isClient)
 
   return (
-    <div className="content">
-      <header className="matter-header">
-        <div className="line1">
-          <span className={`avatar avatar-large ${contact.type === 'Individual' ? 'avatar-round' : ''}`}>
-            {initials(contact.displayName)}
-          </span>
-          <h2>{contact.displayName}</h2>
-          <span className="badge badge-closed">
-            {contact.type === 'Organisation' ? 'Personne morale' : 'Personne physique'}
-          </span>
-        </div>
+    <Panel>
+      <PageHeader
+        title={
+          <>
+            <span
+              className={cn(
+                'grid h-7 w-7 shrink-0 place-items-center bg-sunken text-[11px] font-medium text-ink-secondary',
+                contact.type === 'Individual' ? 'rounded-full' : 'rounded-lg',
+              )}
+            >
+              {initials(contact.displayName)}
+            </span>
 
-        <div className="line2">
-          {contact.siren && <span className="mono">SIREN {contact.siren}</span>}
-          {contact.legalForm && <><span className="divider" />{contact.legalForm}</>}
-          <span className="divider" />
-          <span>
-            {contact.matterCount} dossier{contact.matterCount > 1 ? 's' : ''}
-          </span>
-          <span className="divider" />
-          <span>
-            {contact.clientSince
-              ? `client depuis ${new Date(contact.clientSince).toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' })}`
-              : 'jamais client'}
-          </span>
-        </div>
-      </header>
+            <h2 className="m-0 truncate text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">
+              {contact.displayName}
+            </h2>
 
-      <div className="contact-body">
-        <div className="contact-main">
+            <Badge>{contact.type === 'Organisation' ? 'Personne morale' : 'Personne physique'}</Badge>
+          </>
+        }
+        meta={
+          <>
+            {contact.siren && <span className="font-mono tnum">SIREN {contact.siren}</span>}
+            {contact.legalForm && (<><MetaDivider /><span>{contact.legalForm}</span></>)}
+            <MetaDivider />
+            <span>{contact.matterCount} dossier{contact.matterCount > 1 ? 's' : ''}</span>
+            <MetaDivider />
+            <span>
+              {contact.clientSince
+                ? `client depuis ${new Date(contact.clientSince).toLocaleDateString('fr-FR', { month: '2-digit', year: 'numeric' })}`
+                : 'jamais client'}
+            </span>
+          </>
+        }
+      />
+
+      <div className="grid flex-1 grid-cols-[minmax(0,1fr)_208px] overflow-hidden">
+        <div className="grid content-start gap-4 overflow-y-auto px-4 pt-3 pb-5">
           <section>
             {/* The grouping is the point: only client relations feed billing. */}
-            <div className="tier-caption mono client-caption">
-              Relations client · {clientRoles.length} — facturables
-            </div>
+            <RoleCaption>Relations client · {clientRoles.length} · facturables</RoleCaption>
 
             {clientRoles.length === 0 && (
-              <p className="muted micro">Aucune relation client, rien à facturer.</p>
+              <Micro>Aucune relation client, rien à facturer.</Micro>
             )}
 
             {clientRoles.map((role) => (
@@ -197,16 +216,14 @@ function ContactView({ contactId, onOpenMatter }: {
 
             {otherRoles.length > 0 && (
               <>
-                <div className="tier-caption mono">
-                  Autres rôles · {otherRoles.length} — non facturables
-                </div>
+                <RoleCaption>Autres rôles · {otherRoles.length} · non facturables</RoleCaption>
                 {otherRoles.map((role) => (
                   <RoleRow key={role.matterId} role={role} onOpen={onOpenMatter} />
                 ))}
               </>
             )}
 
-            <p className="muted micro role-note">
+            <p className="mt-2.5 mb-0 max-w-[64ch] text-[11px] leading-4 text-muted">
               Le rôle est du texte libre propre à chaque dossier : le même tiers peut être client ici
               et fournisseur mis en cause là. Seules les relations marquées « client » alimentent la
               facturation, c’est le seul rôle que l’application interprète.
@@ -214,57 +231,79 @@ function ContactView({ contactId, onOpenMatter }: {
           </section>
 
           <section>
-            <h3 className="section-head">
-              Derniers échanges <span className="muted micro">tous dossiers confondus</span>
+            <h3 className="m-0 flex items-baseline gap-1.5 pb-1 text-[12px] font-semibold">
+              Derniers échanges <Micro>tous dossiers confondus</Micro>
             </h3>
 
-            {contact.recentExchanges.length === 0 && <p className="muted micro">Aucun échange.</p>}
+            {contact.recentExchanges.length === 0 && <Micro>Aucun échange.</Micro>}
 
             {contact.recentExchanges.map((exchange) => (
               <button
                 key={exchange.activityId}
                 type="button"
-                className="exchange-row"
                 onClick={() => onOpenMatter(exchange.matterId)}
+                className="flex w-full min-h-[34px] items-center gap-2.5 border-t border-line-subtle px-2 py-1.5 text-left text-[12px] hover:bg-hover"
               >
-                <span className="mono row-date">{formatDate(exchange.occurredAt)}</span>
-                <span className="row-main">
-                  <span>
-                    <strong>{activityLabels[exchange.type]}</strong>
-                    {exchange.summary && ` — ${exchange.summary}`}
-                  </span>
+                <span className="w-[104px] shrink-0 font-mono text-[11.5px] text-ink-secondary tnum">
+                  {formatDate(exchange.occurredAt)}
                 </span>
-                <span className="mono micro muted">{exchange.matterReference}</span>
+
+                <span className="min-w-0 flex-1 truncate">
+                  <strong className="font-medium">{activityLabels[exchange.type]}</strong>
+                  {exchange.summary && ` · ${exchange.summary}`}
+                </span>
+
+                <span className="shrink-0 font-mono text-[11px] text-muted">
+                  {exchange.matterReference}
+                </span>
               </button>
             ))}
           </section>
         </div>
 
-        <aside className="context">
+        <aside className="grid content-start gap-3 overflow-y-auto border-l border-line-subtle p-2.5">
           <section>
-            <h3>Coordonnées</h3>
-            <dl className="pairs">
-              {contact.phone && (<><dt>Téléphone</dt><dd className="mono">{contact.phone}</dd></>)}
-              {contact.email && (<><dt>Courriel</dt><dd>{contact.email}</dd></>)}
-              {contact.address && (<><dt>Adresse</dt><dd>{contact.address}</dd></>)}
-              {contact.siren && (<><dt>SIREN</dt><dd className="mono">{contact.siren}</dd></>)}
+            <ContextTitle>Coordonnées</ContextTitle>
+
+            <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1 text-[11.5px]">
+              {contact.phone && (<><Term>Téléphone</Term><dd className="m-0 font-mono tnum">{contact.phone}</dd></>)}
+              {contact.email && (<><Term>Courriel</Term><dd className="m-0 truncate">{contact.email}</dd></>)}
+              {contact.address && (<><Term>Adresse</Term><dd className="m-0">{contact.address}</dd></>)}
+              {contact.siren && (<><Term>SIREN</Term><dd className="m-0 font-mono tnum">{contact.siren}</dd></>)}
             </dl>
+
             {!contact.phone && !contact.email && !contact.address && (
-              <p className="muted micro">Aucune coordonnée enregistrée.</p>
+              <Micro>Aucune coordonnée enregistrée.</Micro>
             )}
           </section>
 
           {contact.notes && (
             <section>
-              <h3>Notes</h3>
-              <p className="micro">{contact.notes}</p>
+              <ContextTitle>Notes</ContextTitle>
+              <p className="m-0 text-[11.5px] leading-4">{contact.notes}</p>
             </section>
           )}
         </aside>
       </div>
-    </div>
+    </Panel>
   )
 }
+
+const Term = ({ children }: { children: string }) => (
+  <dt className="text-muted">{children}</dt>
+)
+
+const ContextTitle = ({ children }: { children: string }) => (
+  <h3 className="m-0 mb-1.5 font-mono text-[10px] font-normal tracking-[0.05em] uppercase text-muted">
+    {children}
+  </h3>
+)
+
+const RoleCaption = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-1.5 pt-3.5 pb-1 font-mono text-[10px] tracking-[0.05em] uppercase text-muted first:pt-0">
+    {children}
+  </div>
+)
 
 function RoleRow({ role, onOpen, client }: {
   role: ContactRole
@@ -274,19 +313,25 @@ function RoleRow({ role, onOpen, client }: {
   return (
     <button
       type="button"
-      className={`role-row ${client ? 'role-client' : ''}`}
       onClick={() => onOpen(role.matterId)}
+      className={cn(
+        'flex w-full min-h-[34px] items-center gap-2.5 border-t border-line-subtle px-2 py-1.5 text-left text-[12px] hover:bg-hover',
+        client && 'border-l-[3px] border-l-brand',
+      )}
     >
-      <span className="row-main">
-        <span className="role-matter">{role.matterName}</span>
+      <span className="grid min-w-0 flex-1">
+        <span className="truncate">{role.matterName}</span>
         {/* Roles are long, and shortening them automatically destroys their meaning. */}
-        <span className="muted micro" title={role.role ?? undefined}>{role.role}</span>
+        <span className="truncate text-[11px] text-muted" title={role.role ?? undefined}>
+          {role.role}
+        </span>
       </span>
 
-      <span className={`badge ${role.matterIsOpen ? 'badge-open' : 'badge-closed'}`}>
+      <Badge tone={role.matterIsOpen ? 'brand' : 'neutral'}>
         {role.matterIsOpen ? 'En cours' : 'Clôturé'}
-      </span>
-      <span className="mono micro muted">{role.matterReference}</span>
+      </Badge>
+
+      <span className="shrink-0 font-mono text-[11px] text-muted">{role.matterReference}</span>
     </button>
   )
 }
@@ -318,62 +363,55 @@ function NewContact({ onCreated, onCancel }: {
   }
 
   return (
-    <div className="scrim">
-      <div className="dialog">
-        <h2>Nouveau tiers</h2>
-
-        <div className="kind-toggle">
-          <button
-            type="button"
-            className={`segment ${type === 'Organisation' ? 'segment-active' : ''}`}
-            onClick={() => setType('Organisation')}
-          >
-            Personne morale
-          </button>
-          <button
-            type="button"
-            className={`segment ${type === 'Individual' ? 'segment-active' : ''}`}
-            onClick={() => setType('Individual')}
-          >
-            Personne physique
-          </button>
-        </div>
-
-        <label>
-          {type === 'Organisation' ? 'Raison sociale' : 'Nom'}
-          <input autoFocus value={name} onChange={(event) => setName(event.target.value)} />
-        </label>
-
-        <label>
-          Courriel
-          <input value={email} onChange={(event) => setEmail(event.target.value)} />
-        </label>
-
-        <label>
-          Téléphone
-          <input value={phone} onChange={(event) => setPhone(event.target.value)} />
-        </label>
-
-        {error && <p className="danger">{error}</p>}
-
-        <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onCancel}>
-            Annuler
-          </button>
-          <button type="button" disabled={!name.trim()} onClick={() => void create()}>
-            Créer le tiers
-          </button>
-        </div>
+    <Dialog title="Nouveau tiers" onClose={onCancel}>
+      <div className="flex gap-0.5">
+        <Segment active={type === 'Organisation'} onClick={() => setType('Organisation')}>
+          Personne morale
+        </Segment>
+        <Segment active={type === 'Individual'} onClick={() => setType('Individual')}>
+          Personne physique
+        </Segment>
       </div>
-    </div>
+
+      <Field label={type === 'Organisation' ? 'Raison sociale' : 'Nom'}>
+        <Input inputSize="lg" autoFocus value={name} onChange={(event) => setName(event.target.value)} />
+      </Field>
+
+      <Field label="Courriel">
+        <Input inputSize="lg" value={email} onChange={(event) => setEmail(event.target.value)} />
+      </Field>
+
+      <Field label="Téléphone">
+        <Input inputSize="lg" value={phone} onChange={(event) => setPhone(event.target.value)} />
+      </Field>
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={!name.trim()} onClick={() => void create()}>
+          Créer le tiers
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('')
+function Segment({ active, onClick, children }: {
+  active: boolean
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'h-6 rounded-sm px-2.5 text-[12px] transition-colors',
+        active ? 'bg-brand-subtle text-brand-on-subtle' : 'text-ink-secondary hover:bg-hover',
+      )}
+    >
+      {children}
+    </button>
+  )
 }

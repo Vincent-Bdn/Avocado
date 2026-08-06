@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Building2, FileText, FolderClosed, Search, User } from 'lucide-react'
 import { api } from './api.js'
+import { cn } from './lib/utils.js'
+import { TierBullet } from './lib/urgency.js'
 import { urgencyLabels } from './labels.js'
 import type { ContactType, DeadlineUrgency } from './types.js'
 
@@ -118,86 +120,88 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
   let index = -1
 
   return (
-    <div className="palette-scrim" onClick={onClose}>
-      <div className="palette" onClick={(event) => event.stopPropagation()}>
-        <div className="palette-field">
-          <Search size={15} strokeWidth={1.75} />
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex justify-center bg-[var(--surface-scrim)] pt-[12vh]"
+    >
+      <div
+        onClick={(event) => event.stopPropagation()}
+        className="flex h-fit max-h-[68vh] w-[640px] max-w-[calc(100%-48px)] flex-col overflow-hidden rounded-2xl bg-panel shadow-e3"
+      >
+        <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line-subtle px-3.5 text-ink-secondary">
+          <Search size={15} strokeWidth={1.75} className="shrink-0" />
+
           <input
             autoFocus
             value={query}
             placeholder="Chercher un dossier, un tiers, un document"
             onChange={(event) => setQuery(event.target.value)}
+            className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-ink placeholder:text-muted focus:outline-none"
           />
-          {results && <span className="muted micro nowrap">{results.total} résultats</span>}
+
+          {results && (
+            <span className="shrink-0 font-mono text-[11px] whitespace-nowrap text-muted tnum">
+              {results.total} résultats
+            </span>
+          )}
         </div>
 
-        <div className="palette-body">
+        <div className="flex-1 overflow-y-auto p-1.5">
           {!results && start && (
             <>
-              <div className="palette-group mono">Dossiers récents</div>
+              <Group>Dossiers récents</Group>
               {start.recentMatters.map((matter) => (
-                <button
-                  key={matter.id}
-                  type="button"
-                  className="palette-row"
-                  onClick={() => open('matters', matter.id)}
-                >
-                  <FolderClosed size={14} strokeWidth={1.75} />
-                  <span className="palette-label">{matter.label}</span>
-                  <span className="mono micro muted">{matter.reference}</span>
-                </button>
+                <Result key={matter.id} onClick={() => open('matters', matter.id)}>
+                  <FolderClosed size={14} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
+                  <Label>{matter.label}</Label>
+                  <Meta>{matter.reference}</Meta>
+                </Result>
               ))}
 
-              <div className="palette-group mono">Échéances les plus proches</div>
+              <Group>Échéances les plus proches</Group>
               {start.nearestDeadlines.map((deadline) => (
-                <button
-                  key={deadline.id}
-                  type="button"
-                  className="palette-row"
-                  onClick={() => open('matters', deadline.matterId)}
-                >
-                  <span className={`tier tier-${deadline.urgency.toLowerCase()}`} />
-                  <span className="palette-label">
+                <Result key={deadline.id} onClick={() => open('matters', deadline.matterId)}>
+                  <TierBullet urgency={deadline.urgency} className="mx-[3.5px]" />
+                  <Label>
                     {deadline.label} · {deadline.matterName}
-                  </span>
-                  <span className="mono micro muted">{urgencyLabels[deadline.urgency]}</span>
-                </button>
+                  </Label>
+                  <Meta>{urgencyLabels[deadline.urgency]}</Meta>
+                </Result>
               ))}
 
               {start.recentMatters.length === 0 && start.nearestDeadlines.length === 0 && (
-                <p className="muted micro palette-empty">Rien à reprendre pour l’instant.</p>
+                <p className="px-2.5 py-4 text-[11px] text-muted">Rien à reprendre pour l’instant.</p>
               )}
             </>
           )}
 
           {results?.groups.map((group) => (
             <div key={group.key}>
-              <div className="palette-group mono">
+              <Group>
                 {groupTitles[group.key] ?? group.key}
                 {group.total > group.items.length && ` · ${group.total}`}
-              </div>
+              </Group>
 
               {group.items.map((item) => {
                 index += 1
                 const isActive = index === active
 
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    className={`palette-row ${isActive ? 'palette-active' : ''}`}
-                    onClick={() => open(group.key, item.id)}
-                  >
+                  <Result key={item.id} active={isActive} onClick={() => open(group.key, item.id)}>
                     <ResultIcon group={group.key} contactType={item.contactType} />
-                    <span className="palette-label">{item.label}</span>
-                    {item.meta && <span className="mono micro muted">{item.meta}</span>}
-                    {isActive && <span className="kbd mono">⏎</span>}
-                  </button>
+                    <Label>{item.label}</Label>
+                    {item.meta && <Meta>{item.meta}</Meta>}
+                    {isActive && (
+                      <span className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-sm border border-line-strong bg-panel px-1 font-mono text-[10px] text-ink-secondary">
+                        ⏎
+                      </span>
+                    )}
+                  </Result>
                 )
               })}
 
               {group.total > group.items.length && (
-                <div className="palette-more muted micro">
+                <div className="px-2.5 py-1 text-[11px] text-muted">
                   voir les {group.total - group.items.length} autres
                 </div>
               )}
@@ -205,9 +209,9 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
           ))}
 
           {results && results.total === 0 && (
-            <div className="palette-empty">
-              <strong>Aucun résultat pour « {term} »</strong>
-              <p className="muted micro">
+            <div className="grid gap-1 px-2.5 py-5">
+              <strong className="text-[13px] font-medium">Aucun résultat pour « {term} »</strong>
+              <p className="m-0 max-w-[52ch] text-[11px] leading-4 text-muted">
                 La recherche couvre le nom, la référence, le client, le n° RG et la description des
                 dossiers, les tiers, et le nom des documents.
               </p>
@@ -215,10 +219,10 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
           )}
         </div>
 
-        <div className="palette-foot mono">
+        <div className="flex h-7 shrink-0 items-center gap-3.5 border-t border-line-subtle px-3.5 font-mono text-[10px] text-muted">
           <span>↑↓ naviguer</span>
           <span>⏎ ouvrir</span>
-          <span className="grow" />
+          <span className="flex-1" />
           <span>@ tiers · # documents</span>
         </div>
       </div>
@@ -226,14 +230,49 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
   )
 }
 
+const Group = ({ children }: { children: React.ReactNode }) => (
+  <div className="px-2.5 pt-2.5 pb-1 font-mono text-[10px] tracking-[0.05em] uppercase text-muted">
+    {children}
+  </div>
+)
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <span className="min-w-0 flex-1 truncate text-[13px]">{children}</span>
+)
+
+const Meta = ({ children }: { children: React.ReactNode }) => (
+  <span className="shrink-0 font-mono text-[11px] whitespace-nowrap text-muted">{children}</span>
+)
+
+function Result({ active, onClick, children }: {
+  active?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left transition-colors',
+        active ? 'bg-brand-subtle' : 'hover:bg-hover',
+      )}
+    >
+      {children}
+    </button>
+  )
+}
+
 function ResultIcon({ group, contactType }: { group: string; contactType: ContactType | null }) {
-  if (group === 'documents') return <FileText size={14} strokeWidth={1.75} />
-  if (group === 'matters') return <FolderClosed size={14} strokeWidth={1.75} />
+  const style = 'shrink-0 text-ink-secondary'
+
+  if (group === 'documents') return <FileText size={14} strokeWidth={1.75} className={style} />
+  if (group === 'matters') return <FolderClosed size={14} strokeWidth={1.75} className={style} />
 
   // Round for a personne physique, square for a personne morale, as everywhere else.
   return contactType === 'Individual' ? (
-    <User size={14} strokeWidth={1.75} />
+    <User size={14} strokeWidth={1.75} className={style} />
   ) : (
-    <Building2 size={14} strokeWidth={1.75} />
+    <Building2 size={14} strokeWidth={1.75} className={style} />
   )
 }

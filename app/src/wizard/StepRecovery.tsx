@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Copy, X } from 'lucide-react'
+import { Button } from '../components/ui/button.js'
+import { cn } from '../lib/utils.js'
 import { RecoverySheet, fingerprintOf } from './RecoverySheet.js'
 import { SecureKeyOptions, isSecured, type SecuredBy } from './SecureKeyOptions.js'
+import { WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
 /**
  * The hardest screen in the application, and the only one that cannot be dismissed.
@@ -34,21 +37,25 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
 
   return (
     <>
-      <div className="wizard-scroll">
-        <div className="wizard-wide">
-          <div className="wizard-main">
-            <h1>Votre clé de récupération</h1>
+      <WizardScroll width={940}>
+        {/* Wider than the other steps, because the three side notes belong beside the key, not under it. */}
+        <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0">
+            <WizardTitle>Votre clé de récupération</WizardTitle>
 
-            <p className="lead">
+            <WizardLead>
               Vos sauvegardes sont chiffrées avec cette clé. Sans elle, une sauvegarde n’est qu’un
-              fichier illisible : c’est elle, et elle seule, qui vous permettra de rouvrir vos dossiers
-              sur un autre ordinateur. <strong>Personne d’autre n’en possède de copie</strong>, ni
-              nous, ni votre système, ni un service d’assistance.
-            </p>
+              fichier illisible : c’est elle, et elle seule, qui vous permettra de rouvrir vos
+              dossiers sur un autre ordinateur.{' '}
+              <strong>Personne d’autre n’en possède de copie</strong>, ni nous, ni votre système, ni
+              un service d’assistance.
+            </WizardLead>
 
             <RecoveryKeyCard recoveryCode={recoveryCode} createdOn={createdOn} />
 
-            <div className="secure-lead">Choisissez au moins une façon de la mettre à l’abri :</div>
+            <div className="mt-3.5 text-[12px] leading-[17px] font-medium text-ink-secondary">
+              Choisissez au moins une façon de la mettre à l’abri :
+            </div>
 
             <SecureKeyOptions
               recoveryCode={recoveryCode}
@@ -59,50 +66,51 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
             />
           </div>
 
-          <aside className="wizard-aside">
-            <section className="note-card">
-              <h3>Ce que cette clé fait, et ne fait pas</h3>
-
-              <p className="yes">
-                <Check size={12} strokeWidth={2.5} />
-                Elle rouvre vos sauvegardes sur un ordinateur neuf, après un vol, une panne ou un dégât
-                des eaux.
-              </p>
-              <p className="no">
-                <X size={12} strokeWidth={2.5} />
+          <aside className="grid gap-3">
+            <NoteCard title="Ce que cette clé fait, et ne fait pas">
+              <NoteLine kind="yes">
+                Elle rouvre vos sauvegardes sur un ordinateur neuf, après un vol, une panne ou un
+                dégât des eaux.
+              </NoteLine>
+              <NoteLine kind="no">
                 Elle ne vous sera pas demandée au quotidien : sur cette machine, l’application s’ouvre
                 seule.
-              </p>
-              <p className="no">
-                <X size={12} strokeWidth={2.5} />
-                Ce n’est pas un mot de passe oublié qu’on peut réinitialiser : il n’existe aucune autre
-                copie.
-              </p>
-            </section>
+              </NoteLine>
+              <NoteLine kind="no">
+                Ce n’est pas un mot de passe oublié qu’on peut réinitialiser : il n’existe aucune
+                autre copie.
+              </NoteLine>
+            </NoteCard>
 
-            <section className="note-card">
-              <h3>Si vous la perdez</h3>
-              <p>
+            <NoteCard title="Si vous la perdez">
+              <p className="m-0 text-[11.5px] leading-[18px] text-ink-secondary">
                 Tant que cette application s’ouvre encore, vous pouvez en éditer une nouvelle en deux
                 clics depuis les réglages. C’est perdre{' '}
-                <strong>la clé et la machine en même temps</strong> qui est sans retour.
+                <strong className="font-medium text-ink">la clé et la machine en même temps</strong>{' '}
+                qui est sans retour.
               </p>
-            </section>
+            </NoteCard>
 
-            <section className="note-card note-caution">
-              <h3>Ce que nous vous déconseillons</h3>
-              <p>
-                Un fichier <span className="mono">.txt</span> sur le bureau, ou un courriel à
+            {/* The single note of alarm on the screen. */}
+            <NoteCard title="Ce que nous vous déconseillons" caution>
+              <p className="m-0 text-[11.5px] leading-[18px]">
+                Un fichier <span className="font-mono">.txt</span> sur le bureau, ou un courriel à
                 soi-même : ils disparaissent avec l’ordinateur, précisément le jour où la clé
                 servirait.
               </p>
-            </section>
+            </NoteCard>
           </aside>
         </div>
-      </div>
+      </WizardScroll>
 
-      <footer className="wizard-gate">
-        <label className={`confirm ${done ? '' : 'confirm-waiting'}`}>
+      <WizardGate>
+        {/* Ticking it before securing the key would be a claim about something that has not happened. */}
+        <label
+          className={cn(
+            'flex items-center gap-2 text-[13px]',
+            done ? 'text-ink' : 'cursor-not-allowed text-muted',
+          )}
+        >
           <input
             type="checkbox"
             checked={acknowledged}
@@ -112,15 +120,11 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
           J’ai mis cette clé à l’abri, hors de cet ordinateur.
         </label>
 
-        <span className="grow" />
+        <span className="flex-1" />
 
-        <button type="button" className="secondary-button" onClick={onBack}>
-          Retour
-        </button>
-        <button type="button" disabled={!done || !acknowledged} onClick={onContinue}>
-          Continuer
-        </button>
-      </footer>
+        <Button variant="secondary" size="lg" onClick={onBack}>Retour</Button>
+        <Button size="lg" disabled={!done || !acknowledged} onClick={onContinue}>Continuer</Button>
+      </WizardGate>
 
       {/*
         Portalled to the body: the print stylesheet hides #root, and a sheet rendered inside the
@@ -131,6 +135,38 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
         document.body,
       )}
     </>
+  )
+}
+
+function NoteCard({ title, caution, children }: {
+  title: string
+  caution?: boolean
+  children: ReactNode
+}) {
+  return (
+    <section
+      className={cn(
+        'grid gap-1.5 rounded-lg border px-3.5 py-3',
+        caution ? 'border-accent bg-accent-subtle text-warning' : 'border-line-subtle bg-panel',
+      )}
+    >
+      <h3 className="m-0 text-[12px] font-semibold">{title}</h3>
+      {children}
+    </section>
+  )
+}
+
+/** Check or cross, never colour alone: this list is read as two columns of yes and no. */
+function NoteLine({ kind, children }: { kind: 'yes' | 'no'; children: ReactNode }) {
+  return (
+    <p className="m-0 grid grid-cols-[14px_1fr] items-start gap-1.5 text-[11.5px] leading-[18px] text-ink-secondary">
+      {kind === 'yes' ? (
+        <Check size={12} strokeWidth={2.5} className="mt-[3px] text-success" />
+      ) : (
+        <X size={12} strokeWidth={2.5} className="mt-[3px] text-muted" />
+      )}
+      <span>{children}</span>
+    </p>
   )
 }
 
@@ -151,28 +187,35 @@ export function RecoveryKeyCard({ recoveryCode, createdOn }: {
   }
 
   return (
-    <div className="key-card">
-      <div className="key-head">
-        <span className="key-eyebrow mono">Clé du coffre · {createdOn}</span>
-        <span className="grow" />
-        <span className="key-hint">54 caractères, sans I, L, O ni U</span>
+    <div className="mt-5 rounded-xl border border-line-strong bg-panel px-5 py-[18px]">
+      <div className="mb-3 flex items-baseline gap-2">
+        <span className="font-mono text-[10px] leading-[13px] tracking-[0.05em] uppercase text-muted">
+          Clé du coffre · {createdOn}
+        </span>
+        <span className="flex-1" />
+        <span className="text-[11px] leading-4 text-muted">54 caractères, sans I, L, O ni U</span>
       </div>
 
-      <div className="key-grid">
+      <div className="grid grid-cols-3 gap-2">
         {groups.map((group) => (
-          <span key={group} className="key-group">{group}</span>
+          <span
+            key={group}
+            className="rounded-md border border-line-subtle bg-sunken py-2 text-center font-mono text-[17px] tracking-[0.09em]"
+          >
+            {group}
+          </span>
         ))}
       </div>
 
-      <div className="key-caption">
-        <span className="muted">
+      <div className="mt-3 flex items-center gap-2.5 text-[11.5px] leading-4">
+        <span className="min-w-0 flex-1 text-muted">
           Neuf groupes de six, lisibles à voix haute et recopiables à la main.
         </span>
 
-        <button type="button" className="ghost-button" onClick={copy}>
+        <Button variant="secondary" size="sm" onClick={copy}>
           {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={1.75} />}
           {copied ? 'Copiée' : 'Copier'}
-        </button>
+        </Button>
       </div>
     </div>
   )

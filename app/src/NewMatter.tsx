@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import { ApiError, api, post } from './api.js'
+import { Button } from './components/ui/button.js'
+import { Dialog, DialogActions, Field } from './components/ui/dialog.js'
+import { Input } from './components/ui/input.js'
+import { Select } from './components/ui/select.js'
 import type { ContactSummary } from './types.js'
 
 /**
- * A dossier is opened for someone, so this creates the client too when there isn't one yet — asking
+ * A dossier is opened for someone, so this creates the client too when there isn't one yet : asking
  * her to go and make a tiers first, then come back, is the kind of two-step the incumbents are full of.
  */
 export function NewMatter({ onCreated, onCancel }: {
@@ -58,52 +62,56 @@ export function NewMatter({ onCreated, onCancel }: {
   }
 
   return (
-    <div className="scrim">
-      <div className="dialog">
-        <h2>Nouveau dossier</h2>
+    <Dialog title="Nouveau dossier" onClose={onCancel}>
+      <Field label="Intitulé du dossier">
+        <Input inputSize="lg" autoFocus value={name} onChange={(event) => setName(event.target.value)} />
+      </Field>
 
-        <label>
-          Intitulé du dossier
-          <input value={name} onChange={(event) => setName(event.target.value)} autoFocus />
-        </label>
-
-        <label>
-          Client
+      <Field label="Client">
+        <div className="grid gap-1.5">
           {contacts.length > 0 && (
-            <select value={clientId} onChange={(event) => setClientId(event.target.value)}>
+            <Select
+              className="h-8"
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+            >
               <option value="">Nouveau tiers</option>
               {contacts.map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {contact.displayName}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
+
           {!clientId && (
-            <input
+            <Input
+              inputSize="lg"
               value={clientName}
-              onChange={(event) => setClientName(event.target.value)}
               placeholder="Raison sociale ou nom"
+              onChange={(event) => setClientName(event.target.value)}
             />
           )}
-        </label>
-
-        <label>
-          Taux horaire (€)
-          <input value={rate} onChange={(event) => setRate(event.target.value)} className="mono" />
-        </label>
-
-        {error && <p className="danger">{error}</p>}
-
-        <div className="dialog-actions">
-          <button type="button" className="secondary-button" onClick={onCancel}>
-            Annuler
-          </button>
-          <button type="button" disabled={busy || !name.trim()} onClick={() => void create()}>
-            Créer le dossier
-          </button>
         </div>
-      </div>
-    </div>
+      </Field>
+
+      <Field label="Taux horaire (€)">
+        <Input
+          inputSize="lg"
+          className="w-28 font-mono tnum"
+          value={rate}
+          onChange={(event) => setRate(event.target.value)}
+        />
+      </Field>
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy || !name.trim()} onClick={() => void create()}>
+          Créer le dossier
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }

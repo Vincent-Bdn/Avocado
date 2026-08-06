@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, post } from '../api.js'
+import { Button } from '../components/ui/button.js'
+import { EmptyState } from '../components/ui/empty-state.js'
+import { Input } from '../components/ui/input.js'
+import { cn } from '../lib/utils.js'
 import { formatDuration, formatEuros } from '../labels.js'
+import { InlineForm, Micro, Row, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
 
 interface TimeEntryItem {
   id: string
@@ -78,42 +83,42 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
   }
 
   return (
-    <div className="tab-panel">
+    <TabPanel>
       {isOpen && (
-        <div className="inline-form">
-          <input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
+        <InlineForm>
+          <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
 
           {/* Two fields rather than parsed prose: « 30 minutes » is a sentence, and guessing at
               sentences is how a duration silently lands wrong. */}
-          <span className="duration-fields">
-            <input
-              className="mono unit-field"
+          <span className="flex items-center gap-1">
+            <Input
+              className="w-11 text-center font-mono tnum"
               inputMode="numeric"
               placeholder="0"
               value={hours}
               aria-label="Heures"
               onChange={(event) => setHours(event.target.value.replace(/\D/g, ''))}
             />
-            <span className="muted">h</span>
-            <input
-              className="mono unit-field"
+            <span className="text-muted">h</span>
+            <Input
+              className="w-11 text-center font-mono tnum"
               inputMode="numeric"
               placeholder="00"
               value={minutes}
               aria-label="Minutes"
               onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ''))}
             />
-            <span className="muted">min</span>
+            <span className="text-muted">min</span>
           </span>
 
-          <input
-            className="flex"
+          <Input
+            className="flex-1 basis-[200px]"
             value={task}
             placeholder="Rédaction des conclusions, appel du confrère…"
             onChange={(event) => setTask(event.target.value)}
           />
 
-          <label className="confirm">
+          <label className="flex items-center gap-2 text-[13px]">
             <input
               type="checkbox"
               checked={billable}
@@ -122,65 +127,66 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
             Facturable
           </label>
 
-          <button type="button" disabled={durationMinutes <= 0 || !task.trim()} onClick={() => void add()}>
+          <Button disabled={durationMinutes <= 0 || !task.trim()} onClick={() => void add()}>
             Ajouter
-          </button>
-        </div>
+          </Button>
+        </InlineForm>
       )}
 
-      {error && <p className="danger">{error}</p>}
+      {error && <p className="m-0 text-danger">{error}</p>}
 
       {page && (
-        <div className="totals mono">
+        <div className="flex flex-wrap items-center gap-3.5 rounded-lg bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
           <span>Aujourd’hui {formatDuration(page.totals.todayMinutes)}</span>
           <span>Cette semaine {formatDuration(page.totals.weekMinutes)}</span>
           <span>Total {formatDuration(page.totals.matterMinutes)}</span>
-          <span className="grow" />
+          <span className="flex-1" />
           <span>
             {formatDuration(page.totals.billableMinutes)} facturables ·{' '}
-            <strong>{formatEuros(page.totals.billableAmountCents)}</strong>
+            <strong className="font-semibold">{formatEuros(page.totals.billableAmountCents)}</strong>
           </span>
         </div>
       )}
 
       {page?.items.length === 0 && (
-        <div className="empty">
-          <h3>Aucun temps saisi</h3>
-          <p className="muted">
-            Ce que vous ne notez pas maintenant ne se facturera jamais. Le plus simple reste de
-            l’attacher à l’entrée de journal, au moment où vous la notez.
-          </p>
-        </div>
+        <EmptyState title="Aucun temps saisi">
+          Ce que vous ne notez pas maintenant ne se facturera jamais. Le plus simple reste de
+          l’attacher à l’entrée de journal, au moment où vous la notez.
+        </EmptyState>
       )}
 
-      <div className="rows">
+      <div className="grid">
         {page?.items.map((entry) => (
-          <div
+          <Row
             key={entry.id}
-            className={`time-row ${entry.isRateOverridden ? 'row-override' : ''} ${entry.isBillable ? '' : 'row-muted'}`}
+            className={cn(
+              // A half-rate agreed in February must still be visible in June.
+              entry.isRateOverridden && 'bg-accent-subtle text-warning',
+              !entry.isBillable && 'text-muted',
+            )}
           >
-            <span className="mono row-date">
+            <RowDate>
               {new Date(entry.date).toLocaleDateString('fr-FR')}
               {entry.startedAt && ` · ${entry.startedAt.slice(0, 5)}`}
-            </span>
+            </RowDate>
 
-            <span className="row-main">
+            <RowMain>
               <span>{entry.task}</span>
-              {entry.fromActivityId && <span className="muted micro">depuis le journal</span>}
-            </span>
+              {entry.fromActivityId && <Micro>depuis le journal</Micro>}
+            </RowMain>
 
-            <span className="mono">{formatDuration(entry.durationMinutes)}</span>
+            <span className="font-mono tnum">{formatDuration(entry.durationMinutes)}</span>
 
-            <span className="mono muted">
+            <span className="font-mono text-muted tnum">
               {entry.isBillable ? `${formatEuros(entry.appliedRateCents)}/h` : 'non facturable'}
             </span>
 
-            <span className="mono row-amount">
-              {entry.isBillable ? formatEuros(entry.amountCents) : '—'}
-            </span>
-          </div>
+            <RowAmount className={entry.isRateOverridden ? 'font-medium' : ''}>
+              {entry.isBillable ? formatEuros(entry.amountCents) : ''}
+            </RowAmount>
+          </Row>
         ))}
       </div>
-    </div>
+    </TabPanel>
   )
 }

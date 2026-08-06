@@ -2,12 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App.js'
 import { applyTheme } from './theme.js'
-// theme.css pulls in Tailwind, the fonts and tokens.css. The three below are the not-yet-converted
-// screens; each disappears as its handoff is worked through.
+// theme.css pulls in Tailwind, the fonts and tokens.css; every screen is styled with utilities from
+// there. print.css is the one exception: an A4 page has its own measurements and its own rules.
 import './theme.css'
-import './app.css'
-import './shell.css'
-import './wizard/wizard.css'
+import './print.css'
 
 applyTheme()
 

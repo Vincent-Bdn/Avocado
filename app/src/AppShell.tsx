@@ -186,7 +186,8 @@ function Matters({ selected, onSelect }: {
               {/* Dense rows never wrap; they truncate. */}
               <span className="truncate text-[12px] leading-4">{matter.name}</span>
               <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
-                {matter.reference} · {matter.clientName ?? '—'}
+                {matter.reference}
+                {matter.clientName && ` · ${matter.clientName}`}
               </span>
               <span className="row-span-2 self-center font-mono text-[10px] text-muted">
                 {formatRelative(matter.lastActivityAt)}

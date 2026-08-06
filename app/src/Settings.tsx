@@ -2,6 +2,11 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, post } from './api.js'
+import { Button } from './components/ui/button.js'
+import { Input } from './components/ui/input.js'
+import { PageHeader } from './components/ui/page-header.js'
+import { Panel } from './components/ui/panel.js'
+import { cn } from './lib/utils.js'
 import { RecoveryKeyCard } from './wizard/StepRecovery.js'
 import { RecoverySheet } from './wizard/RecoverySheet.js'
 import { SecureKeyOptions, isSecured, type SecuredBy } from './wizard/SecureKeyOptions.js'
@@ -44,16 +49,11 @@ export function Settings() {
   const toggle = (id: string) => setOpen((current) => (current === id ? null : id))
 
   return (
-    <div className="content settings">
-      <header className="matter-header">
-        <div className="line1">
-          <h2>Réglages</h2>
-        </div>
-        <div className="line2">Clé de récupération et contrôle du coffre</div>
-      </header>
+    <Panel>
+      <PageHeader title="Réglages" meta={<span>Clé de récupération et contrôle du coffre</span>} />
 
-      <div className="settings-body">
-        {error && <p className="danger">{error}</p>}
+      <div className="flex-1 overflow-y-auto">
+        {error && <p className="px-4 py-3 text-danger">{error}</p>}
 
         {key && !key.code && (
           <Section
@@ -63,11 +63,12 @@ export function Settings() {
             open={open === 'renew'}
             onToggle={toggle}
           >
-            <p className="muted">
+            <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
               Ce coffre a été créé avant que la clé ne soit conservée : elle ne peut donc plus être
               affichée ni contrôlée. Éditez-en une nouvelle pour retrouver ces deux possibilités. La
               fiche imprimée que vous détenez reste valable jusque-là.
             </p>
+
             <Regenerate onDone={reload} />
           </Section>
         )}
@@ -87,19 +88,14 @@ export function Settings() {
             <Section
               id="renew"
               title="Renouveler la clé"
-              summary={
-                key.fingerprint
-                  ? `Empreinte ${key.fingerprint}`
-                  : undefined
-              }
+              summary={key.fingerprint ? `Empreinte ${key.fingerprint}` : undefined}
               open={open === 'renew'}
               onToggle={toggle}
             >
-              <p className="muted">
-                Clé actuelle : empreinte <span className="mono">{key.fingerprint}</span>
-                {key.createdAt &&
-                  `, créée le ${new Date(key.createdAt).toLocaleDateString('fr-FR')}`}
-                .
+              <p className="m-0 text-[12.5px] leading-[19px] text-muted">
+                Clé actuelle : empreinte{' '}
+                <span className="font-mono text-ink">{key.fingerprint}</span>
+                {key.createdAt && `, créée le ${new Date(key.createdAt).toLocaleDateString('fr-FR')}`}.
               </p>
 
               <Regenerate onDone={reload} />
@@ -107,10 +103,11 @@ export function Settings() {
           </>
         )}
       </div>
-    </div>
+    </Panel>
   )
 }
 
+/** Full-width row, separated by rules rather than boxed: this list is meant to grow. */
 function Section({ id, title, summary, open, onToggle, children }: {
   id: string
   title: string
@@ -120,14 +117,29 @@ function Section({ id, title, summary, open, onToggle, children }: {
   children: ReactNode
 }) {
   return (
-    <section className={`setting ${open ? 'setting-open' : ''}`}>
-      <button type="button" className="setting-head" onClick={() => onToggle(id)}>
-        <ChevronDown size={14} strokeWidth={2} className="setting-chevron" />
-        <span className="setting-title">{title}</span>
-        {summary && <span className="setting-summary mono">{summary}</span>}
+    <section className="border-b border-line-subtle">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left hover:bg-hover"
+      >
+        <ChevronDown
+          size={14}
+          strokeWidth={2}
+          className={cn(
+            'shrink-0 text-ink-secondary transition-transform',
+            !open && '-rotate-90',
+          )}
+        />
+
+        <span className="text-[13px] font-medium">{title}</span>
+
+        {summary && (
+          <span className="truncate font-mono text-[11px] text-muted">{summary}</span>
+        )}
       </button>
 
-      {open && <div className="setting-body">{children}</div>}
+      {open && <div className="grid gap-3 px-4 pt-0 pb-4 pl-10">{children}</div>}
     </section>
   )
 }
@@ -158,57 +170,60 @@ function QuarterlyCheck() {
 
   return (
     <>
-      <p>
+      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px]">
         Retrouvez votre fiche, et recopiez deux groupes. Un dispositif de secours jamais testé est un
         dispositif qui ne marche pas.
       </p>
 
-      <div className="check-groups">
+      <div className="flex flex-wrap gap-4">
         {indices.map((index) => (
-          <label key={index}>
-            <span className="muted">Groupe n° {index + 1}</span>
-            <input
-              className="mono"
-              maxLength={8}
-              value={values[index] ?? ''}
-              placeholder="······"
-              onChange={(event) => {
-                setValues({ ...values, [index]: event.target.value })
-                setResult(null)
-              }}
-            />
-            {result?.[index] === true && <Check size={13} strokeWidth={2.5} className="ok" />}
-            {result?.[index] === false && <X size={13} strokeWidth={2.5} className="ko" />}
+          <label key={index} className="grid gap-1 text-[11px] text-muted">
+            Groupe n° {index + 1}
+            <span className="flex items-center gap-1.5">
+              <Input
+                inputSize="lg"
+                maxLength={8}
+                value={values[index] ?? ''}
+                placeholder="······"
+                className="w-[120px] text-center font-mono tracking-[0.12em] uppercase"
+                onChange={(event) => {
+                  setValues({ ...values, [index]: event.target.value })
+                  setResult(null)
+                }}
+              />
+
+              {/* The glyph, not just a colour: this is the one screen where being sure matters. */}
+              {result?.[index] === true && <Check size={14} strokeWidth={2.5} className="text-success" />}
+              {result?.[index] === false && <X size={14} strokeWidth={2.5} className="text-danger" />}
+            </span>
           </label>
         ))}
       </div>
 
       {passed && (
-        <p className="done">
-          <Check size={12} strokeWidth={2.5} /> Votre fiche est la bonne. Rangez-la où vous l’avez
-          prise.
+        <p className="m-0 flex items-center gap-1.5 text-[12.5px] text-success">
+          <Check size={13} strokeWidth={2.5} />
+          Votre fiche est la bonne. Rangez-la où vous l’avez prise.
         </p>
       )}
 
       {result !== null && !passed && (
-        <p className="muted">
+        <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
           Un groupe ne correspond pas. Vérifiez la ligne, ou éditez une nouvelle clé si la fiche est
           introuvable.
         </p>
       )}
 
-      <div className="card-actions">
-        <button
-          type="button"
+      <div className="flex flex-wrap gap-2">
+        <Button
           disabled={busy || indices.some((index) => !values[index])}
           onClick={() => void verify()}
         >
           Vérifier
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          className="secondary-button"
+        <Button
+          variant="secondary"
           onClick={() => {
             setIndices(pickTwo())
             setValues({})
@@ -216,7 +231,7 @@ function QuarterlyCheck() {
           }}
         >
           Deux autres groupes
-        </button>
+        </Button>
       </div>
     </>
   )
@@ -254,22 +269,22 @@ function Regenerate({ onDone }: { onDone: () => void }) {
   if (!issued?.code) {
     return (
       <>
-        <div className="caution-card">
-          <strong>Ce qui change</strong>
-          <p>
-            Les sauvegardes faites <strong>à partir de maintenant</strong> s’ouvriront avec la
-            nouvelle clé. Les sauvegardes plus anciennes continueront d’exiger l’ancienne : gardez la
-            fiche précédente tant que ces sauvegardes comptent.
+        <div className="grid max-w-[72ch] gap-1 rounded-lg border border-accent bg-accent-subtle px-3.5 py-3 text-warning">
+          <strong className="text-[12.5px] font-semibold">Ce qui change</strong>
+          <p className="m-0 text-[12px] leading-[18px]">
+            Les sauvegardes faites <strong className="font-semibold">à partir de maintenant</strong>{' '}
+            s’ouvriront avec la nouvelle clé. Les sauvegardes plus anciennes continueront d’exiger
+            l’ancienne : gardez la fiche précédente tant que ces sauvegardes comptent.
           </p>
         </div>
 
-        {error && <p className="danger">{error}</p>}
+        {error && <p className="m-0 text-danger">{error}</p>}
 
-        <div className="card-actions">
-          <button type="button" disabled={busy} onClick={() => void regenerate()}>
+        <div className="flex">
+          <Button disabled={busy} onClick={() => void regenerate()}>
             <RefreshCw size={13} strokeWidth={1.75} />
             {busy ? 'Génération…' : 'Éditer une nouvelle clé'}
-          </button>
+          </Button>
         </div>
       </>
     )
@@ -279,7 +294,7 @@ function Regenerate({ onDone }: { onDone: () => void }) {
     <>
       <RecoveryKeyCard recoveryCode={issued.code} createdOn={createdOn} />
 
-      <div className="secure-lead">Mettez cette nouvelle clé à l’abri :</div>
+      <div className="text-[12.5px] font-medium">Mettez cette nouvelle clé à l’abri :</div>
 
       <SecureKeyOptions
         recoveryCode={issued.code}
@@ -289,10 +304,8 @@ function Regenerate({ onDone }: { onDone: () => void }) {
         onSecured={setSecured}
       />
 
-      <div className="card-actions">
-        <button type="button" disabled={!isSecured(secured)} onClick={finish}>
-          Terminé
-        </button>
+      <div className="flex">
+        <Button disabled={!isSecured(secured)} onClick={finish}>Terminé</Button>
       </div>
 
       {createPortal(

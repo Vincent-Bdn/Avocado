@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Folder, ShieldAlert } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultPrepared } from '../api.js'
+import { Button } from '../components/ui/button.js'
+import { cn } from '../lib/utils.js'
+import { WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
 /**
  * Where the vault goes, and the refusal when that is a synced folder.
@@ -51,112 +54,121 @@ export function StepVault({ suggested, onBack, onPrepared }: {
 
   return (
     <>
-      <div className="wizard-scroll">
-        <div className="wizard-column wizard-column-wide">
-          <h1>Où vivront vos dossiers ?</h1>
+      <WizardScroll width={680}>
+        <WizardTitle>Où vivront vos dossiers ?</WizardTitle>
 
-          <p className="lead">
-            Un seul dossier sur ce disque contiendra tout : journal, documents, temps passé. Il est
-            chiffré en permanence.
-          </p>
+        <WizardLead>
+          Un seul dossier sur ce disque contiendra tout : journal, documents, temps passé. Il est
+          chiffré en permanence.
+        </WizardLead>
 
-          <div className="field">
-            <label className="field-label" htmlFor="vault-path">
-              Emplacement du coffre
-            </label>
+        <div className="mt-[22px]">
+          <label htmlFor="vault-path" className="mb-1.5 block text-label font-medium text-ink-secondary">
+            Emplacement du coffre
+          </label>
 
-            <div className="path-row">
-              <div className={`path-field ${refusal ? 'path-refused' : ''}`}>
-                <Folder size={14} strokeWidth={1.75} />
-                <input
-                  id="vault-path"
-                  className="mono"
-                  value={directory}
-                  onChange={(event) => {
-                    setDirectory(event.target.value)
-                    setRefusal(null)
-                  }}
-                />
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                'flex h-[34px] min-w-0 flex-1 items-center gap-2 rounded-md border bg-panel px-2.5',
+                refusal
+                  ? 'border-danger shadow-[0_0_0_2px_color-mix(in_srgb,var(--status-danger)_16%,transparent)]'
+                  : 'border-line-strong',
+              )}
+            >
+              <Folder size={14} strokeWidth={1.75} className="shrink-0 text-muted" />
+
+              <input
+                id="vault-path"
+                value={directory}
+                onChange={(event) => {
+                  setDirectory(event.target.value)
+                  setRefusal(null)
+                }}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 font-mono text-[12.5px] text-ink focus:outline-none"
+              />
+            </div>
+
+            <Button variant="secondary" size="lg" onClick={() => void browse()}>Parcourir…</Button>
+          </div>
+        </div>
+
+        {refusal && (
+          <div className="mt-3 flex items-start gap-[11px] rounded-lg border border-[#ebc9c5] border-l-[3px] border-l-danger bg-[#fdf4f3] px-4 py-3.5">
+            <ShieldAlert size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-danger" />
+
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] leading-[19px] font-semibold text-[#8a211a]">
+                Ce dossier est synchronisé.
               </div>
 
-              <button type="button" className="secondary-button" onClick={() => void browse()}>
-                Parcourir…
+              <p className="mt-[3px] mb-0 text-[12.5px] leading-[19px] text-[#8a211a]">
+                {refusal.detail}
+              </p>
+
+              {/* The arrangement that works, on its own white card inside the refusal. */}
+              <div className="mt-[11px] rounded-lg border border-line-subtle bg-panel px-3 py-[11px]">
+                <div className="text-[12px] leading-[17px] font-medium">Le montage qui fonctionne</div>
+
+                <ArrangementLine>
+                  <strong className="font-medium text-ink">Le coffre sur le disque local</strong>, par
+                  exemple <code className="font-mono text-[11.5px]">{suggested}</code>
+                </ArrangementLine>
+
+                <ArrangementLine>
+                  <strong className="font-medium text-ink">
+                    Les sauvegardes dans le dossier synchronisé
+                  </strong>
+                  . Avocado y dépose une copie chiffrée, fermée et cohérente : c’est exactement
+                  l’usage pour lequel la synchronisation est faite.
+                </ArrangementLine>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  onClick={() => {
+                    setDirectory(suggested)
+                    setRefusal(null)
+                    void prepare(suggested)
+                  }}
+                >
+                  Utiliser {suggested}
+                </Button>
+
+                <Button variant="secondary" onClick={() => void browse()}>
+                  Choisir un autre dossier
+                </Button>
+              </div>
+
+              {/* Available, not inviting: quiet, right-aligned, below the two real buttons. */}
+              <button
+                type="button"
+                onClick={() => void prepare(directory, true)}
+                className="mt-2.5 ml-auto block text-[12px] text-ink-secondary underline"
+              >
+                Ce n’est pas un dossier synchronisé, passer outre
               </button>
             </div>
           </div>
+        )}
 
-          {refusal && (
-            <div className="refusal">
-              <ShieldAlert size={16} strokeWidth={1.75} className="refusal-icon" />
+        {error && <p className="mt-3 mb-0 text-danger">{error}</p>}
+      </WizardScroll>
 
-              <div className="refusal-body">
-                <div className="refusal-title">Ce dossier est synchronisé.</div>
-
-                <p className="refusal-detail">{refusal.detail}</p>
-
-                <div className="arrangement">
-                  <div className="arrangement-title">Le montage qui fonctionne</div>
-
-                  <div className="arrangement-line">
-                    <span className="bullet" />
-                    <span>
-                      <strong>Le coffre sur le disque local</strong>, par exemple{' '}
-                      <code>{suggested}</code>
-                    </span>
-                  </div>
-
-                  <div className="arrangement-line">
-                    <span className="bullet" />
-                    <span>
-                      <strong>Les sauvegardes dans le dossier synchronisé</strong>. Avocado y dépose
-                      une copie chiffrée, fermée et cohérente : c’est exactement l’usage pour lequel la
-                      synchronisation est faite.
-                    </span>
-                  </div>
-                </div>
-
-                <div className="refusal-actions">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDirectory(suggested)
-                      setRefusal(null)
-                      void prepare(suggested)
-                    }}
-                  >
-                    Utiliser {suggested}
-                  </button>
-
-                  <button type="button" className="secondary-button" onClick={() => void browse()}>
-                    Choisir un autre dossier
-                  </button>
-                </div>
-
-                {/* Available, not inviting: quiet, right-aligned, below the two real buttons. */}
-                <button
-                  type="button"
-                  className="override"
-                  onClick={() => void prepare(directory, true)}
-                >
-                  Ce n’est pas un dossier synchronisé, passer outre
-                </button>
-              </div>
-            </div>
-          )}
-
-          {error && <p className="danger">{error}</p>}
-        </div>
-      </div>
-
-      <footer className="wizard-gate">
-        <span className="grow" />
-        <button type="button" className="secondary-button" onClick={onBack}>
-          Retour
-        </button>
-        <button type="button" disabled={busy || !directory.trim()} onClick={() => void prepare()}>
+      <WizardGate>
+        <span className="flex-1" />
+        <Button variant="secondary" size="lg" onClick={onBack}>Retour</Button>
+        <Button size="lg" disabled={busy || !directory.trim()} onClick={() => void prepare()}>
           {busy ? 'Vérification…' : 'Continuer'}
-        </button>
-      </footer>
+        </Button>
+      </WizardGate>
     </>
   )
 }
+
+const ArrangementLine = ({ children }: { children: React.ReactNode }) => (
+  <div className="mt-1.5 flex items-baseline gap-2 text-[12.5px] leading-[19px] text-ink-secondary">
+    <span className="h-[5px] w-[5px] shrink-0 -translate-y-0.5 rounded-full bg-brand" />
+    <span>{children}</span>
+  </div>
+)

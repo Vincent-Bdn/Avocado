@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileText, Paperclip } from 'lucide-react'
 import { ApiError, api } from '../api.js'
+import { Button } from '../components/ui/button.js'
+import { EmptyState } from '../components/ui/empty-state.js'
+import { Input } from '../components/ui/input.js'
+import { cn } from '../lib/utils.js'
+import { formatSize } from '../lib/urgency.js'
+import { Caption, Micro, Row, RowMain, TabPanel } from './shared.js'
 
 interface DocumentItem {
   id: string
@@ -36,6 +42,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [page, setPage] = useState<DocumentPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [dragging, setDragging] = useState(false)
   const [promoting, setPromoting] = useState<string | null>(null)
   const [label, setLabel] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -56,9 +63,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
     try {
       const form = new FormData()
-      for (const file of files) {
-        form.append('files', file)
-      }
+      for (const file of files) form.append('files', file)
 
       // A drop always creates plain documents. Numbering evidence is a legal act, never a side
       // effect of dragging a file.
@@ -91,28 +96,34 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const plain = page?.items.filter((item) => item.exhibitNumber === null) ?? []
 
   return (
-    <div className="tab-panel">
+    <TabPanel>
       {isOpen && (
         <div
-          className="dropzone"
-          onDragOver={(event) => event.preventDefault()}
+          onDragOver={(event) => { event.preventDefault(); setDragging(true) }}
+          onDragLeave={() => setDragging(false)}
           onDrop={(event) => {
             event.preventDefault()
+            setDragging(false)
             if (event.dataTransfer.files.length) void upload(event.dataTransfer.files)
           }}
+          className={cn(
+            'flex items-center gap-3 rounded-lg border-[1.5px] border-dashed px-3.5 py-3.5',
+            dragging ? 'border-[var(--focus-ring)] bg-brand-subtle' : 'border-line bg-app',
+          )}
         >
-          <Paperclip size={18} strokeWidth={1.75} />
-          <div>
-            <strong>{busy ? 'Chiffrement en cours…' : 'Glisser des fichiers ici'}</strong>
-            <span className="muted micro">
+          <Paperclip size={18} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
+
+          <div className="grid flex-1 gap-0.5">
+            <strong className="text-[12.5px] font-medium">
+              {busy ? 'Chiffrement en cours…' : dragging ? 'Déposer pour classer dans ce dossier' : 'Glisser des fichiers ici'}
+            </strong>
+            <Micro>
               ou parcourir · PDF, DOCX, EML, JPG, XLSX · 50 Mo par fichier. Ils arrivent comme
               documents ; vous leur donnerez un n° de pièce si besoin.
-            </span>
+            </Micro>
           </div>
 
-          <button type="button" className="secondary-button" onClick={() => input.current?.click()}>
-            Parcourir…
-          </button>
+          <Button variant="secondary" onClick={() => input.current?.click()}>Parcourir…</Button>
 
           <input
             ref={input}
@@ -124,107 +135,93 @@ export function Documents({ matterId, isOpen, onChanged }: {
         </div>
       )}
 
-      {error && <p className="danger">{error}</p>}
+      {error && <p className="m-0 text-danger">{error}</p>}
 
       {page?.total === 0 && (
-        <div className="empty">
-          <h3>Aucun document</h3>
-          <p className="muted">
-            Tout ce qui arrive au dossier se range ici, chiffré. Les pièces sont des documents qui
-            portent un numéro et un libellé écrit pour le juge.
-          </p>
-        </div>
+        <EmptyState title="Aucun document">
+          Tout ce qui arrive au dossier se range ici, chiffré. Les pièces sont des documents qui
+          portent un numéro et un libellé écrit pour le juge.
+        </EmptyState>
       )}
 
       {exhibits.length > 0 && (
-        <>
-          <div className="rows-caption mono">Pièces · {exhibits.length}</div>
-          <div className="rows">
-            {exhibits.map((item) => (
-              <Row key={item.id} item={item} />
-            ))}
-          </div>
-        </>
+        <div>
+          <Caption>Pièces · {exhibits.length}</Caption>
+          {exhibits.map((item) => <DocumentRow key={item.id} item={item} />)}
+        </div>
       )}
 
       {plain.length > 0 && (
-        <>
-          <div className="rows-caption mono">Documents · {plain.length}</div>
-          <div className="rows">
-            {plain.map((item) => (
-              <div key={item.id}>
-                <Row item={item} />
+        <div>
+          <Caption>Documents · {plain.length}</Caption>
 
-                {isOpen && promoting !== item.id && (
-                  <button
-                    type="button"
-                    className="link-button"
-                    onClick={() => {
-                      setPromoting(item.id)
-                      setLabel('')
-                    }}
-                  >
+          {plain.map((item) => (
+            <div key={item.id}>
+              <DocumentRow item={item} />
+
+              {isOpen && promoting !== item.id && (
+                <button
+                  type="button"
+                  onClick={() => { setPromoting(item.id); setLabel('') }}
+                  className="ml-11 text-[11.5px] text-ink-secondary underline"
+                >
+                  Verser comme pièce n° {page?.nextExhibitNumber}
+                </button>
+              )}
+
+              {promoting === item.id && (
+                <div className="my-1.5 ml-11 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--focus-ring)] px-3 py-2.5">
+                  <Input
+                    autoFocus
+                    className="flex-1 basis-[260px]"
+                    value={label}
+                    placeholder="Bail commercial du local sis 14 rue Duquesne, du 1er mars 2019"
+                    onChange={(event) => setLabel(event.target.value)}
+                  />
+                  <Micro>écrit pour le juge, pas le nom du fichier</Micro>
+                  <Button disabled={!label.trim()} onClick={() => void promote(item.id)}>
                     Verser comme pièce n° {page?.nextExhibitNumber}
-                  </button>
-                )}
-
-                {promoting === item.id && (
-                  <div className="promote">
-                    <input
-                      className="flex"
-                      autoFocus
-                      value={label}
-                      placeholder="Bail commercial du local sis 14 rue Duquesne, du 1er mars 2019"
-                      onChange={(event) => setLabel(event.target.value)}
-                    />
-                    <span className="muted micro">écrit pour le juge, pas le nom du fichier</span>
-                    <button type="button" disabled={!label.trim()} onClick={() => void promote(item.id)}>
-                      Verser comme pièce n° {page?.nextExhibitNumber}
-                    </button>
-                    <button type="button" className="secondary-button" onClick={() => setPromoting(null)}>
-                      Annuler
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setPromoting(null)}>Annuler</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {page && page.freeExhibitNumbers.length > 0 && (
-        <p className="muted micro">
+        <Micro>
           Numéros libres : {page.freeExhibitNumbers.join(', ')}. Ils restent libres volontairement, ces
           numéros pouvant être cités dans des conclusions déjà déposées.
-        </p>
+        </Micro>
       )}
-    </div>
+    </TabPanel>
   )
 }
 
-function Row({ item }: { item: DocumentItem }) {
+function DocumentRow({ item }: { item: DocumentItem }) {
   return (
-    <div className="document-row">
+    <Row>
       {item.exhibitNumber !== null ? (
-        <span className="exhibit-pill mono">{item.exhibitNumber}</span>
+        // The number pill: brand-tinted, so a pièce is identifiable before reading anything.
+        <span className="grid h-5 min-w-[26px] shrink-0 place-items-center rounded-sm border border-[#bfd3c5] bg-brand-subtle px-1.5 font-mono text-[11px] font-medium text-brand-on-subtle tnum">
+          {item.exhibitNumber}
+        </span>
       ) : (
-        <FileText size={14} strokeWidth={1.75} className="file-glyph" />
+        <FileText size={14} strokeWidth={1.75} className="w-[26px] shrink-0 text-disabled" />
       )}
 
-      <span className="row-main">
-        <span className={item.exhibitLabel ? '' : 'mono'}>{item.exhibitLabel ?? item.fileName}</span>
-        {item.exhibitLabel && <span className="muted micro mono">{item.fileName}</span>}
-      </span>
+      <RowMain>
+        {/* A mono title is the tell that no libellé has been written yet. */}
+        <span className={item.exhibitLabel ? '' : 'font-mono'}>
+          {item.exhibitLabel ?? item.fileName}
+        </span>
+        {item.exhibitLabel && <Micro className="font-mono">{item.fileName}</Micro>}
+      </RowMain>
 
-      <span className="muted micro">{item.type}</span>
-      <span className="mono muted micro">{formatSize(item.sizeBytes)}</span>
-    </div>
+      <Micro>{item.type}</Micro>
+      <Micro className="font-mono tnum">{formatSize(item.sizeBytes)}</Micro>
+    </Row>
   )
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} Ko`
-
-  return `${(bytes / 1024 / 1024).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo`
 }
