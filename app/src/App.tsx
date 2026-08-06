@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, post, type VaultStatus } from './api.js'
+import { AppShell } from './AppShell.js'
 import { Setup } from './Setup.js'
 
 type Screen =
@@ -35,11 +36,14 @@ export function App() {
 
   const { status } = screen
 
+  if (status.state === 'Unlocked') {
+    return <AppShell />
+  }
+
   return (
     <main className="shell">
       {status.state === 'Absent' && <Setup status={status} onReady={() => void refresh()} />}
       {status.state === 'Locked' && <Unlock status={status} onUnlocked={() => void refresh()} />}
-      {status.state === 'Unlocked' && <Ready status={status} />}
     </main>
   )
 }
@@ -90,23 +94,6 @@ function Unlock({ status, onUnlocked }: { status: VaultStatus; onUnlocked: () =>
       <button type="button" disabled={busy || !code} onClick={() => void unlock()}>
         {busy ? 'Vérification…' : 'Déverrouiller'}
       </button>
-    </section>
-  )
-}
-
-/** Connection proof, until the real shell is built on the design system. */
-function Ready({ status }: { status: VaultStatus }) {
-  return (
-    <section className="pane">
-      <h1>Avocado</h1>
-      <dl>
-        <dt>Coffre</dt>
-        <dd className="mono">{status.vaultId}</dd>
-        <dt>Dossier</dt>
-        <dd className="mono">{status.directory}</dd>
-        <dt>Clé de récupération</dt>
-        <dd>{status.hasRecoveryKey ? 'enregistrée' : 'absente'}</dd>
-      </dl>
     </section>
   )
 }

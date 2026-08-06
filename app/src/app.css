@@ -12,9 +12,12 @@
 }
 
 html,
-body {
+body,
+#root {
   margin: 0;
   padding: 0;
+  /* #root included on purpose: without it the chain breaks here, .shell's height: 100% resolves
+     against auto content height, and place-items: center has nothing to centre within. */
   height: 100%;
 }
 

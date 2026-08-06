@@ -1,0 +1,496 @@
+/* The application shell.
+
+   Densities are the design system's: rail 48, secondary panel 232, list rows 36, journal entries
+   58/20/1fr, panel radius 8, 6px gutters. Written in plain CSS against the tokens — the Tailwind and
+   shadcn/ui pass replaces this file, not the layout it describes. */
+
+.app {
+  display: grid;
+  grid-template-columns: 48px 232px minmax(480px, 1fr);
+  gap: 6px;
+  padding: 6px;
+  height: 100%;
+  background: var(--surface-app);
+}
+
+/* --- Rail ----------------------------------------------------------------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  background: var(--surface-sunken);
+  border-radius: 8px;
+}
+
+.rail-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.rail-item {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+/* Collapsed, the 2px marker alone identifies the section. */
+.rail-active {
+  background: var(--brand-subtle);
+  color: var(--brand-on-subtle);
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+
+.rail-todo { color: var(--text-disabled); }
+
+/* --- Panels --------------------------------------------------------------- */
+
+.secondary-panel,
+.content {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 500;
+}
+
+.icon-button {
+  height: 22px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.filters {
+  display: flex;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.segment {
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.segment-active {
+  background: var(--brand-subtle);
+  color: var(--brand-on-subtle);
+}
+
+/* --- Dossier list --------------------------------------------------------- */
+
+.matter-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.empty-list { padding: 12px 8px; }
+
+.matter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 8px;
+  align-content: center;
+  width: 100%;
+  height: 36px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.matter-row:hover { background: var(--surface-hover); }
+
+.matter-row-selected {
+  background: var(--brand-subtle);
+  box-shadow: inset 2px 0 0 var(--brand);
+}
+
+/* Dense rows never wrap; they truncate. */
+.matter-name,
+.matter-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matter-name { font-size: 12px; line-height: 16px; }
+.matter-meta { font-size: 10px; line-height: 13px; color: var(--text-muted); }
+
+.matter-when {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* --- Dossier header and tabs ---------------------------------------------- */
+
+.matter-header {
+  position: relative;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.matter-header .line1 { display: flex; align-items: baseline; gap: 10px; }
+
+.matter-header h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.matter-header .line2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.matter-actions { position: absolute; top: 12px; right: 16px; }
+.reference { font-size: 12px; color: var(--text-muted); }
+.divider { width: 1px; height: 10px; background: var(--border-default); }
+
+.badge {
+  height: 18px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.badge-open { background: var(--brand-subtle); color: var(--brand-on-subtle); }
+.badge-closed { background: var(--surface-sunken); color: var(--text-muted); }
+
+.secondary-button {
+  height: 28px;
+  background: var(--surface-panel);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+}
+
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 32px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Underline and weight, never colour alone. */
+.tab-active {
+  color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--brand);
+}
+
+.tab-todo { color: var(--text-disabled); }
+
+.count {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--surface-sunken);
+  font-size: 10px;
+}
+
+/* --- Journal -------------------------------------------------------------- */
+
+.matter-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 208px;
+  overflow: hidden;
+}
+
+.journal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.composer {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.types { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.chip {
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.chip-active { background: var(--brand); color: var(--text-on-brand); }
+
+.chip-dashed {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-secondary);
+}
+
+/* Ochre, because time is money and this chip is the point of the composer. */
+.chip-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent-subtle);
+  color: var(--status-warning);
+  font-size: 11px;
+}
+
+.unchip { height: 16px; padding: 0 3px; background: transparent; color: inherit; }
+
+.minutes {
+  width: 42px;
+  height: 16px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+}
+
+.composer textarea {
+  min-height: 44px;
+  padding: 9px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 19px;
+  resize: vertical;
+}
+
+.composer-actions { display: flex; align-items: center; gap: 8px; }
+.grow { flex: 1; }
+.kbd-hint { font-size: 10.5px; }
+
+.frozen {
+  display: grid;
+  gap: 6px;
+  margin: 12px 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-app);
+}
+
+.timeline { flex: 1; overflow-y: auto; padding: 0 16px 16px; }
+
+.week {
+  padding: 11px 0 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 58px 20px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.entry .gutter { font-size: 11px; line-height: 15px; }
+.entry .disabled { color: var(--text-disabled); }
+.entry .dot { width: 20px; height: 20px; border-radius: 999px; }
+
+.dot-brand { background: var(--brand-subtle); border: 1px solid var(--brand); }
+.dot-info { background: var(--surface-sunken); border: 1px solid var(--status-info); }
+.dot-neutral { background: var(--surface-sunken); border: 1px solid var(--border-default); }
+
+.entry .line1 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 17px;
+}
+
+.entry .subject { font-size: 12.5px; line-height: 19px; }
+.entry .secondary { font-size: 11.5px; color: var(--text-secondary); }
+
+.entry .body p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 19px;
+  color: var(--text-secondary);
+}
+
+/* --- Context panel -------------------------------------------------------- */
+
+.context {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 10px;
+  border-left: 1px solid var(--border-subtle);
+  overflow-y: auto;
+}
+
+.context section { padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
+
+.context h3 {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.context .amount { font-size: 19px; line-height: 24px; font-weight: 600; }
+
+.deadline {
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
+  border-radius: 4px;
+  font-size: 11.5px;
+}
+
+.urgency-overdue { border-left-color: var(--status-danger); }
+.urgency-today { border-left-color: var(--accent); }
+.urgency-thisweek { border-left-color: var(--status-info); }
+.urgency-later { border-left-color: var(--border-default); }
+
+.party {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+}
+
+.party .muted {
+  max-width: 150px;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Round = personne physique, rounded square = personne morale. */
+.avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.avatar-round { border-radius: 999px; }
+.avatar-client { background: var(--brand); color: var(--text-on-brand); }
+
+/* --- Empty states and dialog ---------------------------------------------- */
+
+.empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  margin-top: 16px;
+  padding: 28px 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-app);
+}
+
+.empty h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.empty p { margin: 0; font-size: 12px; line-height: 18px; }
+.centred { margin: auto; max-width: 460px; }
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface-scrim);
+}
+
+.dialog {
+  display: grid;
+  gap: 12px;
+  width: 480px;
+  padding: 20px;
+  border-radius: 10px;
+  background: var(--surface-panel);
+  box-shadow: var(--elevation-3);
+}
+
+.dialog h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.dialog label { display: grid; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+
+.dialog select {
+  height: 28px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }

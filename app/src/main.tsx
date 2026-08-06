@@ -4,6 +4,7 @@ import { App } from './App.js'
 import { applyTheme } from './theme.js'
 import './tokens.css'
 import './app.css'
+import './shell.css'
 
 applyTheme()
 
