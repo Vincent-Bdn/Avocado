@@ -7,6 +7,7 @@ using Avocado.Server.Features.Activities.Endpoints;
 using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
+using Avocado.Server.Features.Deadlines.Endpoints;
 using Avocado.Server.Features.Documents.Endpoints;
 using Avocado.Server.Features.Matters.Endpoints;
 using Avocado.Server.Features.Searches.Endpoints;
@@ -99,6 +100,7 @@ app.MapActivities();
 app.MapDashboard();
 app.MapSearch();
 app.MapDocuments();
+app.MapDeadlines();
 app.MapTimeEntries();
 app.MapBilling();
 

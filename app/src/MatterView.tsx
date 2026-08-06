@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
+import { Billing } from './tabs/Billing.js'
+import { Deadlines } from './tabs/Deadlines.js'
+import { Documents } from './tabs/Documents.js'
+import { TimeEntries } from './tabs/TimeEntries.js'
 import { formatEuros, urgencyLabels } from './labels.js'
 import type { MatterDetail } from './types.js'
 
 /** The fiche dossier: header, journal, and the context panel's échéances and « à facturer ». */
+type Tab = 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
+
 export function MatterView({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
   const [matter, setMatter] = useState<MatterDetail | null>(null)
+  const [tab, setTab] = useState<Tab>('journal')
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -18,6 +25,11 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
   }, [matterId])
 
   useEffect(reload, [reload])
+
+  const refreshAll = useCallback(() => {
+    reload()
+    onChanged()
+  }, [reload, onChanged])
 
   if (error) return <div className="content"><p className="danger">{error}</p></div>
   if (!matter) return <div className="content" />
@@ -65,30 +77,41 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
       </header>
 
       <nav className="tabs">
-        <span className="tab tab-active">
-          Journal <span className="count mono">{matter.counts.activities}</span>
-        </span>
-        <span className="tab tab-todo" title="À venir">
-          Documents <span className="count mono">{matter.counts.documents}</span>
-        </span>
-        <span className="tab tab-todo" title="À venir">
-          Échéances <span className="count mono">{matter.counts.openDeadlines}</span>
-        </span>
-        <span className="tab tab-todo" title="À venir">
-          Temps passé <span className="count mono">{matter.counts.timeEntries}</span>
-        </span>
-        <span className="tab tab-todo" title="À venir">Facturation</span>
+        {([
+          ['journal', 'Journal', matter.counts.activities],
+          ['documents', 'Documents', matter.counts.documents],
+          ['deadlines', 'Échéances', matter.counts.openDeadlines],
+          ['time', 'Temps passé', matter.counts.timeEntries],
+          ['billing', 'Facturation', null],
+        ] as [Tab, string, number | null][]).map(([id, title, count]) => (
+          <button
+            key={id}
+            type="button"
+            className={`tab ${tab === id ? 'tab-active' : ''}`}
+            onClick={() => setTab(id)}
+          >
+            {title}
+            {count !== null && <span className="count mono">{count}</span>}
+          </button>
+        ))}
       </nav>
 
       <div className="matter-body">
-        <Journal
-          matterId={matterId}
-          isOpen={matter.isOpen}
-          onChanged={() => {
-            reload()
-            onChanged()
-          }}
-        />
+        {tab === 'journal' && (
+          <Journal matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+        )}
+        {tab === 'documents' && (
+          <Documents matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+        )}
+        {tab === 'deadlines' && (
+          <Deadlines matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+        )}
+        {tab === 'time' && (
+          <TimeEntries matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+        )}
+        {tab === 'billing' && (
+          <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+        )}
 
         <aside className="context">
           <section>

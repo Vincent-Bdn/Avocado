@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Check, RefreshCw, X } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, post } from './api.js'
 import { RecoveryKeyCard } from './wizard/StepRecovery.js'
@@ -23,14 +23,12 @@ function pickTwo(): [number, number] {
 }
 
 /**
- * Réglages: the two recurring moments the setup wizard sets up.
- *
- * A recovery system nobody ever tested is one that does not work, so the check verifies real groups
- * against the real key. Issuing a new key stays two clicks away, because that is what keeps a lost
- * sheet from being fatal.
+ * Réglages. Full-width accordion sections separated by rules, so this page can keep growing as more
+ * settings arrive without turning into a wall of half-empty cards.
  */
 export function Settings() {
   const [key, setKey] = useState<RecoveryKeyState | null>(null)
+  const [open, setOpen] = useState<string | null>('check')
   const [error, setError] = useState<string | null>(null)
 
   const reload = () => {
@@ -42,6 +40,8 @@ export function Settings() {
   }
 
   useEffect(reload, [])
+
+  const toggle = (id: string) => setOpen((current) => (current === id ? null : id))
 
   return (
     <div className="content settings">
@@ -56,21 +56,54 @@ export function Settings() {
         {error && <p className="danger">{error}</p>}
 
         {key && !key.code && (
-          <section className="panel-card">
-            <h3>Clé de récupération</h3>
+          <Section
+            id="renew"
+            title="Clé de récupération"
+            summary="Non consultable sur ce coffre"
+            open={open === 'renew'}
+            onToggle={toggle}
+          >
             <p className="muted">
               Ce coffre a été créé avant que la clé ne soit conservée : elle ne peut donc plus être
               affichée ni contrôlée. Éditez-en une nouvelle pour retrouver ces deux possibilités. La
               fiche imprimée que vous détenez reste valable jusque-là.
             </p>
             <Regenerate onDone={reload} />
-          </section>
+          </Section>
         )}
 
         {key?.code && (
           <>
-            <QuarterlyCheck code={key.code} />
-            <RenewKey current={key} onDone={reload} />
+            <Section
+              id="check"
+              title="Contrôle de la clé"
+              summary="Vérifier que votre fiche est bien la bonne"
+              open={open === 'check'}
+              onToggle={toggle}
+            >
+              <QuarterlyCheck />
+            </Section>
+
+            <Section
+              id="renew"
+              title="Renouveler la clé"
+              summary={
+                key.fingerprint
+                  ? `Empreinte ${key.fingerprint}`
+                  : undefined
+              }
+              open={open === 'renew'}
+              onToggle={toggle}
+            >
+              <p className="muted">
+                Clé actuelle : empreinte <span className="mono">{key.fingerprint}</span>
+                {key.createdAt &&
+                  `, créée le ${new Date(key.createdAt).toLocaleDateString('fr-FR')}`}
+                .
+              </p>
+
+              <Regenerate onDone={reload} />
+            </Section>
           </>
         )}
       </div>
@@ -78,8 +111,29 @@ export function Settings() {
   )
 }
 
+function Section({ id, title, summary, open, onToggle, children }: {
+  id: string
+  title: string
+  summary?: string
+  open: boolean
+  onToggle: (id: string) => void
+  children: ReactNode
+}) {
+  return (
+    <section className={`setting ${open ? 'setting-open' : ''}`}>
+      <button type="button" className="setting-head" onClick={() => onToggle(id)}>
+        <ChevronDown size={14} strokeWidth={2} className="setting-chevron" />
+        <span className="setting-title">{title}</span>
+        {summary && <span className="setting-summary mono">{summary}</span>}
+      </button>
+
+      {open && <div className="setting-body">{children}</div>}
+    </section>
+  )
+}
+
 /** « Retrouvez votre fiche, et recopiez deux groupes. » */
-function QuarterlyCheck({ code }: { code: string }) {
+function QuarterlyCheck() {
   const [indices, setIndices] = useState<[number, number]>(pickTwo)
   const [values, setValues] = useState<Record<number, string>>({})
   const [result, setResult] = useState<Record<number, boolean> | null>(null)
@@ -103,9 +157,7 @@ function QuarterlyCheck({ code }: { code: string }) {
   const passed = result !== null && indices.every((index) => result[index])
 
   return (
-    <section className="panel-card">
-      <h3>Contrôle de la clé</h3>
-
+    <>
       <p>
         Retrouvez votre fiche, et recopiez deux groupes. Un dispositif de secours jamais testé est un
         dispositif qui ne marche pas.
@@ -165,26 +217,8 @@ function QuarterlyCheck({ code }: { code: string }) {
         >
           Deux autres groupes
         </button>
-        {/* Hidden from `code` deliberately: the point is to read the sheet, not the screen. */}
-        <span className="grow" />
-        <span className="muted micro">{code.split('-').length} groupes au total</span>
       </div>
-    </section>
-  )
-}
-
-function RenewKey({ current, onDone }: { current: RecoveryKeyState; onDone: () => void }) {
-  return (
-    <section className="panel-card">
-      <h3>Renouveler la clé</h3>
-
-      <p className="muted">
-        Clé actuelle : empreinte <span className="mono">{current.fingerprint}</span>
-        {current.createdAt && `, créée le ${new Date(current.createdAt).toLocaleDateString('fr-FR')}`}.
-      </p>
-
-      <Regenerate onDone={onDone} />
-    </section>
+    </>
   )
 }
 
@@ -208,6 +242,13 @@ function Regenerate({ onDone }: { onDone: () => void }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  /** Clears the issued key from the screen as well as reloading, or "Terminé" appears to do nothing. */
+  function finish() {
+    setIssued(null)
+    setSecured({ printed: false, savedTo: null, exportedTo: null })
+    onDone()
   }
 
   if (!issued?.code) {
@@ -249,7 +290,7 @@ function Regenerate({ onDone }: { onDone: () => void }) {
       />
 
       <div className="card-actions">
-        <button type="button" disabled={!isSecured(secured)} onClick={onDone}>
+        <button type="button" disabled={!isSecured(secured)} onClick={finish}>
           Terminé
         </button>
       </div>
