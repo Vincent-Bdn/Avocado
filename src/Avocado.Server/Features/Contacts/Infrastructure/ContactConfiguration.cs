@@ -24,6 +24,16 @@ internal sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
 
         builder.Ignore(contact => contact.DisplayName);
 
+        builder.Property(contact => contact.AttachedAs).HasMaxLength(200);
+
+        // Named explicitly, or EF invents a second shadow foreign key alongside AttachedToContactId.
+        // Deleting the organisation detaches its people rather than deleting them: a gérant outlives
+        // the société, and losing their telephone number with it would be a real loss.
+        builder.HasOne(contact => contact.AttachedTo)
+            .WithMany()
+            .HasForeignKey(contact => contact.AttachedToContactId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         builder.HasIndex(contact => contact.LastName);
         builder.HasIndex(contact => contact.LegalName);
         builder.HasIndex(contact => contact.Siren);

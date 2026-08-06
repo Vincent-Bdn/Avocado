@@ -653,7 +653,7 @@ function UnitInput({ value, onChange, label, placeholder }: {
       placeholder={placeholder}
       value={value}
       onChange={(event) => onChange(event.target.value.replace(/\D/g, ''))}
-      className="h-4 w-[26px] border-0 bg-transparent p-0 text-center font-mono text-[11px] text-inherit focus-visible:outline-none tnum"
+      className="w-[22px] border-0 bg-transparent p-0 text-center font-mono text-[11px] leading-3 text-inherit focus-visible:outline-none tnum"
     />
   )
 }

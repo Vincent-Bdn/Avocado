@@ -13,6 +13,10 @@ public static class MatterEndpoints
         group.MapPut("/{id:guid}", UpdateMatter.HandleAsync);
         group.MapPost("/{id:guid}/close", CloseMatter.HandleAsync);
         group.MapPost("/{id:guid}/reopen", ReopenMatter.HandleAsync);
+        group.MapPost("/{id:guid}/parties", ManageParties.AddAsync);
+
+        routes.MapPut("/api/parties/{id:guid}", ManageParties.UpdateAsync).WithTags("Matters");
+        routes.MapDelete("/api/parties/{id:guid}", ManageParties.RemoveAsync).WithTags("Matters");
 
         return routes;
     }

@@ -7,13 +7,18 @@ import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
+import { Avatar } from './components/ui/avatar.js'
 import { Badge, NumberPill } from './components/ui/badge.js'
 import { Button, Kbd } from './components/ui/button.js'
+import { Dialog, DialogActions, Field } from './components/ui/dialog.js'
+import { Input } from './components/ui/input.js'
 import { Panel } from './components/ui/panel.js'
+import { Select } from './components/ui/select.js'
+import { NewContact } from './sections/NewContact.js'
 import { cn } from './lib/utils.js'
-import { TierBullet, distance, initials, tierBorder } from './lib/urgency.js'
+import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
-import type { MatterDetail } from './types.js'
+import type { ContactSummary, MatterDetail } from './types.js'
 
 type Tab = 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 
@@ -89,15 +94,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-ink-secondary">
           {client && (
             <>
-              {/* Round = personne physique, rounded square = personne morale, everywhere. */}
-              <span
-                className={cn(
-                  'grid h-4 w-4 shrink-0 place-items-center bg-brand text-[8px] font-medium text-on-brand',
-                  client.contactType === 'Individual' ? 'rounded-full' : 'rounded-[3px]',
-                )}
-              >
-                {initials(client.displayName)}
-              </span>
+              <Avatar name={client.displayName} type={client.contactType} client size={16} />
               <span className="truncate">{client.displayName}</span>
             </>
           )}
@@ -177,7 +174,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
 
-        <ContextPanel matter={matter} />
+        <ContextPanel matter={matter} onChanged={refreshAll} />
       </div>
 
       {editing && (
@@ -204,7 +201,9 @@ function focusComposer() {
 }
 
 /** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
-function ContextPanel({ matter }: { matter: MatterDetail }) {
+function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: () => void }) {
+  const [addingParty, setAddingParty] = useState(false)
+
   return (
     <aside className="grid content-start gap-3 overflow-y-auto border-l border-line-subtle p-2.5">
       <section className="border-b border-line-subtle pb-2.5">
@@ -251,9 +250,21 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
           </div>
         )}
 
+        {/*
+          Already invoiced is the other half of the answer and belongs on the same card, not in a
+          footnote: what she is actually watching is the trésorerie, and « reste à facturer » alone
+          says nothing about what has already gone out the door.
+        */}
         {matter.billing.invoicedCents > 0 && (
-          <div className="font-mono text-[10px] tnum">
-            − {formatEuros(matter.billing.invoicedCents)} déjà facturé
+          <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
+            <div className="type-group text-[#6E4A0E] opacity-80">Déjà facturé</div>
+            <div className="font-mono text-[15px] leading-5 font-semibold tnum">
+              {formatEuros(matter.billing.invoicedCents)}
+            </div>
+            <div className="font-mono text-[10px] tnum opacity-80">
+              soit {formatEuros(matter.billing.invoicedCents + matter.billing.leftToBillCents)} au total
+              sur ce dossier
+            </div>
           </div>
         )}
       </section>
@@ -262,17 +273,8 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
         <ContextTitle>Parties</ContextTitle>
 
         {matter.parties.map((party) => (
-          <div key={party.id} className="mb-1.5 flex items-center gap-2">
-            {/* Round = personne physique, rounded square = personne morale. */}
-            <span
-              className={cn(
-                'grid h-5 w-5 shrink-0 place-items-center text-[9px] font-medium',
-                party.contactType === 'Individual' ? 'rounded-full' : 'rounded-sm',
-                party.isClient ? 'bg-brand text-on-brand' : 'bg-sunken text-ink-secondary',
-              )}
-            >
-              {initials(party.displayName)}
-            </span>
+          <div key={party.id} className="group/party mb-1.5 flex items-center gap-2">
+            <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
 
             <span className="grid min-w-0">
               <span className="truncate text-[11.5px]">{party.displayName}</span>
@@ -292,15 +294,115 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
 
         <button
           type="button"
-          disabled
-          title="À venir"
-          className="mt-1.5 flex h-5 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-disabled"
+          onClick={() => setAddingParty(true)}
+          className="mt-1.5 flex h-6 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-ink-secondary hover:bg-hover"
         >
           <Plus size={11} strokeWidth={2} />
           Ajouter une partie
         </button>
       </section>
+
+      {addingParty && (
+        <AddParty
+          matterId={matter.id}
+          existing={matter.parties.map((party) => party.contactId)}
+          onCancel={() => setAddingParty(false)}
+          onAdded={() => { setAddingParty(false); onChanged() }}
+        />
+      )}
     </aside>
+  )
+}
+
+/**
+ * Attaching a tiers to the dossier. The role is free text and the field says so: « Expert judiciaire
+ * désigné par ordonnance du 12/01/2026 » is a real role, and a dropdown of six options would send
+ * that wording somewhere it cannot be read.
+ */
+function AddParty({ matterId, existing, onCancel, onAdded }: {
+  matterId: string
+  existing: string[]
+  onCancel: () => void
+  onAdded: () => void
+}) {
+  const [contacts, setContacts] = useState<ContactSummary[]>([])
+  const [contactId, setContactId] = useState('')
+  const [role, setRole] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(() => {
+    api<ContactSummary[]>('/api/contacts').then(setContacts).catch(() => setContacts([]))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function add() {
+    if (!contactId) {
+      setError('Choisissez un tiers.')
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      await post(`/api/matters/${matterId}/parties`, { contactId, isClient: false, role: role.trim() || null })
+      onAdded()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (creating) {
+    return (
+      <NewContact
+        onCancel={() => setCreating(false)}
+        onCreated={(id) => { setCreating(false); load(); setContactId(id) }}
+      />
+    )
+  }
+
+  const available = contacts.filter((contact) => !existing.includes(contact.id))
+
+  return (
+    <Dialog title="Ajouter une partie" width={480} onClose={onCancel}>
+      <Field label="Tiers">
+        <div className="flex gap-2">
+          <Select
+            className="h-8 flex-1"
+            value={contactId}
+            onChange={(event) => { setContactId(event.target.value); setError(null) }}
+          >
+            <option value="">Choisir un tiers…</option>
+            {available.map((contact) => (
+              <option key={contact.id} value={contact.id}>{contact.displayName}</option>
+            ))}
+          </Select>
+
+          <Button variant="secondary" size="lg" onClick={() => setCreating(true)}>Nouveau tiers…</Button>
+        </div>
+      </Field>
+
+      <Field label="Rôle dans ce dossier">
+        <Input
+          inputSize="lg"
+          value={role}
+          placeholder="Avocat de la partie adverse au barreau de Villefranche"
+          onChange={(event) => setRole(event.target.value)}
+        />
+      </Field>
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy} onClick={() => void add()}>Ajouter</Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 

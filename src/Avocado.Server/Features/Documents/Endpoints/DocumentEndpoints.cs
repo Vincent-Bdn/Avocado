@@ -15,6 +15,7 @@ public static class DocumentEndpoints
         var group = routes.MapGroup("/api/documents").WithTags("Documents");
 
         group.MapGet("/{id:guid}/content", DownloadDocument.HandleAsync);
+        group.MapPut("/{id:guid}", UpdateDocument.HandleAsync);
         group.MapPut("/{id:guid}/exhibit", PromoteToExhibit.HandleAsync);
         group.MapDelete("/{id:guid}/exhibit", WithdrawExhibit.HandleAsync);
         group.MapDelete("/{id:guid}", DeleteDocument.HandleAsync);

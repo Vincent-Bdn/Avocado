@@ -40,6 +40,14 @@ public class Document
     /// </summary>
     public string? Type { get; set; }
 
+    /// <summary>
+    /// The folder this file is filed under, as a plain string: « Procédure », « Correspondance »,
+    /// « Pièces adverses ». There is no folder table and no tree — a folder exists exactly as long as
+    /// a document names it, which is what stops an empty hierarchy accumulating around three files.
+    /// Nested folders are written with « / » and grouped by the client.
+    /// </summary>
+    public string? Folder { get; set; }
+
     /// <summary>The date on the document itself, which is rarely the date it was filed.</summary>
     public DateOnly? DocumentDate { get; set; }
 

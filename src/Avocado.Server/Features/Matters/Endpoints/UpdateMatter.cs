@@ -42,9 +42,10 @@ public static class UpdateMatter
 
         matter.Name = input.Name.Trim();
         matter.Description = input.Description;
-        matter.CourtCaseNumber = string.IsNullOrWhiteSpace(input.CourtCaseNumber)
-            ? null
-            : input.CourtCaseNumber.Trim();
+        matter.CourtCaseNumber = CreateMatter.Trimmed(input.CourtCaseNumber);
+        matter.Classification = CreateMatter.Trimmed(input.Classification);
+        matter.Court = CreateMatter.Trimmed(input.Court);
+        matter.IsFavourite = input.IsFavourite;
 
         if (input.OpenedOn is { } openedOn)
         {

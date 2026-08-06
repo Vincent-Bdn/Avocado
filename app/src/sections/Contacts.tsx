@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Info, Plus, Users } from 'lucide-react'
 import { ApiError, api } from '../api.js'
+import { Avatar } from '../components/ui/avatar.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
@@ -8,7 +9,6 @@ import { Input } from '../components/ui/input.js'
 import { MetaDivider, PageHeader } from '../components/ui/page-header.js'
 import { Panel, PanelHeader } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
-import { initials } from '../lib/urgency.js'
 import { activityLabels, formatDate } from '../labels.js'
 import { Micro } from '../tabs/shared.js'
 import type { ActivityType, ContactSummary, ContactType } from '../types.js'
@@ -52,6 +52,17 @@ interface ContactDetail {
     occurredAt: string
     summary: string | null
   }[]
+  attachedPeople: ContactAttachment[]
+  attachedTo: ContactAttachment | null
+}
+
+interface ContactAttachment {
+  id: string
+  type: ContactType
+  displayName: string
+  function: string | null
+  email: string | null
+  phone: string | null
 }
 
 /** Tiers: the address book, and one contact's roles across the practice. */
@@ -130,6 +141,7 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
           key={`${selected}-${reloadToken}`}
           contactId={selected}
           onOpenMatter={onOpenMatter}
+          onOpenContact={onSelect}
           onChanged={() => { setReloadToken((token) => token + 1); reload() }}
         />
       ) : (
@@ -148,13 +160,15 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   )
 }
 
-function ContactView({ contactId, onOpenMatter, onChanged }: {
+function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
   contactId: string
   onOpenMatter: (id: string) => void
+  onOpenContact: (id: string) => void
   onChanged: () => void
 }) {
   const [contact, setContact] = useState<ContactDetail | null>(null)
   const [editing, setEditing] = useState(false)
+  const [attaching, setAttaching] = useState(false)
 
   useEffect(() => {
     api<ContactDetail>(`/api/contacts/${contactId}`).then(setContact).catch(() => setContact(null))
@@ -170,14 +184,7 @@ function ContactView({ contactId, onOpenMatter, onChanged }: {
       <PageHeader
         title={
           <>
-            <span
-              className={cn(
-                'grid h-7 w-7 shrink-0 place-items-center bg-sunken text-[11px] font-medium text-ink-secondary',
-                contact.type === 'Individual' ? 'rounded-full' : 'rounded-sm',
-              )}
-            >
-              {initials(contact.displayName)}
-            </span>
+            <Avatar name={contact.displayName} type={contact.type} size={28} />
 
             <h2 className="type-title-lg m-0 truncate">{contact.displayName}</h2>
 
@@ -286,6 +293,35 @@ function ContactView({ contactId, onOpenMatter, onChanged }: {
             )}
           </section>
 
+          <section>
+            <ContextTitle>
+              {contact.type === 'Organisation' ? 'Personnes rattachées' : 'Rattachement'}
+            </ContextTitle>
+
+            {contact.attachedTo && (
+              <AttachedRow attachment={contact.attachedTo} onOpen={() => onOpenContact(contact.attachedTo!.id)} />
+            )}
+
+            {contact.attachedPeople.map((person) => (
+              <AttachedRow key={person.id} attachment={person} onOpen={() => onOpenContact(person.id)} />
+            ))}
+
+            {contact.type === 'Organisation' && (
+              <button
+                type="button"
+                onClick={() => setAttaching(true)}
+                className="mt-1.5 flex h-6 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-ink-secondary hover:bg-hover"
+              >
+                <Plus size={11} strokeWidth={2} />
+                Rattacher une personne
+              </button>
+            )}
+
+            {contact.type === 'Individual' && !contact.attachedTo && (
+              <Micro>Aucun rattachement.</Micro>
+            )}
+          </section>
+
           {contact.notes && (
             <section>
               <ContextTitle>Notes</ContextTitle>
@@ -302,9 +338,39 @@ function ContactView({ contactId, onOpenMatter, onChanged }: {
           onCreated={() => { setEditing(false); onChanged() }}
         />
       )}
+
+      {attaching && (
+        <NewContactSheet
+          attachTo={{ id: contact.id, name: contact.displayName }}
+          onCancel={() => setAttaching(false)}
+          onCreated={() => { setAttaching(false); onChanged() }}
+        />
+      )}
     </Panel>
   )
 }
+
+/** 32px row: avatar, name, function. The gérant is a tiers in his own right, so the row opens him. */
+const AttachedRow = ({ attachment, onOpen }: {
+  attachment: ContactAttachment
+  onOpen: () => void
+}) => (
+  <button
+    type="button"
+    onClick={onOpen}
+    className="flex h-8 w-full items-center gap-2 rounded-[3px] px-1 text-left hover:bg-hover"
+  >
+    <Avatar name={attachment.displayName} type={attachment.type} />
+    <span className="grid min-w-0">
+      <span className="truncate text-[11.5px] leading-4">{attachment.displayName}</span>
+      {attachment.function && (
+        <span className="truncate text-[10.5px] leading-[13px] text-muted" title={attachment.function}>
+          {attachment.function}
+        </span>
+      )}
+    </span>
+  </button>
+)
 
 const Term = ({ children }: { children: string }) => (
   <dt className="text-muted">{children}</dt>

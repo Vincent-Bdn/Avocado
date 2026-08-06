@@ -82,11 +82,15 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
       {error && <p className="m-0 text-danger">{error}</p>}
 
       {page && (
-        <div className="flex flex-wrap items-center gap-3.5 rounded-md bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
-          <span>Aujourd’hui {formatDuration(page.totals.todayMinutes)}</span>
-          <span>Cette semaine {formatDuration(page.totals.weekMinutes)}</span>
-          <span>Total {formatDuration(page.totals.matterMinutes)}</span>
+        <div className="flex flex-wrap items-center gap-3 rounded-md bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
+          <Total label="Aujourd’hui" value={formatDuration(page.totals.todayMinutes)} />
+          <Rule />
+          <Total label="Cette semaine" value={formatDuration(page.totals.weekMinutes)} />
+          <Rule />
+          <Total label="Total" value={formatDuration(page.totals.matterMinutes)} />
+
           <span className="flex-1" />
+
           <span>
             {formatDuration(page.totals.billableMinutes)} facturables ·{' '}
             <strong className="font-semibold">{formatEuros(page.totals.billableAmountCents)}</strong>
@@ -158,6 +162,14 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
     </TabPanel>
   )
 }
+
+const Rule = () => <span aria-hidden="true" className="h-3 w-px bg-line" />
+
+const Total = ({ label, value }: { label: string; value: string }) => (
+  <span>
+    <span className="text-muted">{label}</span> {value}
+  </span>
+)
 
 /** One form for both adding and correcting, so the two can never drift apart. */
 function EntryForm({ matterId, entry, onSaved, onCancel }: {

@@ -51,9 +51,10 @@ public static class CreateMatter
             // must not reprice this matter.
             HourlyRateCents = input.HourlyRateCents
                               ?? (await currentUser.GetAsync(cancellationToken)).HourlyRateCents,
-            CourtCaseNumber = string.IsNullOrWhiteSpace(input.CourtCaseNumber)
-                ? null
-                : input.CourtCaseNumber.Trim(),
+            CourtCaseNumber = Trimmed(input.CourtCaseNumber),
+            Classification = Trimmed(input.Classification),
+            Court = Trimmed(input.Court),
+            IsFavourite = input.IsFavourite,
         };
 
         matter.Parties.Add(new MatterParty
@@ -68,6 +69,9 @@ public static class CreateMatter
 
         return Results.Created($"/api/matters/{matter.Id}", new { matter.Id, matter.Reference });
     }
+
+    internal static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>
     /// Next <c>YYYY-NNNN</c> for the year. Derived from the highest existing reference rather than a

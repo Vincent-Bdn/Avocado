@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
+import { Select } from '../components/ui/select.js'
 import { Sheet } from '../components/ui/sheet.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { cn } from '../lib/utils.js'
@@ -16,7 +17,7 @@ import {
   setAnnuaireEnabled,
   type AnnuaireCompany,
 } from '../lib/annuaire.js'
-import type { ContactType } from '../types.js'
+import type { ContactSummary, ContactType } from '../types.js'
 
 type Lookup =
   | { state: 'idle' }
@@ -39,6 +40,8 @@ export interface ContactDraft {
   phone: string | null
   address: string | null
   notes: string | null
+  attachedToContactId?: string | null
+  attachedAs?: string | null
 }
 
 /**
@@ -51,12 +54,16 @@ export interface ContactDraft {
  * because the registry is frequently a few months behind reality. On an existing tiers they are
  * editable from the start: what is already recorded is not a guess waiting to be confirmed.
  */
-export function NewContact({ contact, onCreated, onCancel }: {
+export function NewContact({ contact, attachTo, onCreated, onCancel }: {
   contact?: ContactDraft
+  /** Pre-attaches the new person to an organisation, for « ＋ rattacher une personne ». */
+  attachTo?: { id: string; name: string }
   onCreated: (id: string) => void
   onCancel: () => void
 }) {
-  const [type, setType] = useState<ContactType>(contact?.type ?? 'Organisation')
+  const [type, setType] = useState<ContactType>(
+    contact?.type ?? (attachTo ? 'Individual' : 'Organisation'),
+  )
 
   // Personne morale.
   const [legalName, setLegalName] = useState(contact?.legalName ?? '')
@@ -75,6 +82,11 @@ export function NewContact({ contact, onCreated, onCancel }: {
   const [phone, setPhone] = useState(contact?.phone ?? '')
   const [notes, setNotes] = useState(contact?.notes ?? '')
 
+  // « Personnes rattachées »: the gérant of a société, the DAF, the spouse in an indivision.
+  const [organisations, setOrganisations] = useState<ContactSummary[]>([])
+  const [attachedTo, setAttachedTo] = useState(contact?.attachedToContactId ?? attachTo?.id ?? '')
+  const [attachedAs, setAttachedAs] = useState(contact?.attachedAs ?? '')
+
   const [lookupOn, setLookupOn] = useState(annuaireEnabled)
   const [lookup, setLookup] = useState<Lookup>({ state: 'idle' })
   const [busy, setBusy] = useState(false)
@@ -91,6 +103,12 @@ export function NewContact({ contact, onCreated, onCancel }: {
    * is in flight and only dimmed: clearing it makes the panel flicker on every letter, and the answer
    * you were about to click disappears under the cursor.
    */
+  useEffect(() => {
+    api<ContactSummary[]>('/api/contacts')
+      .then((all) => setOrganisations(all.filter((candidate) => candidate.type === 'Organisation')))
+      .catch(() => setOrganisations([]))
+  }, [])
+
   useEffect(() => {
     if (!searchable) {
       setLookup({ state: 'idle' })
@@ -158,6 +176,9 @@ export function NewContact({ contact, onCreated, onCancel }: {
         email: email.trim() || null,
         phone: phone.trim() || null,
         notes: notes.trim() || null,
+        // A société is never itself attached to something; only people are.
+        attachedToContactId: morale ? null : attachedTo || null,
+        attachedAs: morale ? null : attachedAs.trim() || null,
       }
 
       if (contact) {
@@ -321,6 +342,32 @@ export function NewContact({ contact, onCreated, onCancel }: {
 
           <Field label="Prénom">
             <Input inputSize="lg" value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+          </Field>
+
+          <Field label="Rattachée à">
+            <div className="grid gap-1.5">
+              <Select
+                className="h-8"
+                value={attachedTo}
+                onChange={(event) => setAttachedTo(event.target.value)}
+              >
+                <option value="">Aucune</option>
+                {organisations.map((organisation) => (
+                  <option key={organisation.id} value={organisation.id}>
+                    {organisation.displayName}
+                  </option>
+                ))}
+              </Select>
+
+              {attachedTo && (
+                <Input
+                  inputSize="lg"
+                  value={attachedAs}
+                  placeholder="Gérant et associé majoritaire"
+                  onChange={(event) => setAttachedAs(event.target.value)}
+                />
+              )}
+            </div>
           </Field>
         </>
       )}

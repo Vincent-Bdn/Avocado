@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Download, FileText, Paperclip, Pencil, Trash2, Undo2, X } from 'lucide-react'
+import { Download, FileText, Folder, Paperclip, Pencil, Trash2, Undo2, X } from 'lucide-react'
 import { ApiError, api, download } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
@@ -14,6 +14,7 @@ interface DocumentItem {
   exhibitNumber: number | null
   exhibitLabel: string | null
   fileName: string
+  folder: string | null
   type: string | null
   sizeBytes: number
   mimeType: string | null
@@ -29,6 +30,7 @@ interface DocumentPage {
   totalSizeBytes: number
   freeExhibitNumbers: number[]
   nextExhibitNumber: number
+  folders: string[]
 }
 
 const messageOf = (failure: unknown) =>
@@ -83,6 +85,26 @@ export function Documents({ matterId, isOpen, onChanged }: {
     }
   }
 
+  async function file(item: DocumentItem, folder: string | null) {
+    setError(null)
+
+    try {
+      await api(`/api/documents/${item.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          fileName: item.fileName,
+          folder,
+          type: item.type,
+          documentDate: item.documentDate,
+        }),
+      })
+
+      refresh()
+    } catch (failure) {
+      setError(messageOf(failure))
+    }
+  }
+
   /** Promoting, relabelling and withdrawing are all the same two endpoints. */
   async function setExhibit(id: string, label: string | null) {
     setError(null)
@@ -127,6 +149,8 @@ export function Documents({ matterId, isOpen, onChanged }: {
     onLabel: (label: string) => void setExhibit(item.id, label),
     onWithdraw: () => void setExhibit(item.id, null),
     onDelete: () => void remove(item.id),
+    folders: page?.folders ?? [],
+    onFile: (folder: string | null) => void file(item, folder),
   })
 
   return (
@@ -189,10 +213,28 @@ export function Documents({ matterId, isOpen, onChanged }: {
         </div>
       )}
 
+      {/*
+        Folders are a grouping, not a tree. A folder exists exactly as long as a document names it,
+        which is what stops an empty hierarchy accumulating around three files, and « Sans dossier »
+        is always last rather than hidden: a file you have not filed is still a file you have.
+      */}
       {plain.length > 0 && (
         <div>
           <Caption>Documents · {plain.length}</Caption>
-          {plain.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
+
+          {groupByFolder(plain).map(([folder, items]) => (
+            <div key={folder ?? ''}>
+              {(folder !== null || groupByFolder(plain).length > 1) && (
+                <div className="flex items-center gap-1.5 pt-3 pb-1 text-[11.5px] font-medium text-ink-secondary">
+                  <Folder size={12} strokeWidth={2} className="text-muted" />
+                  {folder ?? 'Sans dossier'}
+                  <span className="font-mono text-[10.5px] text-muted tnum">{items.length}</span>
+                </div>
+              )}
+
+              {items.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
+            </div>
+          ))}
         </div>
       )}
 
@@ -206,18 +248,42 @@ export function Documents({ matterId, isOpen, onChanged }: {
   )
 }
 
-function DocumentRow({ item, isOpen, editing, nextNumber, onEdit, onCancel, onLabel, onWithdraw, onDelete }: {
+/** Filed folders first and alphabetical, then everything not yet filed. */
+function groupByFolder(items: DocumentItem[]): [string | null, DocumentItem[]][] {
+  const groups = new Map<string | null, DocumentItem[]>()
+
+  for (const item of items) {
+    const key = item.folder ?? null
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  }
+
+  return [...groups.entries()].sort(([left], [right]) => {
+    if (left === right) return 0
+    if (left === null) return 1
+    if (right === null) return -1
+
+    return left.localeCompare(right, 'fr')
+  })
+}
+
+function DocumentRow({
+  item, isOpen, editing, nextNumber, folders,
+  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile,
+}: {
   item: DocumentItem
   isOpen: boolean
   editing: boolean
   nextNumber: number
+  folders: string[]
   onEdit: () => void
   onCancel: () => void
   onLabel: (label: string) => void
   onWithdraw: () => void
   onDelete: () => void
+  onFile: (folder: string | null) => void
 }) {
   const [label, setLabel] = useState(item.exhibitLabel ?? '')
+  const [folder, setFolder] = useState(item.folder ?? '')
   const isExhibit = item.exhibitNumber !== null
 
   if (editing) {
@@ -233,8 +299,36 @@ function DocumentRow({ item, isOpen, editing, nextNumber, onEdit, onCancel, onLa
 
         <Micro>écrit pour le juge, pas le nom du fichier</Micro>
 
-        <Button disabled={!label.trim()} onClick={() => onLabel(label.trim())}>
+        <span className="flex items-center gap-1.5">
+          <Folder size={13} strokeWidth={1.75} className="text-muted" />
+          <Input
+            list="document-folders"
+            className="w-[180px]"
+            value={folder}
+            placeholder="Dossier de classement"
+            onChange={(event) => setFolder(event.target.value)}
+          />
+          <datalist id="document-folders">
+            {folders.map((name) => <option key={name} value={name} />)}
+          </datalist>
+        </span>
+
+        <Button
+          disabled={!label.trim()}
+          onClick={() => {
+            if ((item.folder ?? '') !== folder.trim()) onFile(folder.trim() || null)
+            onLabel(label.trim())
+          }}
+        >
           {isExhibit ? 'Enregistrer' : `Verser comme pièce n° ${nextNumber}`}
+        </Button>
+
+        <Button
+          variant="secondary"
+          onClick={() => onFile(folder.trim() || null)}
+          title="Classer sans en faire une pièce"
+        >
+          Classer seulement
         </Button>
 
         <Button variant="secondary" size="icon" aria-label="Annuler" onClick={onCancel}>

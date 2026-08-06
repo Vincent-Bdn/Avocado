@@ -29,7 +29,9 @@ export interface MatterListItem {
   name: string
   clientName: string | null
   courtCaseNumber: string | null
+  classification: string | null
   isOpen: boolean
+  isFavourite: boolean
   nextDeadlineDate: string | null
   nextDeadlineTime: string | null
   nextDeadlineUrgency: DeadlineUrgency | null
@@ -67,7 +69,10 @@ export interface MatterDetail {
   closedOn: string | null
   hourlyRateCents: number
   courtCaseNumber: string | null
+  classification: string | null
+  court: string | null
   isOpen: boolean
+  isFavourite: boolean
   parties: MatterParty[]
   deadlines: {
     id: string
@@ -78,6 +83,10 @@ export interface MatterDetail {
   }[]
   counts: { activities: number; documents: number; openDeadlines: number; timeEntries: number }
   billing: BillingSummary
+}
+
+export interface PracticeSettings {
+  hourlyRateCents: number
 }
 
 export interface ActivityListItem {

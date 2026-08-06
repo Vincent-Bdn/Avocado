@@ -61,6 +61,35 @@ public static class GetContact
                 activity.Subject ?? activity.Body))
             .ToListAsync(cancellationToken);
 
+        // DisplayName is a computed property EF is told to ignore, so these rows are materialised
+        // first and projected in memory. A Select over it would compile and then fail in SQL.
+        var attachedRows = await database.Contacts
+            .AsNoTracking()
+            .Where(candidate => candidate.AttachedToContactId == id)
+            .OrderBy(candidate => candidate.LastName ?? candidate.LegalName)
+            .ToListAsync(cancellationToken);
+
+        var attachedPeople = attachedRows
+            .Select(candidate => new ContactAttachment(
+                candidate.Id,
+                candidate.Type,
+                candidate.DisplayName,
+                candidate.AttachedAs,
+                candidate.Email,
+                candidate.Phone))
+            .ToList();
+
+        var parent = contact.AttachedToContactId is { } parentId
+            ? await database.Contacts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Id == parentId, cancellationToken)
+            : null;
+
+        var attachedTo = parent is null
+            ? null
+            : new ContactAttachment(
+                parent.Id, parent.Type, parent.DisplayName, contact.AttachedAs, parent.Email, parent.Phone);
+
         return Results.Ok(new ContactDetail(
             contact.Id,
             contact.Type,
@@ -80,6 +109,8 @@ public static class GetContact
             roles.Count(role => role.IsClient),
             clientSince,
             roles,
-            exchanges));
+            exchanges,
+            attachedPeople,
+            attachedTo));
     }
 }

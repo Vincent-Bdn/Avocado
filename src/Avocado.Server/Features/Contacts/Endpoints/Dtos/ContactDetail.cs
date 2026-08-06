@@ -32,6 +32,15 @@ public sealed record ContactExchange(
 /// « client depuis 11/2025 » — the opening date of their earliest client matter. Null when they have
 /// never been a client, which the screen states plainly rather than rendering an empty group.
 /// </param>
+/// <param name="Function">« Gérant et associé majoritaire », « DAF ». Free text, like every role.</param>
+public sealed record ContactAttachment(
+    Guid Id,
+    ContactType Type,
+    string DisplayName,
+    string? Function,
+    string? Email,
+    string? Phone);
+
 public sealed record ContactDetail(
     Guid Id,
     ContactType Type,
@@ -51,4 +60,8 @@ public sealed record ContactDetail(
     int ClientMatterCount,
     DateOnly? ClientSince,
     IReadOnlyList<ContactRole> Roles,
-    IReadOnlyList<ContactExchange> RecentExchanges);
+    IReadOnlyList<ContactExchange> RecentExchanges,
+    /// <summary>« Personnes rattachées »: the gérant, the DAF, the spouse.</summary>
+    IReadOnlyList<ContactAttachment> AttachedPeople,
+    /// <summary>« Rattachement »: the organisation this person belongs to, when there is one.</summary>
+    ContactAttachment? AttachedTo);

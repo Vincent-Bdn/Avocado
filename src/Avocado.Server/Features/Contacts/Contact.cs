@@ -28,6 +28,17 @@ public class Contact
     public string? Address { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// « Personnes rattachées »: the gérant of a société, the DAF, the spouse in an indivision. A
+    /// self-reference rather than a join table, because a person belongs to one organisation at a
+    /// time in this context and the alternative buys nothing.
+    /// </summary>
+    public Guid? AttachedToContactId { get; set; }
+    public Contact? AttachedTo { get; set; }
+
+    /// <summary>« Gérant et associé majoritaire », « DAF ». Free text, like every other role.</summary>
+    public string? AttachedAs { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 

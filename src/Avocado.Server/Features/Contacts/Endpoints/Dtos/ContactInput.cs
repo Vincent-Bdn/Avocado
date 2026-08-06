@@ -15,7 +15,9 @@ public sealed record ContactInput(
     string? Email,
     string? Phone,
     string? Address,
-    string? Notes)
+    string? Notes,
+    Guid? AttachedToContactId = null,
+    string? AttachedAs = null)
 {
     /// <summary>Returns the French message to show, or null when the input is acceptable.</summary>
     public string? Validate() => Type switch
@@ -44,6 +46,9 @@ public sealed record ContactInput(
         contact.Phone = Phone;
         contact.Address = Address;
         contact.Notes = Notes;
+        contact.AttachedToContactId = AttachedToContactId;
+        contact.AttachedAs = string.IsNullOrWhiteSpace(AttachedAs) ? null : AttachedAs.Trim();
+        contact.UpdatedAt = DateTimeOffset.UtcNow;
     }
 
     private static string Digits(string value) => new([.. value.Where(char.IsDigit)]);

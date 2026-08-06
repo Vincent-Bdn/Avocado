@@ -65,7 +65,10 @@ public static class GetMatter
             matter.ClosedOn,
             matter.HourlyRateCents,
             matter.CourtCaseNumber,
+            matter.Classification,
+            matter.Court,
             matter.IsOpen,
+            matter.IsFavourite,
             [.. matter.Parties.Select(party => new MatterPartyItem(
                 party.Id,
                 party.ContactId,

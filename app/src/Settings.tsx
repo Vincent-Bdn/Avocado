@@ -7,6 +7,8 @@ import { Input } from './components/ui/input.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
+import { centsToAmount, parseAmountToCents } from './lib/amount.js'
+import type { PracticeSettings } from './types.js'
 import { RecoveryKeyCard } from './wizard/StepRecovery.js'
 import { RecoverySheet } from './wizard/RecoverySheet.js'
 import { SecureKeyOptions, isSecured, nothingSecured, type SecuredBy } from './wizard/SecureKeyOptions.js'
@@ -33,7 +35,7 @@ function pickTwo(): [number, number] {
  */
 export function Settings() {
   const [key, setKey] = useState<RecoveryKeyState | null>(null)
-  const [open, setOpen] = useState<string | null>('check')
+  const [open, setOpen] = useState<string | null>('rate')
   const [error, setError] = useState<string | null>(null)
 
   const reload = () => {
@@ -54,6 +56,16 @@ export function Settings() {
 
       <div className="flex-1 overflow-y-auto">
         {error && <p className="px-4 py-3 text-danger">{error}</p>}
+
+        <Section
+          id="rate"
+          title="Taux horaire du cabinet"
+          summary="Point de départ des nouveaux dossiers"
+          open={open === 'rate'}
+          onToggle={toggle}
+        >
+          <HourlyRate />
+        </Section>
 
         {key && !key.code && (
           <Section
@@ -104,6 +116,80 @@ export function Settings() {
         )}
       </div>
     </Panel>
+  )
+}
+
+/**
+ * The rate a new dossier starts from, and only that. It is copied onto the dossier at creation, so
+ * changing it here prices tomorrow's work and leaves every hour already recorded exactly as it was.
+ */
+function HourlyRate() {
+  const [rate, setRate] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<PracticeSettings>('/api/settings')
+      .then((settings) => setRate(centsToAmount(settings.hourlyRateCents)))
+      .catch((failure: unknown) =>
+        setError(failure instanceof ApiError ? failure.message : String(failure)),
+      )
+  }, [])
+
+  async function save() {
+    const cents = parseAmountToCents(rate)
+
+    if (cents === null) {
+      setError('Indiquez un taux horaire positif, par exemple 240,00.')
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      await api('/api/settings', { method: 'PUT', body: JSON.stringify({ hourlyRateCents: cents }) })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+        Ce taux ne sert qu’à pré-remplir un nouveau dossier. Chaque dossier garde ensuite le sien, et
+        chaque ligne de temps peut porter un taux dérogatoire : le modifier ici ne retarife jamais du
+        travail déjà saisi.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          inputSize="lg"
+          className="w-28 font-mono tnum"
+          invalid={Boolean(error)}
+          value={rate}
+          aria-label="Taux horaire"
+          onChange={(event) => { setRate(event.target.value); setError(null) }}
+        />
+        <span className="text-[12.5px] text-muted">€ HT / heure</span>
+
+        <Button disabled={busy} onClick={() => void save()}>Enregistrer</Button>
+
+        {saved && (
+          <span className="flex items-center gap-1.5 text-[12.5px] text-success">
+            <Check size={13} strokeWidth={2.5} />
+            Enregistré
+          </span>
+        )}
+      </div>
+
+      {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+    </>
   )
 }
 

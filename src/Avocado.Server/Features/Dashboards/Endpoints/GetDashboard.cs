@@ -1,4 +1,5 @@
 using Avocado.Server.Data;
+using Avocado.Server.Features.Matters;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Dashboards.ValueObjects;
 using Avocado.Server.Features.Deadlines;
@@ -53,7 +54,10 @@ public static class GetDashboard
 
         var unbilled = await ComputeUnbilledAsync(database, today, cancellationToken);
 
-        var recent = await database.Matters
+        // « Touché » is every kind of work, not only the journal: an afternoon spent entering time
+        // and recording a provision has to bring its dossier to the top. The five timestamps come
+        // back as separate columns and are combined in memory — see MatterTouch.
+        var touched = await database.Matters
             .AsNoTracking()
             .Where(matter => matter.ClosedOn == null)
             .Select(matter => new
@@ -72,11 +76,40 @@ public static class GetDashboard
                         Summary = activity.Subject ?? activity.Body,
                     })
                     .FirstOrDefault(),
+                LastDocumentAt = database.Documents
+                    .Where(document => document.MatterId == matter.Id)
+                    .Max(document => (DateTimeOffset?)document.AddedAt),
+                LastTimeEntryAt = database.TimeEntries
+                    .Where(entry => entry.MatterId == matter.Id)
+                    .Max(entry => (DateTimeOffset?)entry.CreatedAt),
+                LastInvoiceAt = database.Invoices
+                    .Where(invoice => invoice.MatterId == matter.Id)
+                    .Max(invoice => (DateTimeOffset?)invoice.CreatedAt),
+                LastMovementAt = database.LedgerEntries
+                    .Where(entry => entry.MatterId == matter.Id)
+                    .Max(entry => (DateTimeOffset?)entry.CreatedAt),
             })
-            .Where(matter => matter.Last != null)
-            .OrderByDescending(matter => matter.Last!.OccurredAt)
-            .Take(RecentMatterCount)
             .ToListAsync(cancellationToken);
+
+        var recent = touched
+            .Select(matter => new
+            {
+                matter.Id,
+                matter.Reference,
+                matter.Name,
+                matter.ClientName,
+                matter.Last,
+                TouchedAt = MatterTouch.Latest(
+                    matter.Last == null ? null : matter.Last.OccurredAt,
+                    matter.LastDocumentAt,
+                    matter.LastTimeEntryAt,
+                    matter.LastInvoiceAt,
+                    matter.LastMovementAt),
+            })
+            .Where(matter => matter.TouchedAt != null)
+            .OrderByDescending(matter => matter.TouchedAt)
+            .Take(RecentMatterCount)
+            .ToList();
 
         var summary = new DashboardSummary(
             today,
@@ -90,14 +123,16 @@ public static class GetDashboard
             })],
             nextBeyond,
             unbilled,
+            // A dossier touched only by time entries has no journal line to summarise, and the row
+            // says so rather than inventing one.
             [.. recent.Select(matter => new DashboardRecentMatter(
                 matter.Id,
                 matter.Reference,
                 matter.Name,
                 matter.ClientName,
-                matter.Last!.Type,
-                matter.Last.Summary,
-                matter.Last.OccurredAt))]);
+                matter.Last?.Type,
+                matter.Last?.Summary,
+                matter.TouchedAt))]);
 
         return Results.Ok(summary);
     }

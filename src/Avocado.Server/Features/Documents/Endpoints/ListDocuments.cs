@@ -43,6 +43,7 @@ public static class ListDocuments
                 document.ExhibitNumber,
                 document.ExhibitLabel,
                 document.FileName,
+                document.Folder,
                 document.Type,
                 document.SizeBytes,
                 document.MimeType,
@@ -63,7 +64,13 @@ public static class ListDocuments
             usedNumbers.Count,
             await all.SumAsync(document => (long?)document.SizeBytes, cancellationToken) ?? 0,
             FreeNumbers(usedNumbers),
-            NextNumber(usedNumbers)));
+            NextNumber(usedNumbers),
+            await all
+                .Where(document => document.Folder != null)
+                .Select(document => document.Folder!)
+                .Distinct()
+                .OrderBy(folder => folder)
+                .ToListAsync(cancellationToken)));
     }
 
     /// <summary>Gaps below the highest number in use — « n° 10 libre ».</summary>

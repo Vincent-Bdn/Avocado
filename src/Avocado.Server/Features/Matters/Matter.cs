@@ -30,6 +30,24 @@ public class Matter
     /// </summary>
     public string? CourtCaseNumber { get; set; }
 
+    /// <summary>
+    /// « Conseil » or « Contentieux » in practice, but stored as free text: a practice that also does
+    /// arbitrage or médiation should be able to say so without waiting for a release. Only the exact
+    /// word « Contentieux » unlocks the two litigation fields below, and that comparison is the one
+    /// piece of vocabulary the application interprets.
+    /// </summary>
+    public string? Classification { get; set; }
+
+    /// <summary>« TC Lyon », « CA Grenoble ». Meaningless outside a contentieux, hence nullable.</summary>
+    public string? Court { get; set; }
+
+    /// <summary>
+    /// Pinned to the top of the list, above a divider. Deliberately not a folder or a colour: what a
+    /// solo practice needs is « the four I am living in this month », and anything richer becomes a
+    /// filing system nobody maintains.
+    /// </summary>
+    public bool IsFavourite { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 

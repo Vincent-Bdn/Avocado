@@ -11,6 +11,7 @@ using Avocado.Server.Features.Deadlines.Endpoints;
 using Avocado.Server.Features.Documents.Endpoints;
 using Avocado.Server.Features.Matters.Endpoints;
 using Avocado.Server.Features.Searches.Endpoints;
+using Avocado.Server.Features.Settings.Endpoints;
 using Avocado.Server.Features.TimeEntries.Endpoints;
 using Avocado.Server.Features.Users.Endpoints;
 using Avocado.Server.Features.Vaults;
@@ -103,6 +104,7 @@ app.MapDocuments();
 app.MapDeadlines();
 app.MapTimeEntries();
 app.MapBilling();
+app.MapSettings();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Users } from 'lucide-react'
+import {
+  CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Users,
+} from 'lucide-react'
 import { ApiError, api } from './api.js'
 import { CommandPalette } from './CommandPalette.js'
 import { MatterView } from './MatterView.js'
@@ -212,29 +214,47 @@ function Matters({ selected, onSelect, onNewMatter }: {
             </p>
           )}
 
-          {page?.items.map((matter) => (
-            <button
-              key={matter.id}
-              type="button"
-              onClick={() => onSelect(matter.id)}
-              className={cn(
-                'grid h-9 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-0.5',
-                'rounded-sm px-2 py-1 text-left transition-colors',
-                matter.id === selected
-                  ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
-                  : 'hover:bg-hover',
+          {page?.items.map((matter, index) => (
+            <div key={matter.id}>
+              {/* Favourites are pinned above a rule. One divider, drawn where the pinning stops. */}
+              {index > 0 && page.items[index - 1]?.isFavourite && !matter.isFavourite && (
+                <div className="my-1 border-t border-line" />
               )}
-            >
-              {/* Dense rows never wrap; they truncate. */}
-              <span className="truncate text-[12px] leading-4">{matter.name}</span>
-              <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
-                {matter.reference}
-                {matter.clientName && ` · ${matter.clientName}`}
-              </span>
-              <span className="row-span-2 self-center font-mono text-[10px] text-muted">
-                {formatRelative(matter.lastActivityAt)}
-              </span>
-            </button>
+
+              <button
+                type="button"
+                onClick={() => onSelect(matter.id)}
+                className={cn(
+                  'grid h-11 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-1',
+                  'rounded-sm px-2 py-1 text-left transition-colors',
+                  matter.id === selected
+                    ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
+                    : 'hover:bg-hover',
+                )}
+              >
+                {/* Dense rows never wrap; they truncate. */}
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {matter.isFavourite && (
+                    <Star
+                      size={11}
+                      strokeWidth={2}
+                      fill="currentColor"
+                      className="shrink-0 text-accent"
+                    />
+                  )}
+                  <span className="truncate text-[12px] leading-4">{matter.name}</span>
+                </span>
+
+                <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
+                  {matter.reference}
+                  {matter.clientName && ` · ${matter.clientName}`}
+                </span>
+
+                <span className="row-span-2 self-center font-mono text-[10px] text-muted">
+                  {formatRelative(matter.lastActivityAt)}
+                </span>
+              </button>
+            </div>
           ))}
         </div>
       </Panel>

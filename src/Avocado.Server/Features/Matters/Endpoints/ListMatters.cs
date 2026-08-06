@@ -1,5 +1,6 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Deadlines;
+using Avocado.Server.Features.Deadlines.Enums;
 using Avocado.Server.Features.Matters.Endpoints.Dtos;
 using Avocado.Server.Features.Matters.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -59,10 +60,12 @@ public static class ListMatters
         // Order and page on the entity query, then project. EF cannot translate an ORDER BY over a
         // record constructed in a Select, and the page is only 40 rows, so the per-row subqueries run
         // for those 40 rather than for all 418.
+        // Favourites first, then the chosen sort. Pinning is the point of a favourite: a favourite
+        // that sorts by date like everything else is only a decoration.
         var projected = Order(query, database, sort, descending)
             .Skip(skip)
             .Take(Math.Clamp(take, 1, 200))
-            .Select(matter => new MatterListItem(
+            .Select(matter => new MatterRow(
             matter.Id,
             matter.Reference,
             matter.Name,
@@ -74,7 +77,9 @@ public static class ListMatters
                     : (party.Contact!.FirstName + " " + party.Contact!.LastName).Trim())
                 .FirstOrDefault(),
             matter.CourtCaseNumber,
+            matter.Classification,
             matter.ClosedOn == null,
+            matter.IsFavourite,
             matter.ClosedOn == null
                 ? database.Deadlines
                     .Where(deadline => deadline.MatterId == matter.Id && !deadline.IsDone)
@@ -94,21 +99,65 @@ public static class ListMatters
                 .Where(activity => activity.MatterId == matter.Id)
                 .OrderByDescending(activity => activity.OccurredAt)
                 .Select(activity => (DateTimeOffset?)activity.OccurredAt)
-                .FirstOrDefault()));
+                .FirstOrDefault(),
+            database.Documents
+                .Where(document => document.MatterId == matter.Id)
+                .Max(document => (DateTimeOffset?)document.AddedAt),
+            database.TimeEntries
+                .Where(entry => entry.MatterId == matter.Id)
+                .Max(entry => (DateTimeOffset?)entry.CreatedAt),
+            database.Invoices
+                .Where(invoice => invoice.MatterId == matter.Id)
+                .Max(invoice => (DateTimeOffset?)invoice.CreatedAt),
+            database.LedgerEntries
+                .Where(entry => entry.MatterId == matter.Id)
+                .Max(entry => (DateTimeOffset?)entry.CreatedAt)));
 
-        var items = await projected.ToListAsync(cancellationToken);
+        var rows = await projected.ToListAsync(cancellationToken);
 
-        // Urgency is a domain rule, not a SQL expression — applied once the rows are in memory.
-        var withUrgency = items
-            .Select(item => item with
+        // Urgency and the combined recency are domain rules, not SQL expressions — both applied once
+        // the rows are in memory.
+        var items = rows
+            .Select(row => row.Item with
             {
-                NextDeadlineUrgency = item.NextDeadlineDate is { } date
+                NextDeadlineUrgency = row.Item.NextDeadlineDate is { } date
                     ? DeadlineUrgencyRule.For(date, today)
                     : null,
+                LastActivityAt = MatterTouch.Latest(
+                    row.LastActivityAt, row.LastDocumentAt, row.LastTimeEntryAt,
+                    row.LastInvoiceAt, row.LastMovementAt),
             })
+            .OrderByDescending(item => item.IsFavourite)
             .ToList();
 
-        return Results.Ok(new MatterListPage(withUrgency, total));
+        return Results.Ok(new MatterListPage(items, total));
+    }
+
+    /// <summary>
+    /// The five timestamps that make up « touché », alongside the row itself. They are separate
+    /// columns because SQLite cannot take the max of five correlated subqueries in one expression.
+    /// </summary>
+    private sealed record MatterRow(
+        Guid Id,
+        string Reference,
+        string Name,
+        string? ClientName,
+        string? CourtCaseNumber,
+        string? Classification,
+        bool IsOpen,
+        bool IsFavourite,
+        DateOnly? NextDeadlineDate,
+        TimeOnly? NextDeadlineTime,
+        DeadlineUrgency? NextDeadlineUrgency,
+        DateTimeOffset? LastActivityAt,
+        DateTimeOffset? LastDocumentAt,
+        DateTimeOffset? LastTimeEntryAt,
+        DateTimeOffset? LastInvoiceAt,
+        DateTimeOffset? LastMovementAt)
+    {
+        public MatterListItem Item => new(
+            Id, Reference, Name, ClientName, CourtCaseNumber, Classification,
+            IsOpen, IsFavourite, NextDeadlineDate, NextDeadlineTime, NextDeadlineUrgency, LastActivityAt);
     }
 
     private static IQueryable<Matter> ApplyDeadlineFilters(
