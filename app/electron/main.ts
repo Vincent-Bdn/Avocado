@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron'
 import path from 'node:path'
 import { Backend, type BackendHandshake } from './backend.js'
+import { listRemovableDrives, saveRecoveryKey } from './drives.js'
 
 // The main process is emitted as CommonJS: Electron's ESM entry support still trips over Node's
 // CJS interop for the `electron` module itself, and this is not the place to be adventurous.
@@ -45,6 +46,20 @@ async function createWindow(): Promise<void> {
 
   // No FOUC on a local application; wait until there is something worth showing.
   window.once('ready-to-show', () => window.show())
+
+  // The renderer's console reaches the shell's stdout. Without this, diagnosing a layout or fetch
+  // problem means opening devtools by hand on a machine you may not be sitting at.
+  // Electron changed this signature: older builds pass (event, level, message), newer ones a single
+  // details object. Accept both rather than silently logging `undefined`.
+  window.webContents.on('console-message', (...args: unknown[]) => {
+    const [first, , third] = args
+    const message =
+      typeof third === 'string'
+        ? third
+        : (first as { message?: string } | undefined)?.message
+
+    console.log(`[renderer] ${message ?? ''}`)
+  })
 
   await window.loadFile(path.join(directory, '..', 'dist', 'index.html'))
 }
@@ -105,6 +120,12 @@ app.whenReady().then(async () => {
 
       return result.canceled ? null : (result.filePaths[0] ?? null)
     })
+
+    // The recovery step will not let the user continue until one of these has actually happened.
+    ipcMain.handle('avocado:removableDrives', () => listRemovableDrives())
+
+    ipcMain.handle('avocado:saveRecoveryKey', (_event, drivePath: string, contents: string) =>
+      saveRecoveryKey(drivePath, contents))
 
     applyContentSecurityPolicy()
     await createWindow()

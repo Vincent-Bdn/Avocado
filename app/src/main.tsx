@@ -5,6 +5,7 @@ import { applyTheme } from './theme.js'
 import './tokens.css'
 import './app.css'
 import './shell.css'
+import './wizard/wizard.css'
 
 applyTheme()
 

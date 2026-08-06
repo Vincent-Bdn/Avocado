@@ -1,0 +1,389 @@
+/* The setup wizard. Full-screen, no rail, no status bar.
+
+   Type is larger than anywhere else in the application — display 28/34 for titles, 14/23 for body —
+   because these screens are read once and carefully. Symmetric vertical gaps are correct here; this
+   is not the dense app shell. */
+
+.wizard {
+  display: grid;
+  grid-template-rows: 56px minmax(0, 1fr);
+  height: 100%;
+  background: var(--surface-app);
+}
+
+/* --- Top bar and progress ------------------------------------------------- */
+
+.wizard-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.wizard-mark { width: 24px; height: 24px; border-radius: 6px; }
+
+.wizard-word {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-size: 15px;
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 20px;
+  margin: 0 0 0 auto;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.wizard-steps li { display: flex; align-items: center; gap: 7px; }
+
+.step-dot {
+  display: grid;
+  place-items: center;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.step-done { color: var(--text-secondary); }
+.step-done .step-dot { width: 12px; height: 12px; background: transparent; color: var(--text-secondary); }
+
+.step-current { color: var(--text-primary); font-weight: 500; }
+.step-current .step-dot { background: var(--brand); }
+
+.step-later { color: var(--text-muted); }
+.step-later .step-dot { border: 1px solid #c0c6bb; }
+
+/* --- Content -------------------------------------------------------------- */
+
+.wizard-content {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.wizard-column,
+.wizard-wide {
+  overflow-y: auto;
+  padding: 32px 24px;
+  align-self: center;
+  justify-self: center;
+  width: 100%;
+}
+
+.wizard-column { max-width: 640px; }
+
+/* The recovery step needs its three side cards, so it runs wider. */
+.wizard-wide {
+  max-width: 940px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
+  align-items: start;
+}
+
+.wizard-main { display: grid; gap: 16px; }
+.wizard-aside { display: grid; gap: 12px; }
+
+.wizard h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.wizard .lead {
+  margin: 0;
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 23px;
+  color: var(--text-secondary);
+}
+
+.wizard .section-title {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 600;
+}
+
+.wizard .footnote { font-size: 12px; line-height: 18px; }
+
+/* --- Welcome -------------------------------------------------------------- */
+
+.points { display: grid; gap: 14px; margin: 8px 0 0; padding: 0; list-style: none; }
+.points li { display: grid; gap: 3px; }
+.points strong { font-size: 14px; font-weight: 600; }
+.points span { font-size: 13.5px; line-height: 22px; color: var(--text-secondary); }
+
+/* --- Vault folder --------------------------------------------------------- */
+
+.path-row { display: flex; gap: 8px; margin-top: 8px; }
+.path { flex: 1; min-width: 0; height: 32px; font-size: 13px; }
+
+.path-refused {
+  border-color: var(--status-danger);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-danger) 16%, transparent);
+}
+
+.refusal {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #ebc9c5;
+  border-left: 3px solid var(--status-danger);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--status-danger) 5%, var(--surface-panel));
+}
+
+.refusal p { margin: 0; font-size: 13.5px; line-height: 22px; }
+
+/* The arrangement that works, on its own white card inside the refusal. */
+.arrangement {
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-panel);
+}
+
+.arrangement .sub-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.arrangement ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.arrangement li { font-size: 12.5px; line-height: 19px; color: var(--text-secondary); }
+
+.refusal-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Available, not inviting. */
+.override {
+  justify-self: end;
+  height: auto;
+  padding: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: underline;
+}
+
+/* --- The key -------------------------------------------------------------- */
+
+.key-card {
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-panel);
+}
+
+.key-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.key-group {
+  padding: 8px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 17px;
+  letter-spacing: 0.09em;
+  text-align: center;
+}
+
+.key-caption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.key-caption .muted { flex: 1; }
+
+.ghost-button {
+  height: 24px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+/* --- Ways to secure it ---------------------------------------------------- */
+
+.secure-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.option {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-panel);
+}
+
+.option-recommended {
+  border: 1.5px solid var(--brand);
+  background: var(--brand-subtle);
+}
+
+.option header { display: flex; align-items: center; gap: 8px; }
+.option h3 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.option p { margin: 0; font-size: 12.5px; line-height: 19px; color: var(--text-secondary); }
+
+.badge-recommended {
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.done { color: var(--status-success); font-size: 12px; }
+
+.drives { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.drives li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
+.drives button { margin-left: auto; height: 26px; }
+
+.no-drive {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.no-drive .searching { font-size: 11px; }
+.no-drive .footnote { font-size: 11px; line-height: 16px; }
+
+/* --- Side notes ----------------------------------------------------------- */
+
+.note-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-panel);
+}
+
+.note-card h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.note-card p { margin: 0; font-size: 11.5px; line-height: 18px; color: var(--text-secondary); }
+.note-card .yes { color: var(--status-success); }
+.note-card .no { color: var(--text-muted); }
+
+/* The single note of alarm on the screen. */
+.note-caution {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.note-caution h3,
+.note-caution p { color: var(--status-warning); }
+
+/* --- Recap and gate ------------------------------------------------------- */
+
+.recap { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; font-size: 13.5px; }
+
+.wizard-gate {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-panel);
+}
+
+.wizard-gate .confirm { font-size: 13px; }
+
+/* --- The printed sheet ---------------------------------------------------- */
+
+/* Off-screen until printing: window.print() must produce the sheet and nothing else. */
+.sheet { position: absolute; left: -10000px; top: 0; width: 210mm; }
+
+@media print {
+  .wizard,
+  .shell,
+  .app {
+    display: none !important;
+  }
+
+  .sheet {
+    position: static;
+    left: 0;
+    width: auto;
+    padding: 0;
+    /* Pure black on white: no colour, no grey, so it survives a nearly empty cartridge. */
+    color: #000;
+    background: #fff;
+    font-family: var(--font-sans);
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid #000;
+}
+
+.sheet-title { font-size: 16px; font-weight: 600; }
+.sheet-date { font-size: 11px; }
+.sheet-lead { margin: 12px 0 16px; font-size: 11.5px; line-height: 18px; }
+
+.sheet-body { display: flex; gap: 20px; align-items: flex-start; }
+.sheet-qr { margin: 0; width: 148px; }
+.sheet-qr img { width: 148px; height: 148px; border: 1px solid #000; }
+.sheet-qr figcaption { margin-top: 4px; font-size: 9.5px; text-align: center; }
+
+.sheet-key { flex: 1; }
+.sheet-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+
+.sheet-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+.sheet-groups span {
+  padding: 6px 0;
+  border: 1px solid #000;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.sheet-note { margin: 8px 0 0; font-size: 9.5px; line-height: 14px; }
+
+.sheet-box { margin-top: 18px; padding: 10px 12px; border: 1px solid #000; }
+.sheet-box ol { margin: 0; padding-left: 18px; }
+.sheet-box li { font-size: 11px; line-height: 18px; }
+
+.sheet-filed { margin-top: 18px; }
+.sheet-filed .rule { height: 1px; background: #000; margin: 14px 0; }
+
+.sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 22px;
+  padding-top: 8px;
+  border-top: 1px solid #000;
+  font-size: 9px;
+  line-height: 13px;
+}
+
+.sheet-fingerprint { text-align: right; white-space: nowrap; font-family: var(--font-mono); }

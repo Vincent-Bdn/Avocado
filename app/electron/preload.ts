@@ -20,4 +20,13 @@ contextBridge.exposeInMainWorld('avocado', {
   /** Native folder picker for the setup wizard. Returns null if the user cancels. */
   chooseFolder: (startIn?: string) =>
     ipcRenderer.invoke('avocado:chooseFolder', startIn) as Promise<string | null>,
+
+  /** Removable volumes only — never this computer's own disk. */
+  removableDrives: () =>
+    ipcRenderer.invoke('avocado:removableDrives') as Promise<
+      { path: string; label: string; freeBytes: number }[]
+    >,
+
+  saveRecoveryKey: (drivePath: string, contents: string) =>
+    ipcRenderer.invoke('avocado:saveRecoveryKey', drivePath, contents) as Promise<string>,
 })

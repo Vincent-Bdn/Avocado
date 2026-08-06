@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, api, post, type VaultStatus } from './api.js'
 import { AppShell } from './AppShell.js'
-import { Setup } from './Setup.js'
+import { Wizard } from './wizard/Wizard.js'
 
 type Screen =
   | { kind: 'loading' }
@@ -40,10 +40,14 @@ export function App() {
     return <AppShell />
   }
 
+  // Full-screen, no rail: the wizard is not a card in the application shell.
+  if (status.state === 'Absent') {
+    return <Wizard status={status} onReady={() => void refresh()} />
+  }
+
   return (
     <main className="shell">
-      {status.state === 'Absent' && <Setup status={status} onReady={() => void refresh()} />}
-      {status.state === 'Locked' && <Unlock status={status} onUnlocked={() => void refresh()} />}
+      <Unlock status={status} onUnlocked={() => void refresh()} />
     </main>
   )
 }
