@@ -69,20 +69,32 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
   }
 
   async function save(item: DeadlineItem, changes: Partial<DeadlineItem>) {
-    await api(`/api/deadlines/${item.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...item, ...changes }),
-    })
+    setError(null)
 
-    setEditing(null)
-    reload()
-    onChanged()
+    try {
+      await api(`/api/deadlines/${item.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...item, ...changes }),
+      })
+
+      setEditing(null)
+      reload()
+      onChanged()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
   }
 
   async function remove(item: DeadlineItem) {
-    await api(`/api/deadlines/${item.id}`, { method: 'DELETE' })
-    reload()
-    onChanged()
+    setError(null)
+
+    try {
+      await api(`/api/deadlines/${item.id}`, { method: 'DELETE' })
+      reload()
+      onChanged()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
   }
 
   return (

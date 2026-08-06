@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileText, Paperclip } from 'lucide-react'
-import { ApiError, api } from '../api.js'
+import { Download, FileText, Paperclip, Pencil, Trash2, Undo2, X } from 'lucide-react'
+import { ApiError, api, download } from '../api.js'
+import { NumberPill } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { Input } from '../components/ui/input.js'
 import { cn } from '../lib/utils.js'
 import { formatSize } from '../lib/urgency.js'
-import { Caption, Micro, Row, RowMain, TabPanel } from './shared.js'
+import { Caption, Micro, Row, RowAction, RowMain, TabPanel } from './shared.js'
 
 interface DocumentItem {
   id: string
@@ -30,6 +31,9 @@ interface DocumentPage {
   nextExhibitNumber: number
 }
 
+const messageOf = (failure: unknown) =>
+  failure instanceof ApiError ? failure.message : String(failure)
+
 /**
  * Any file attached to the dossier. A document becomes a pièce when it is given a number and a
  * libellé written for the judge, so both live in one list and the distinction is legible at a glance.
@@ -43,19 +47,22 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const [promoting, setPromoting] = useState<string | null>(null)
-  const [label, setLabel] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
 
   const reload = useCallback(() => {
     api<DocumentPage>(`/api/matters/${matterId}/documents`)
       .then(setPage)
-      .catch((failure: unknown) =>
-        setError(failure instanceof ApiError ? failure.message : String(failure)),
-      )
+      .catch((failure: unknown) => setError(messageOf(failure)))
   }, [matterId])
 
   useEffect(reload, [reload])
+
+  const refresh = () => {
+    setEditing(null)
+    reload()
+    onChanged()
+  }
 
   async function upload(files: FileList) {
     setBusy(true)
@@ -68,32 +75,59 @@ export function Documents({ matterId, isOpen, onChanged }: {
       // A drop always creates plain documents. Numbering evidence is a legal act, never a side
       // effect of dragging a file.
       await api(`/api/matters/${matterId}/documents`, { method: 'POST', body: form })
-      reload()
-      onChanged()
+      refresh()
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : String(failure))
+      setError(messageOf(failure))
     } finally {
       setBusy(false)
     }
   }
 
-  async function promote(id: string) {
-    try {
-      await api(`/api/documents/${id}/exhibit`, {
-        method: 'PUT',
-        body: JSON.stringify({ exhibitLabel: label }),
-      })
+  /** Promoting, relabelling and withdrawing are all the same two endpoints. */
+  async function setExhibit(id: string, label: string | null) {
+    setError(null)
 
-      setPromoting(null)
-      setLabel('')
-      reload()
+    try {
+      if (label === null) {
+        await api(`/api/documents/${id}/exhibit`, { method: 'DELETE' })
+      } else {
+        await api(`/api/documents/${id}/exhibit`, {
+          method: 'PUT',
+          body: JSON.stringify({ exhibitLabel: label }),
+        })
+      }
+
+      refresh()
     } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : String(failure))
+      setError(messageOf(failure))
+    }
+  }
+
+  async function remove(id: string) {
+    setError(null)
+
+    try {
+      await api(`/api/documents/${id}`, { method: 'DELETE' })
+      refresh()
+    } catch (failure) {
+      setError(messageOf(failure))
     }
   }
 
   const exhibits = page?.items.filter((item) => item.exhibitNumber !== null) ?? []
   const plain = page?.items.filter((item) => item.exhibitNumber === null) ?? []
+
+  const rowProps = (item: DocumentItem) => ({
+    item,
+    isOpen,
+    editing: editing === item.id,
+    nextNumber: page?.nextExhibitNumber ?? 1,
+    onEdit: () => setEditing(item.id),
+    onCancel: () => setEditing(null),
+    onLabel: (label: string) => void setExhibit(item.id, label),
+    onWithdraw: () => void setExhibit(item.id, null),
+    onDelete: () => void remove(item.id),
+  })
 
   return (
     <TabPanel>
@@ -115,7 +149,11 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
           <div className="grid flex-1 gap-0.5">
             <strong className="text-[12.5px] font-medium">
-              {busy ? 'Chiffrement en cours…' : dragging ? 'Déposer pour classer dans ce dossier' : 'Glisser des fichiers ici'}
+              {busy
+                ? 'Chiffrement en cours…'
+                : dragging
+                  ? 'Déposer pour classer dans ce dossier'
+                  : 'Glisser des fichiers ici'}
             </strong>
             <Micro>
               ou parcourir · PDF, DOCX, EML, JPG, XLSX · 50 Mo par fichier. Ils arrivent comme
@@ -138,7 +176,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
       {error && <p className="m-0 text-danger">{error}</p>}
 
       {page?.total === 0 && (
-        <EmptyState title="Aucun document">
+        <EmptyState icon={<FileText size={18} strokeWidth={1.8} />} title="Aucun document">
           Tout ce qui arrive au dossier se range ici, chiffré. Les pièces sont des documents qui
           portent un numéro et un libellé écrit pour le juge.
         </EmptyState>
@@ -147,46 +185,14 @@ export function Documents({ matterId, isOpen, onChanged }: {
       {exhibits.length > 0 && (
         <div>
           <Caption>Pièces · {exhibits.length}</Caption>
-          {exhibits.map((item) => <DocumentRow key={item.id} item={item} />)}
+          {exhibits.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
         </div>
       )}
 
       {plain.length > 0 && (
         <div>
           <Caption>Documents · {plain.length}</Caption>
-
-          {plain.map((item) => (
-            <div key={item.id}>
-              <DocumentRow item={item} />
-
-              {isOpen && promoting !== item.id && (
-                <button
-                  type="button"
-                  onClick={() => { setPromoting(item.id); setLabel('') }}
-                  className="ml-11 text-[11.5px] text-ink-secondary underline"
-                >
-                  Verser comme pièce n° {page?.nextExhibitNumber}
-                </button>
-              )}
-
-              {promoting === item.id && (
-                <div className="my-1.5 ml-11 flex flex-wrap items-center gap-2 rounded-md border border-[var(--focus-ring)] px-3 py-2.5">
-                  <Input
-                    autoFocus
-                    className="flex-1 basis-[260px]"
-                    value={label}
-                    placeholder="Bail commercial du local sis 14 rue Duquesne, du 1er mars 2019"
-                    onChange={(event) => setLabel(event.target.value)}
-                  />
-                  <Micro>écrit pour le juge, pas le nom du fichier</Micro>
-                  <Button disabled={!label.trim()} onClick={() => void promote(item.id)}>
-                    Verser comme pièce n° {page?.nextExhibitNumber}
-                  </Button>
-                  <Button variant="secondary" onClick={() => setPromoting(null)}>Annuler</Button>
-                </div>
-              )}
-            </div>
-          ))}
+          {plain.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
         </div>
       )}
 
@@ -200,14 +206,54 @@ export function Documents({ matterId, isOpen, onChanged }: {
   )
 }
 
-function DocumentRow({ item }: { item: DocumentItem }) {
+function DocumentRow({ item, isOpen, editing, nextNumber, onEdit, onCancel, onLabel, onWithdraw, onDelete }: {
+  item: DocumentItem
+  isOpen: boolean
+  editing: boolean
+  nextNumber: number
+  onEdit: () => void
+  onCancel: () => void
+  onLabel: (label: string) => void
+  onWithdraw: () => void
+  onDelete: () => void
+}) {
+  const [label, setLabel] = useState(item.exhibitLabel ?? '')
+  const isExhibit = item.exhibitNumber !== null
+
+  if (editing) {
+    return (
+      <div className="my-1.5 flex flex-wrap items-center gap-2 rounded-md border border-[var(--focus-ring)] px-3 py-2.5">
+        <Input
+          autoFocus
+          className="flex-1 basis-[260px]"
+          value={label}
+          placeholder="Bail commercial du local sis 14 rue Duquesne, du 1er mars 2019"
+          onChange={(event) => setLabel(event.target.value)}
+        />
+
+        <Micro>écrit pour le juge, pas le nom du fichier</Micro>
+
+        <Button disabled={!label.trim()} onClick={() => onLabel(label.trim())}>
+          {isExhibit ? 'Enregistrer' : `Verser comme pièce n° ${nextNumber}`}
+        </Button>
+
+        <Button variant="secondary" size="icon" aria-label="Annuler" onClick={onCancel}>
+          <X size={13} strokeWidth={2} />
+        </Button>
+      </div>
+    )
+  }
+
   return (
-    <Row>
-      {item.exhibitNumber !== null ? (
+    <Row className="group">
+      {isExhibit ? (
         // The number pill: brand-tinted, so a pièce is identifiable before reading anything.
-        <span className="grid h-5 min-w-[26px] shrink-0 place-items-center rounded-[3px] border border-[#bfd3c5] bg-brand-subtle px-1.5 font-mono text-[11px] font-medium text-brand-on-subtle tnum">
+        <NumberPill
+          bordered
+          className="min-w-[26px] shrink-0 border-[#BFD3C5] bg-brand-subtle font-medium text-brand-on-subtle"
+        >
           {item.exhibitNumber}
-        </span>
+        </NumberPill>
       ) : (
         <FileText size={14} strokeWidth={1.75} className="w-[26px] shrink-0 text-disabled" />
       )}
@@ -222,6 +268,36 @@ function DocumentRow({ item }: { item: DocumentItem }) {
 
       <Micro>{item.type}</Micro>
       <Micro className="font-mono tnum">{formatSize(item.sizeBytes)}</Micro>
+
+      <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <RowAction
+          label="Télécharger"
+          onClick={() => void download(`/api/documents/${item.id}/content`, item.fileName)}
+        >
+          <Download size={13} strokeWidth={1.75} />
+        </RowAction>
+
+        {isOpen && (
+          <>
+            <RowAction
+              label={isExhibit ? 'Modifier le libellé de la pièce' : `Verser comme pièce n° ${nextNumber}`}
+              onClick={onEdit}
+            >
+              <Pencil size={13} strokeWidth={1.75} />
+            </RowAction>
+
+            {isExhibit && (
+              <RowAction label="Retirer des pièces" onClick={onWithdraw}>
+                <Undo2 size={13} strokeWidth={1.75} />
+              </RowAction>
+            )}
+
+            <RowAction label="Supprimer" danger onClick={onDelete}>
+              <Trash2 size={13} strokeWidth={1.75} />
+            </RowAction>
+          </>
+        )}
+      </span>
     </Row>
   )
 }

@@ -13,6 +13,8 @@ import { activityLabels, formatDate } from '../labels.js'
 import { Micro } from '../tabs/shared.js'
 import type { ActivityType, ContactSummary, ContactType } from '../types.js'
 
+import { NewContact as NewContactSheet } from './NewContact.js'
+
 export { NewContact } from './NewContact.js'
 
 interface ContactRole {
@@ -59,6 +61,7 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   onOpenMatter: (id: string) => void
   onNewContact: () => void
 }) {
+  const [reloadToken, setReloadToken] = useState(0)
   const [items, setItems] = useState<ContactSummary[]>([])
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +126,12 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
       </Panel>
 
       {selected ? (
-        <ContactView contactId={selected} onOpenMatter={onOpenMatter} />
+        <ContactView
+          key={`${selected}-${reloadToken}`}
+          contactId={selected}
+          onOpenMatter={onOpenMatter}
+          onChanged={() => { setReloadToken((token) => token + 1); reload() }}
+        />
       ) : (
         <Panel className="items-center justify-center">
           <EmptyState
@@ -140,11 +148,13 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   )
 }
 
-function ContactView({ contactId, onOpenMatter }: {
+function ContactView({ contactId, onOpenMatter, onChanged }: {
   contactId: string
   onOpenMatter: (id: string) => void
+  onChanged: () => void
 }) {
   const [contact, setContact] = useState<ContactDetail | null>(null)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
     api<ContactDetail>(`/api/contacts/${contactId}`).then(setContact).catch(() => setContact(null))
@@ -188,6 +198,7 @@ function ContactView({ contactId, onOpenMatter }: {
             </span>
           </>
         }
+        actions={<Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>}
       />
 
       <div className="grid flex-1 grid-cols-[minmax(0,1fr)_208px] overflow-hidden">
@@ -283,6 +294,14 @@ function ContactView({ contactId, onOpenMatter }: {
           )}
         </aside>
       </div>
+
+      {editing && (
+        <NewContactSheet
+          contact={contact}
+          onCancel={() => setEditing(false)}
+          onCreated={() => { setEditing(false); onChanged() }}
+        />
+      )}
     </Panel>
   )
 }

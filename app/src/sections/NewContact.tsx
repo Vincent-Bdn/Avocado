@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Building2, Check, Loader2, Search, User } from 'lucide-react'
-import { ApiError, post } from '../api.js'
+import { ApiError, api, post } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Field } from '../components/ui/dialog.js'
@@ -25,36 +25,55 @@ type Lookup =
   | { state: 'empty' }
   | { state: 'unreachable' }
 
+/** What the sheet needs to reopen an existing tiers. A subset of the fiche, deliberately. */
+export interface ContactDraft {
+  id: string
+  type: ContactType
+  civility: string | null
+  lastName: string | null
+  firstName: string | null
+  legalName: string | null
+  siren: string | null
+  legalForm: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  notes: string | null
+}
+
 /**
- * Creating a tiers. A side sheet rather than a dialog, because what is behind stays readable.
+ * Creating and correcting a tiers. A side sheet rather than a dialog, because what is behind stays
+ * readable.
  *
  * One field drives the whole form for a personne morale: the raison sociale queries the registry and
  * fills SIREN, forme juridique and adresse. Those three stay disabled until a company is picked, so
  * the form says plainly which parts it is about to fill in for you, and become editable afterwards,
- * because the registry is frequently a few months behind reality.
+ * because the registry is frequently a few months behind reality. On an existing tiers they are
+ * editable from the start: what is already recorded is not a guess waiting to be confirmed.
  */
-export function NewContact({ onCreated, onCancel }: {
+export function NewContact({ contact, onCreated, onCancel }: {
+  contact?: ContactDraft
   onCreated: (id: string) => void
   onCancel: () => void
 }) {
-  const [type, setType] = useState<ContactType>('Organisation')
+  const [type, setType] = useState<ContactType>(contact?.type ?? 'Organisation')
 
   // Personne morale.
-  const [legalName, setLegalName] = useState('')
-  const [siren, setSiren] = useState('')
-  const [legalForm, setLegalForm] = useState('')
+  const [legalName, setLegalName] = useState(contact?.legalName ?? '')
+  const [siren, setSiren] = useState(contact?.siren ?? '')
+  const [legalForm, setLegalForm] = useState(contact?.legalForm ?? '')
   const [picked, setPicked] = useState<AnnuaireCompany | null>(null)
 
   // Personne physique.
-  const [civility, setCivility] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [firstName, setFirstName] = useState('')
+  const [civility, setCivility] = useState(contact?.civility ?? '')
+  const [lastName, setLastName] = useState(contact?.lastName ?? '')
+  const [firstName, setFirstName] = useState(contact?.firstName ?? '')
 
   // Both.
-  const [address, setAddress] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [notes, setNotes] = useState('')
+  const [address, setAddress] = useState(contact?.address ?? '')
+  const [email, setEmail] = useState(contact?.email ?? '')
+  const [phone, setPhone] = useState(contact?.phone ?? '')
+  const [notes, setNotes] = useState(contact?.notes ?? '')
 
   const [lookupOn, setLookupOn] = useState(annuaireEnabled)
   const [lookup, setLookup] = useState<Lookup>({ state: 'idle' })
@@ -63,7 +82,9 @@ export function NewContact({ onCreated, onCancel }: {
 
   const term = legalName.trim()
   const morale = type === 'Organisation'
-  const searchable = morale && lookupOn && !picked && term.length >= 3
+  // An existing tiers is never re-queried behind the user's back while they correct a typo in a name.
+  const searchable = morale && lookupOn && !contact && !picked && term.length >= 3
+  const locked = morale && lookupOn && !contact && !picked
 
   /**
    * Debounced by 250ms and cancelled on every keystroke. The previous list is kept while a new query
@@ -115,26 +136,37 @@ export function NewContact({ onCreated, onCancel }: {
 
   const named = morale ? legalName.trim() : lastName.trim()
 
-  async function create() {
+  async function save() {
+    if (!named) {
+      setError(morale ? 'La raison sociale est obligatoire.' : 'Le nom est obligatoire.')
+      return
+    }
+
     setBusy(true)
     setError(null)
 
     try {
-      const created = await post<{ id: string }>('/api/contacts', {
+      const body = {
         type,
-        civility: civility || null,
+        civility: civility.trim() || null,
         lastName: morale ? null : lastName.trim(),
         firstName: morale ? null : firstName.trim() || null,
         legalName: morale ? legalName.trim() : null,
         siren: morale ? siren.replace(/\s/g, '') || null : null,
-        legalForm: morale ? legalForm || null : null,
-        address: address || null,
-        email: email || null,
-        phone: phone || null,
-        notes: notes || null,
-      })
+        legalForm: morale ? legalForm.trim() || null : null,
+        address: address.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        notes: notes.trim() || null,
+      }
 
-      onCreated(created.id)
+      if (contact) {
+        await api(`/api/contacts/${contact.id}`, { method: 'PUT', body: JSON.stringify(body) })
+        onCreated(contact.id)
+      } else {
+        const created = await post<{ id: string }>('/api/contacts', body)
+        onCreated(created.id)
+      }
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
@@ -144,7 +176,7 @@ export function NewContact({ onCreated, onCancel }: {
 
   return (
     <Sheet
-      title="Nouveau tiers"
+      title={contact ? "Modifier le tiers" : "Nouveau tiers"}
       onClose={onCancel}
       footer={
         <div className="grid gap-2.5">
@@ -169,7 +201,9 @@ export function NewContact({ onCreated, onCancel }: {
             <span className="flex-1" />
 
             <Button variant="secondary" onClick={onCancel}>Annuler</Button>
-            <Button disabled={busy || !named} onClick={() => void create()}>Créer le tiers</Button>
+            <Button disabled={busy} onClick={() => void save()}>
+              {contact ? 'Enregistrer' : 'Créer le tiers'}
+            </Button>
           </div>
         </div>
       }
@@ -226,7 +260,7 @@ export function NewContact({ onCreated, onCancel }: {
               </span>
             </label>
 
-            {lookupOn && !picked && term.length < 3 && (
+            {lookupOn && !contact && !picked && term.length < 3 && (
               <p className="m-0 type-caption text-muted">
                 Trois caractères suffisent. Rien n’est envoyé avant la troisième lettre.
               </p>
@@ -248,7 +282,7 @@ export function NewContact({ onCreated, onCancel }: {
                 inputSize="lg"
                 className="font-mono tnum"
                 value={siren}
-                disabled={lookupOn && !picked}
+                disabled={locked}
                 onChange={(event) => setSiren(event.target.value)}
               />
             </Field>
@@ -257,7 +291,7 @@ export function NewContact({ onCreated, onCancel }: {
               <Input
                 inputSize="lg"
                 value={legalForm}
-                disabled={lookupOn && !picked}
+                disabled={locked}
                 onChange={(event) => setLegalForm(event.target.value)}
               />
             </Field>
@@ -295,7 +329,7 @@ export function NewContact({ onCreated, onCancel }: {
         <Textarea
           rows={2}
           value={address}
-          disabled={morale && lookupOn && !picked}
+          disabled={locked}
           onChange={(event) => setAddress(event.target.value)}
         />
       </Field>

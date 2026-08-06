@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Check, Plus } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
+import { MatterForm } from './MatterForm.js'
 import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
-import { Badge } from './components/ui/badge.js'
+import { Badge, NumberPill } from './components/ui/badge.js'
 import { Button, Kbd } from './components/ui/button.js'
 import { Panel } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
@@ -20,6 +21,7 @@ type Tab = 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 export function MatterView({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
   const [matter, setMatter] = useState<MatterDetail | null>(null)
   const [tab, setTab] = useState<Tab>('journal')
+  const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -50,8 +52,12 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
   async function toggleClosed() {
     if (!matter) return
 
-    await post(`/api/matters/${matterId}/${matter.isOpen ? 'close' : 'reopen'}`, {})
-    refreshAll()
+    try {
+      await post(`/api/matters/${matterId}/${matter.isOpen ? 'close' : 'reopen'}`, {})
+      refreshAll()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
   }
 
   const tabs: [Tab, string, number | null][] = [
@@ -114,6 +120,8 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         </div>
 
         <div className="absolute top-3 right-4 flex gap-2">
+          <Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>
+
           <Button
             variant={matter.isOpen ? 'secondary' : 'primary'}
             onClick={() => void toggleClosed()}
@@ -146,7 +154,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           >
             {title}
             {count !== null && (
-              <span className="rounded-[3px] bg-sunken px-1 font-mono text-[10px] tnum">{count}</span>
+              <NumberPill className="bg-sunken px-1 text-[10px] text-ink-secondary">{count}</NumberPill>
             )}
           </button>
         ))}
@@ -171,6 +179,14 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
         <ContextPanel matter={matter} />
       </div>
+
+      {editing && (
+        <MatterForm
+          matter={matter}
+          onCancel={() => setEditing(false)}
+          onSaved={() => { setEditing(false); refreshAll() }}
+        />
+      )}
     </Panel>
   )
 }

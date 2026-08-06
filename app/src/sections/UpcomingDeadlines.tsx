@@ -40,12 +40,18 @@ export function UpcomingDeadlines({ onOpenMatter }: { onOpenMatter: (id: string)
   useEffect(reload, [])
 
   async function markDone(deadline: MatterDeadline) {
-    await api(`/api/deadlines/${deadline.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...deadline, isDone: true }),
-    })
+    setError(null)
 
-    reload()
+    try {
+      await api(`/api/deadlines/${deadline.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ ...deadline, isDone: true }),
+      })
+
+      reload()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
   }
 
   return (

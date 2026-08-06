@@ -192,7 +192,7 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
                     <Label>{item.label}</Label>
                     {item.meta && <Meta>{item.meta}</Meta>}
                     {isActive && (
-                      <span className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-[3px] border border-line-strong bg-panel px-1 font-mono text-[10px] text-ink-secondary">
+                      <span className="type-kbd shrink-0 rounded-[3px] border border-line-strong bg-panel px-1.5 py-px text-ink-secondary">
                         ⏎
                       </span>
                     )}

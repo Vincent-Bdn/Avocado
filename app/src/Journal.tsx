@@ -52,11 +52,17 @@ export function Journal({ matterId, isOpen, onChanged }: {
     setPendingDelete(entry)
 
     undoTimer.current = setTimeout(() => {
-      void api(`/api/activities/${entry.id}`, { method: 'DELETE' }).then(() => {
-        setPendingDelete(null)
-        reload()
-        onChanged()
-      })
+      api(`/api/activities/${entry.id}`, { method: 'DELETE' })
+        .then(() => {
+          setPendingDelete(null)
+          reload()
+          onChanged()
+        })
+        .catch((failure: unknown) => {
+          // Put the row back: it is still there, and pretending otherwise is the worse lie.
+          setPendingDelete(null)
+          setError(failure instanceof ApiError ? failure.message : String(failure))
+        })
     }, UNDO_MS)
   }
 
@@ -72,9 +78,9 @@ export function Journal({ matterId, isOpen, onChanged }: {
 
       {error && <p className="px-4 text-danger">{error}</p>}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      <div className="flex-1 overflow-y-auto px-2 pb-4">
         {visible.length === 0 && (
-          <EmptyState title="Le journal est vide" className="mt-4">
+          <EmptyState title="Le journal est vide" className="mt-4 mx-2">
             Notez le prochain appel dès que vous raccrochez : deux lignes suffisent.
           </EmptyState>
         )}
@@ -87,7 +93,7 @@ export function Journal({ matterId, isOpen, onChanged }: {
           return (
             <div key={entry.id}>
               {showSeparator && (
-                <div className="type-group pt-[11px] pb-[5px] text-muted">
+                <div className="type-group px-2 pt-[11px] pb-[5px] text-muted">
                   {separator}
                 </div>
               )}
@@ -106,6 +112,7 @@ export function Journal({ matterId, isOpen, onChanged }: {
                   onEdit={() => setEditing(entry.id)}
                   onDelete={() => remove(entry)}
                   onAttached={() => { reload(); onChanged() }}
+                  onFailed={setError}
                 />
               )}
             </div>
@@ -187,13 +194,14 @@ const typeTone: Record<ActivityType, string> = {
   Other: neutralTint,
 }
 
-function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
+function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached, onFailed }: {
   entry: ActivityListItem
   matterId: string
   canEdit: boolean
   onEdit: () => void
   onDelete: () => void
   onAttached: () => void
+  onFailed: (message: string) => void
 }) {
   const Icon = typeIcons[entry.type]
   const file = useRef<HTMLInputElement>(null)
@@ -203,12 +211,16 @@ function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
     for (const item of files) form.append('files', item)
     form.append('activityId', entry.id)
 
-    await api(`/api/matters/${matterId}/documents`, { method: 'POST', body: form })
-    onAttached()
+    try {
+      await api(`/api/matters/${matterId}/documents`, { method: 'POST', body: form })
+      onAttached()
+    } catch (failure) {
+      onFailed(failure instanceof ApiError ? failure.message : String(failure))
+    }
   }
 
   return (
-    <article className="group relative grid grid-cols-[58px_20px_minmax(0,1fr)] gap-2 border-t border-line-subtle py-2 hover:bg-[#F8F9F6] hover:shadow-[inset_2px_0_0_var(--border-default)]">
+    <article className="group relative grid grid-cols-[58px_20px_minmax(0,1fr)] gap-2 rounded-sm border-t border-line-subtle px-2 py-2 hover:bg-[#F8F9F6] hover:shadow-[inset_2px_0_0_var(--border-default)]">
       <div className="font-mono text-[11px] leading-[15px] tnum">
         <div>{formatDate(entry.occurredAt)}</div>
         <div className="text-disabled">{formatTime(entry.occurredAt)}</div>
@@ -257,7 +269,7 @@ function Entry({ entry, matterId, canEdit, onEdit, onDelete, onAttached }: {
 
       {/* Always present, only its opacity changes, so the row never reflows on hover. */}
       {canEdit && (
-        <div className="absolute top-1.5 right-0 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        <div className="absolute top-1.5 right-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
           <EntryAction label="Modifier" onClick={onEdit}>
             <Pencil size={13} strokeWidth={1.75} />
           </EntryAction>
@@ -313,8 +325,11 @@ function EditEntry({ entry, onCancel, onSaved }: {
   const [body, setBody] = useState(entry.body ?? '')
   const [busy, setBusy] = useState(false)
 
+  const [error, setError] = useState<string | null>(null)
+
   async function save() {
     setBusy(true)
+    setError(null)
 
     try {
       await api(`/api/activities/${entry.id}`, {
@@ -330,13 +345,15 @@ function EditEntry({ entry, onCancel, onSaved }: {
       })
 
       onSaved()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <div className="grid gap-2 border-t border-line-subtle py-3">
+    <div className="grid gap-2 border-t border-line-subtle px-2 py-3">
       <div className="flex flex-wrap gap-[5px]">
         {composerTypes.map((candidate) => (
           <Chip
@@ -352,7 +369,8 @@ function EditEntry({ entry, onCancel, onSaved }: {
       <Input value={subject} onChange={(event) => setSubject(event.target.value)} />
       <Textarea rows={3} value={body} onChange={(event) => setBody(event.target.value)} />
 
-      <div className="flex justify-end gap-2">
+      <div className="flex items-center justify-end gap-2">
+        {error && <span className="mr-auto text-[11.5px] text-danger">{error}</span>}
         <Button variant="secondary" onClick={onCancel}>Annuler</Button>
         <Button disabled={busy || !subject.trim()} onClick={() => void save()}>Enregistrer</Button>
       </div>

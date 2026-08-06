@@ -2,17 +2,24 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '../../lib/utils.js'
 
-/** h 20, radius 3, 11px. The composer's type chips and the dashed attachment affordances. */
+/**
+ * h 20, radius 3, 11px. The composer's type chips and the dashed attachment affordances.
+ *
+ * As with the badge, the height is derived from padding and an explicit line box rather than pinned,
+ * and the bordered variants give a pixel back on each side so that a dashed chip and a filled one are
+ * the same 20px and their labels sit on the same line.
+ */
 const chip = cva(
-  'inline-flex h-5 items-center gap-1 rounded-[3px] px-2 text-[11px] transition-colors whitespace-nowrap',
+  'inline-flex items-center justify-center gap-1 rounded-[3px] px-2 text-[11px] leading-3 ' +
+    'transition-colors whitespace-nowrap',
   {
     variants: {
       tone: {
-        idle: 'bg-sunken text-ink-secondary hover:bg-hover',
-        active: 'bg-brand text-on-brand',
-        dashed: 'border border-dashed border-line-strong text-ink-secondary hover:bg-hover',
+        idle: 'py-1 bg-sunken text-ink-secondary hover:bg-hover',
+        active: 'py-1 bg-brand text-on-brand',
+        dashed: 'py-[3px] border border-dashed border-line-strong text-ink-secondary hover:bg-hover',
         // Ochre, because time is money and this chip is the point of the composer.
-        time: 'border border-accent bg-accent-subtle text-warning',
+        time: 'py-[3px] border border-accent bg-accent-subtle text-warning',
       },
     },
     defaultVariants: { tone: 'idle' },

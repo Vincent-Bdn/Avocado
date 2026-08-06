@@ -3,7 +3,7 @@ import { CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, 
 import { ApiError, api } from './api.js'
 import { CommandPalette } from './CommandPalette.js'
 import { MatterView } from './MatterView.js'
-import { NewMatter } from './NewMatter.js'
+import { MatterForm } from './MatterForm.js'
 import { Settings } from './Settings.js'
 import { Contacts, NewContact } from './sections/Contacts.js'
 import { Home } from './sections/Home.js'
@@ -118,9 +118,9 @@ export function AppShell() {
       )}
 
       {creatingMatter && (
-        <NewMatter
+        <MatterForm
           onCancel={() => setCreatingMatter(false)}
-          onCreated={(id) => {
+          onSaved={(id) => {
             setCreatingMatter(false)
             openMatter(id)
             refresh()
@@ -218,7 +218,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
               type="button"
               onClick={() => onSelect(matter.id)}
               className={cn(
-                'grid h-9 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-2',
+                'grid h-9 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-0.5',
                 'rounded-sm px-2 py-1 text-left transition-colors',
                 matter.id === selected
                   ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'

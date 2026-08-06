@@ -10,6 +10,7 @@ public static class BillingEndpoints
             .WithTags("Billing");
 
         routes.MapPut("/api/invoices/{id:guid}", UpdateInvoice.HandleAsync).WithTags("Billing");
+        routes.MapPut("/api/ledger-entries/{id:guid}", UpdateLedgerEntry.HandleAsync).WithTags("Billing");
         routes.MapDelete("/api/invoices/{id:guid}", DeleteBillingRecord.InvoiceAsync).WithTags("Billing");
         routes.MapDelete("/api/ledger-entries/{id:guid}", DeleteBillingRecord.LedgerEntryAsync)
             .WithTags("Billing");

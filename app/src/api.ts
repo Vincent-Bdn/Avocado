@@ -96,6 +96,30 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 export const post = <T>(path: string, body: unknown): Promise<T> =>
   api<T>(path, { method: 'POST', body: JSON.stringify(body) })
 
+/**
+ * Opening a document has to go through the same bearer token as everything else, so the file is
+ * fetched and handed to the browser as a blob rather than pointed at with an href. A plain link would
+ * reach the backend without the header and collect a 401.
+ */
+export async function download(path: string, fileName: string): Promise<void> {
+  const { url, token } = await connect()
+  const response = await fetch(`${url}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+
+  if (!response.ok) {
+    const problem = await read(response)
+    throw new ApiError(response.status, describe(problem, response.status), problem.code)
+  }
+
+  const href = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+
+  link.href = href
+  link.download = fileName
+  link.click()
+
+  URL.revokeObjectURL(href)
+}
+
 async function read(response: Response): Promise<ProblemDetails> {
   try {
     return (await response.json()) as ProblemDetails
