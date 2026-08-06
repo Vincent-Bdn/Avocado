@@ -7,7 +7,7 @@ import { cn } from '../../lib/utils.js'
  */
 export function Panel({ className, children }: { className?: string; children?: ReactNode }) {
   return (
-    <div className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-panel', className)}>
+    <div className={cn('flex min-w-0 flex-col overflow-hidden rounded-lg border border-line bg-panel', className)}>
       {children}
     </div>
   )

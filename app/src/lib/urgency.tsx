@@ -9,6 +9,19 @@ export const tierBorder: Record<DeadlineUrgency, string> = {
   Later: 'border-l-line',
 }
 
+/**
+ * The full row treatment for an échéance: 1px border, radius 4, a tinted fill and a 3px left border
+ * in the tier colour. The four palettes are the design system's literals, which is why they are hex
+ * rather than tokens: the tints are lighter than --status-*-bg and were picked so that four coloured
+ * rows can sit under one another without the column turning into a rainbow.
+ */
+export const tierRow: Record<DeadlineUrgency, string> = {
+  Overdue: 'border-[#EBC9C5] border-l-[#A32A22] bg-[#FDF4F3] text-[#8A211A]',
+  Today: 'border-[#E8D5AE] border-l-[#8A5A10] bg-[#FDF8ED] text-[#6E4A0E]',
+  ThisWeek: 'border-[#C7DAEB] border-l-[#2B5578] bg-[#F4F8FC] text-[#234B6B]',
+  Later: 'border-[#E5E8E0] border-l-[#D2D7CB] bg-[#F8F9F6] text-ink',
+}
+
 /** Four tiers, four shapes, so a black and white printout stays readable. */
 export function TierBullet({ urgency, className }: { urgency: DeadlineUrgency; className?: string }) {
   const shape: Record<DeadlineUrgency, string> = {
@@ -24,7 +37,7 @@ export function TierBullet({ urgency, className }: { urgency: DeadlineUrgency; c
 /** The uppercase mono caption that opens a tier group: shape, wording, count. */
 export function TierCaption({ urgency, count }: { urgency: DeadlineUrgency; count: number }) {
   return (
-    <div className="flex items-center gap-1.5 pt-3.5 pb-1 font-mono text-[10px] tracking-[0.05em] uppercase text-muted">
+    <div className="type-group flex items-center gap-1.5 pt-3.5 pb-1 text-muted">
       <TierBullet urgency={urgency} />
       {urgencyLabels[urgency]} · {count}
     </div>

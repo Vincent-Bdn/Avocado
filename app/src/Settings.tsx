@@ -9,7 +9,7 @@ import { Panel } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
 import { RecoveryKeyCard } from './wizard/StepRecovery.js'
 import { RecoverySheet } from './wizard/RecoverySheet.js'
-import { SecureKeyOptions, isSecured, type SecuredBy } from './wizard/SecureKeyOptions.js'
+import { SecureKeyOptions, isSecured, nothingSecured, type SecuredBy } from './wizard/SecureKeyOptions.js'
 
 interface RecoveryKeyState {
   code: string | null
@@ -240,7 +240,7 @@ function QuarterlyCheck() {
 /** The renewal itself: the ochre statement of consequence, then the same securing step as at setup. */
 function Regenerate({ onDone }: { onDone: () => void }) {
   const [issued, setIssued] = useState<RecoveryKeyState | null>(null)
-  const [secured, setSecured] = useState<SecuredBy>({ printed: false, savedTo: null, exportedTo: null })
+  const [secured, setSecured] = useState<SecuredBy>(nothingSecured)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -262,14 +262,14 @@ function Regenerate({ onDone }: { onDone: () => void }) {
   /** Clears the issued key from the screen as well as reloading, or "Terminé" appears to do nothing. */
   function finish() {
     setIssued(null)
-    setSecured({ printed: false, savedTo: null, exportedTo: null })
+    setSecured(nothingSecured)
     onDone()
   }
 
   if (!issued?.code) {
     return (
       <>
-        <div className="grid max-w-[72ch] gap-1 rounded-lg border border-accent bg-accent-subtle px-3.5 py-3 text-warning">
+        <div className="grid max-w-[72ch] gap-1 rounded-md border border-accent bg-accent-subtle px-3.5 py-3 text-warning">
           <strong className="text-[12.5px] font-semibold">Ce qui change</strong>
           <p className="m-0 text-[12px] leading-[18px]">
             Les sauvegardes faites <strong className="font-semibold">à partir de maintenant</strong>{' '}
@@ -292,7 +292,11 @@ function Regenerate({ onDone }: { onDone: () => void }) {
 
   return (
     <>
-      <RecoveryKeyCard recoveryCode={issued.code} createdOn={createdOn} />
+      <RecoveryKeyCard
+        recoveryCode={issued.code}
+        createdOn={createdOn}
+        onCopied={() => setSecured((current) => ({ ...current, copied: true }))}
+      />
 
       <div className="text-[12.5px] font-medium">Mettez cette nouvelle clé à l’abri :</div>
 

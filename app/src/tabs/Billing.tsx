@@ -68,13 +68,13 @@ export function Billing({ matterId, isOpen, onChanged }: {
   return (
     <TabPanel>
       {/* The subtraction has to be checkable by eye: a total you cannot recompute is never believed. */}
-      <section className="rounded-lg border border-accent bg-accent-subtle px-4 py-3.5 text-warning">
+      <section className="rounded-md border border-accent bg-accent-subtle px-4 py-3.5 text-warning">
         <div className="text-[12px] font-medium">Reste à facturer</div>
         <div className="font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
           {formatEuros(summary.leftToBillCents)}
         </div>
 
-        <div className="mt-2.5 grid gap-0.5 rounded-md bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
+        <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
           <Line label="Temps facturable" value={formatEuros(summary.billableTimeCents)} />
           <Line label="− Mouvements" value={formatEuros(summary.ledgerCents)} />
           <Line label="− Déjà facturé" value={formatEuros(summary.invoicedCents)} />
@@ -273,7 +273,7 @@ function KindButton({ active, tone, onClick, children }: {
       type="button"
       onClick={onClick}
       className={cn(
-        'h-5 rounded-sm px-2 text-[11px] transition-colors',
+        'h-5 rounded-[3px] px-2 text-[11px] transition-colors',
         !active && 'text-ink-secondary hover:bg-hover',
         active && tone === 'brand' && 'bg-brand-subtle text-brand-on-subtle',
         active && tone === 'accent' && 'bg-accent-subtle text-warning',

@@ -7,7 +7,7 @@ import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
 import { Badge } from './components/ui/badge.js'
-import { Button } from './components/ui/button.js'
+import { Button, Kbd } from './components/ui/button.js'
 import { Panel } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, initials, tierBorder } from './lib/urgency.js'
@@ -67,9 +67,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
       <header className="relative shrink-0 border-b border-line-subtle px-4 py-2">
         <div className="flex items-baseline gap-2.5">
           <span className="font-mono text-[12px] text-muted tnum">{matter.reference}</span>
-          <h2 className="m-0 truncate text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">
-            {matter.name}
-          </h2>
+          <h2 className="type-title-lg m-0 truncate">{matter.name}</h2>
 
           {/* Colour is never the only signal: a filled bullet or a check glyph doubles it. */}
           <Badge tone={matter.isOpen ? 'brand' : 'neutral'}>
@@ -83,7 +81,20 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         </div>
 
         <div className="mt-0.5 flex items-center gap-2 text-[11px] text-ink-secondary">
-          {client && <span className="truncate">{client.displayName}</span>}
+          {client && (
+            <>
+              {/* Round = personne physique, rounded square = personne morale, everywhere. */}
+              <span
+                className={cn(
+                  'grid h-4 w-4 shrink-0 place-items-center bg-brand text-[8px] font-medium text-on-brand',
+                  client.contactType === 'Individual' ? 'rounded-full' : 'rounded-[3px]',
+                )}
+              >
+                {initials(client.displayName)}
+              </span>
+              <span className="truncate">{client.displayName}</span>
+            </>
+          )}
 
           {/* No dash placeholder when there is no RG: the segment is omitted entirely. */}
           {matter.courtCaseNumber && (
@@ -102,13 +113,20 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           </span>
         </div>
 
-        <div className="absolute top-3 right-4">
+        <div className="absolute top-3 right-4 flex gap-2">
           <Button
             variant={matter.isOpen ? 'secondary' : 'primary'}
             onClick={() => void toggleClosed()}
           >
             {matter.isOpen ? 'Clôturer' : 'Rouvrir le dossier'}
           </Button>
+
+          {matter.isOpen && (
+            <Button onClick={() => { setTab('journal'); focusComposer() }}>
+              Entrée
+              <Kbd>⌘J</Kbd>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -128,7 +146,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           >
             {title}
             {count !== null && (
-              <span className="rounded-sm bg-sunken px-1 font-mono text-[10px] tnum">{count}</span>
+              <span className="rounded-[3px] bg-sunken px-1 font-mono text-[10px] tnum">{count}</span>
             )}
           </button>
         ))}
@@ -159,6 +177,16 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
 const Divider = () => <span className="h-2.5 w-px shrink-0 bg-line" />
 
+/**
+ * The header button and ⌘J have to land in the same place. Rather than thread a ref through the tab
+ * switch, the button replays the shortcut the composer already listens for.
+ */
+function focusComposer() {
+  requestAnimationFrame(() =>
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', ctrlKey: true })),
+  )
+}
+
 /** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
 function ContextPanel({ matter }: { matter: MatterDetail }) {
   return (
@@ -174,7 +202,7 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
           <div
             key={deadline.id}
             className={cn(
-              'mb-1.5 rounded-md border border-line-subtle border-l-[3px] px-2 py-1.5',
+              'mb-1.5 rounded-sm border border-line-subtle border-l-[3px] px-2 py-1.5',
               tierBorder[deadline.urgency],
             )}
           >
@@ -187,20 +215,20 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
         ))}
       </section>
 
-      <section className="border-b border-line-subtle pb-2.5">
-        <ContextTitle>À facturer</ContextTitle>
+      <section className="rounded-sm border border-[#E8D5AE] bg-[#FDF8ED] px-2.5 py-2 text-[#6E4A0E]">
+        <ContextTitle className="text-[#6E4A0E]">À facturer</ContextTitle>
 
         <div className="font-mono text-[19px] leading-6 font-semibold tnum">
           {formatEuros(matter.billing.leftToBillCents)}
         </div>
 
-        <div className="font-mono text-[10px] text-muted tnum">
+        <div className="font-mono text-[10px] tnum">
           {formatDuration(matter.billing.billableMinutes)} facturables ·{' '}
           {formatEuros(matter.hourlyRateCents)}/h
         </div>
 
         {matter.billing.ledgerCents !== 0 && (
-          <div className="font-mono text-[10px] text-muted tnum">
+          <div className="font-mono text-[10px] tnum">
             {matter.billing.ledgerCents > 0 ? '− ' : '+ '}
             {formatEuros(Math.abs(matter.billing.ledgerCents))}{' '}
             {matter.billing.ledgerCents > 0 ? 'déjà reçu' : 'avancé'}
@@ -208,7 +236,7 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
         )}
 
         {matter.billing.invoicedCents > 0 && (
-          <div className="font-mono text-[10px] text-muted tnum">
+          <div className="font-mono text-[10px] tnum">
             − {formatEuros(matter.billing.invoicedCents)} déjà facturé
           </div>
         )}
@@ -223,7 +251,7 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
             <span
               className={cn(
                 'grid h-5 w-5 shrink-0 place-items-center text-[9px] font-medium',
-                party.contactType === 'Individual' ? 'rounded-full' : 'rounded-md',
+                party.contactType === 'Individual' ? 'rounded-full' : 'rounded-sm',
                 party.isClient ? 'bg-brand text-on-brand' : 'bg-sunken text-ink-secondary',
               )}
             >
@@ -250,7 +278,7 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
           type="button"
           disabled
           title="À venir"
-          className="mt-1.5 flex h-5 items-center gap-1 rounded-sm border border-dashed border-line-strong px-2 text-[11px] text-disabled"
+          className="mt-1.5 flex h-5 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-disabled"
         >
           <Plus size={11} strokeWidth={2} />
           Ajouter une partie
@@ -260,8 +288,6 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
   )
 }
 
-const ContextTitle = ({ children }: { children: string }) => (
-  <h3 className="m-0 mb-1.5 font-mono text-[10px] font-normal tracking-[0.05em] uppercase text-muted">
-    {children}
-  </h3>
+const ContextTitle = ({ className, children }: { className?: string; children: string }) => (
+  <h3 className={cn('type-group m-0 mb-1.5 font-normal text-muted', className)}>{children}</h3>
 )

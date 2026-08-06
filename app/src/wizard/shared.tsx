@@ -27,7 +27,7 @@ export function WizardScroll({ width = 640, children }: {
 }
 
 export const WizardTitle = ({ children }: { children: ReactNode }) => (
-  <h1 className="m-0 text-display font-semibold tracking-[-0.02em]">{children}</h1>
+  <h1 className="m-0 type-display">{children}</h1>
 )
 
 export const WizardLead = ({ children }: { children: ReactNode }) => (
@@ -55,7 +55,7 @@ export function Point({ icon, title, children, mono }: {
   mono?: boolean
 }) {
   return (
-    <article className="flex items-start gap-[11px] rounded-lg border border-line-subtle bg-panel px-3.5 py-3">
+    <article className="flex items-start gap-[11px] rounded-md border border-line-subtle bg-panel px-3.5 py-3">
       <span className="mt-0.5 shrink-0 text-brand">{icon}</span>
 
       <div className="min-w-0">

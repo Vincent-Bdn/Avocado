@@ -4,7 +4,7 @@ import { Check, Copy, X } from 'lucide-react'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
 import { RecoverySheet, fingerprintOf } from './RecoverySheet.js'
-import { SecureKeyOptions, isSecured, type SecuredBy } from './SecureKeyOptions.js'
+import { SecureKeyOptions, isSecured, nothingSecured, type SecuredBy } from './SecureKeyOptions.js'
 import { WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
 /**
@@ -24,7 +24,7 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
   onContinue: () => void
 }) {
   const [fingerprint, setFingerprint] = useState('')
-  const [secured, setSecured] = useState<SecuredBy>({ printed: false, savedTo: null, exportedTo: null })
+  const [secured, setSecured] = useState<SecuredBy>(nothingSecured)
   const [acknowledged, setAcknowledged] = useState(false)
 
   const createdOn = new Date().toLocaleDateString('fr-FR')
@@ -51,7 +51,11 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
               un service d’assistance.
             </WizardLead>
 
-            <RecoveryKeyCard recoveryCode={recoveryCode} createdOn={createdOn} />
+            <RecoveryKeyCard
+              recoveryCode={recoveryCode}
+              createdOn={createdOn}
+              onCopied={() => setSecured((current) => ({ ...current, copied: true }))}
+            />
 
             <div className="mt-3.5 text-[12px] leading-[17px] font-medium text-ink-secondary">
               Choisissez au moins une façon de la mettre à l’abri :
@@ -146,7 +150,7 @@ function NoteCard({ title, caution, children }: {
   return (
     <section
       className={cn(
-        'grid gap-1.5 rounded-lg border px-3.5 py-3',
+        'grid gap-1.5 rounded-md border px-3.5 py-3',
         caution ? 'border-accent bg-accent-subtle text-warning' : 'border-line-subtle bg-panel',
       )}
     >
@@ -171,9 +175,10 @@ function NoteLine({ kind, children }: { kind: 'yes' | 'no'; children: ReactNode 
 }
 
 /** The key itself. Shared with Réglages, where the same card shows the current key. */
-export function RecoveryKeyCard({ recoveryCode, createdOn }: {
+export function RecoveryKeyCard({ recoveryCode, createdOn, onCopied }: {
   recoveryCode: string
   createdOn: string
+  onCopied?: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const groups = recoveryCode.split('-')
@@ -183,11 +188,12 @@ export function RecoveryKeyCard({ recoveryCode, createdOn }: {
     // whitespace, so pasting it back into the unlock field works either way.
     void navigator.clipboard.writeText(groups.join('\n'))
     setCopied(true)
+    onCopied?.()
     setTimeout(() => setCopied(false), 2500)
   }
 
   return (
-    <div className="mt-5 rounded-xl border border-line-strong bg-panel px-5 py-[18px]">
+    <div className="mt-5 rounded-md border border-line-strong bg-panel px-5 py-[18px]">
       <div className="mb-3 flex items-baseline gap-2">
         <span className="font-mono text-[10px] leading-[13px] tracking-[0.05em] uppercase text-muted">
           Clé du coffre · {createdOn}
@@ -200,7 +206,7 @@ export function RecoveryKeyCard({ recoveryCode, createdOn }: {
         {groups.map((group) => (
           <span
             key={group}
-            className="rounded-md border border-line-subtle bg-sunken py-2 text-center font-mono text-[17px] tracking-[0.09em]"
+            className="rounded-sm border border-line-subtle bg-sunken py-2 text-center font-mono text-[17px] tracking-[0.09em]"
           >
             {group}
           </span>

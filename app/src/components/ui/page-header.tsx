@@ -11,13 +11,7 @@ export function PageHeader({ title, meta, actions, className }: {
   return (
     <header className={cn('relative shrink-0 border-b border-line-subtle px-4 py-2', className)}>
       <div className="flex items-baseline gap-2.5">
-        {typeof title === 'string' ? (
-          <h2 className="m-0 truncate text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">
-            {title}
-          </h2>
-        ) : (
-          title
-        )}
+        {typeof title === 'string' ? <h2 className="type-title-lg m-0 truncate">{title}</h2> : title}
       </div>
 
       {meta && (

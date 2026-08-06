@@ -14,6 +14,12 @@ export interface SecuredBy {
   printed: boolean
   savedTo: string | null
   exportedTo: string | null
+  /**
+   * Copying is not, strictly, putting the key out of reach of this machine. It is counted anyway: a
+   * key pasted into a password manager is safer than a key nobody ever recorded, and refusing to let
+   * someone past a screen they have genuinely dealt with is how a gate teaches people to fake it.
+   */
+  copied: boolean
 }
 
 /**
@@ -109,7 +115,7 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
           </Button>
 
           {menuOpen && (
-            <div className="absolute top-[calc(100%+4px)] left-0 z-10 grid min-w-[232px] gap-0.5 rounded-lg border border-line bg-raised p-[3px] shadow-e2">
+            <div className="absolute top-[calc(100%+4px)] left-0 z-10 grid min-w-[232px] gap-0.5 rounded-md border border-line bg-raised p-[3px] shadow-e2">
               <MenuItem onClick={() => { setMenuOpen(false); print() }}>
                 <Printer size={13} strokeWidth={1.75} />
                 Utiliser une imprimante
@@ -133,7 +139,7 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
         </p>
 
         {drives.length === 0 ? (
-          <div className="grid gap-[5px] rounded-lg border border-dashed border-line-strong p-3.5 text-[12px]">
+          <div className="grid gap-[5px] rounded-md border border-dashed border-line-strong p-3.5 text-[12px]">
             <strong className="font-medium">Aucun support amovible branché</strong>
             <span className="text-muted">
               Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
@@ -182,7 +188,7 @@ function Option({ icon, title, recommended, children }: {
   return (
     <section
       className={cn(
-        'flex flex-col gap-2 rounded-lg px-[15px] py-3.5',
+        'flex flex-col gap-2 rounded-md px-[15px] py-3.5',
         recommended ? 'border-[1.5px] border-brand bg-[#f4f8f5]' : 'border border-line bg-panel',
       )}
     >
@@ -201,7 +207,7 @@ const MenuItem = ({ onClick, children }: { onClick: () => void; children: ReactN
   <button
     type="button"
     onClick={onClick}
-    className="flex h-[26px] w-full items-center gap-2 rounded-sm px-2 text-left text-[12.5px] hover:bg-hover"
+    className="flex h-[26px] w-full items-center gap-2 rounded-[3px] px-2 text-left text-[12.5px] hover:bg-hover"
   >
     {children}
   </button>
@@ -215,7 +221,14 @@ const Done = ({ children }: { children: ReactNode }) => (
 )
 
 export const isSecured = (secured: SecuredBy): boolean =>
-  secured.printed || secured.savedTo !== null || secured.exportedTo !== null
+  secured.printed || secured.copied || secured.savedTo !== null || secured.exportedTo !== null
+
+export const nothingSecured: SecuredBy = {
+  printed: false,
+  savedTo: null,
+  exportedTo: null,
+  copied: false,
+}
 
 function formatBytes(bytes: number): string {
   const giga = bytes / 1_000_000_000

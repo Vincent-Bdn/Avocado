@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils.js'
 
 /** h 18, radius 3, 10.5px/500. Colour is never the only signal, so callers pass a glyph or bullet. */
 const badge = cva(
-  'inline-flex items-center gap-1.5 h-[18px] rounded-sm px-1.5 text-[10.5px] font-medium leading-none',
+  'inline-flex items-center gap-1.5 h-[18px] rounded-[3px] px-1.5 text-[10.5px] font-medium leading-none',
   {
     variants: {
       tone: {

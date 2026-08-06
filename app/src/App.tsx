@@ -85,9 +85,7 @@ function Unlock({ status, onUnlocked }: { status: VaultStatus; onUnlocked: () =>
 
   return (
     <section className="grid w-[520px] max-w-full gap-3 rounded-2xl border border-line bg-panel p-6 shadow-e2">
-      <h1 className="m-0 text-[22px] leading-7 font-semibold tracking-[-0.015em]">
-        Coffre verrouillé
-      </h1>
+      <h1 className="type-display m-0">Coffre verrouillé</h1>
 
       <p className="m-0 text-[13px]">{status.lockReason}</p>
 

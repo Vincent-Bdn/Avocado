@@ -15,7 +15,7 @@ export function InlineForm({ editing, children }: { editing?: boolean; children:
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2.5',
+        'flex flex-wrap items-center gap-2 rounded-md border px-3 py-2.5',
         editing ? 'border-[var(--focus-ring)]' : 'border-line-strong',
       )}
     >
@@ -69,7 +69,7 @@ export function RowAction({ label, danger, onClick, children }: {
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'grid h-6 w-6 shrink-0 place-items-center rounded-md border border-transparent hover:border-line-subtle hover:bg-hover',
+        'grid h-6 w-6 shrink-0 place-items-center rounded-[3px] border border-transparent hover:border-line-subtle hover:bg-hover',
         danger ? 'text-danger' : 'text-ink-secondary',
       )}
     >

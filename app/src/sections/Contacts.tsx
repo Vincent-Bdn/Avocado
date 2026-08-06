@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
-import { ApiError, api, post } from '../api.js'
+import { Info, Plus, Users } from 'lucide-react'
+import { ApiError, api } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
-import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { Input } from '../components/ui/input.js'
 import { MetaDivider, PageHeader } from '../components/ui/page-header.js'
@@ -13,6 +12,8 @@ import { initials } from '../lib/urgency.js'
 import { activityLabels, formatDate } from '../labels.js'
 import { Micro } from '../tabs/shared.js'
 import type { ActivityType, ContactSummary, ContactType } from '../types.js'
+
+export { NewContact } from './NewContact.js'
 
 interface ContactRole {
   matterId: string
@@ -52,14 +53,14 @@ interface ContactDetail {
 }
 
 /** Tiers: the address book, and one contact's roles across the practice. */
-export function Contacts({ selected, onSelect, onOpenMatter }: {
+export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   selected: string | null
   onSelect: (id: string | null) => void
   onOpenMatter: (id: string) => void
+  onNewContact: () => void
 }) {
   const [items, setItems] = useState<ContactSummary[]>([])
   const [search, setSearch] = useState('')
-  const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -80,14 +81,15 @@ export function Contacts({ selected, onSelect, onOpenMatter }: {
       <Panel>
         <PanelHeader>
           <span>Tiers · {items.length}</span>
-          <Button variant="ghost" size="iconSm" title="Nouveau tiers" onClick={() => setCreating(true)}>
+          <Button variant="ghost" size="iconSm" title="Nouveau tiers" onClick={onNewContact}>
             <Plus size={14} strokeWidth={2} />
           </Button>
         </PanelHeader>
 
         <div className="shrink-0 border-b border-line-subtle px-1.5 py-1">
           <Input
-            className="h-6 w-full text-[11.5px]"
+            inputSize="sm"
+            className="w-full"
             value={search}
             placeholder="Nom, raison sociale…"
             onChange={(event) => setSearch(event.target.value)}
@@ -105,7 +107,7 @@ export function Contacts({ selected, onSelect, onOpenMatter }: {
               type="button"
               onClick={() => onSelect(contact.id)}
               className={cn(
-                'grid h-9 w-full content-center rounded-md px-2 py-1 text-left transition-colors',
+                'grid h-9 w-full content-center rounded-sm px-2 py-1 text-left transition-colors',
                 contact.id === selected
                   ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
                   : 'hover:bg-hover',
@@ -125,24 +127,14 @@ export function Contacts({ selected, onSelect, onOpenMatter }: {
       ) : (
         <Panel className="items-center justify-center">
           <EmptyState
+            icon={<Users size={18} strokeWidth={1.8} />}
             title="Votre premier tiers"
             className="max-w-[460px]"
-            actions={<Button onClick={() => setCreating(true)}>Ajouter un tiers</Button>}
+            actions={<Button onClick={onNewContact}>Ajouter un tiers</Button>}
           >
             Clients, parties adverses, confrères, experts : tous ceux avec qui le cabinet traite.
           </EmptyState>
         </Panel>
-      )}
-
-      {creating && (
-        <NewContact
-          onCancel={() => setCreating(false)}
-          onCreated={(id) => {
-            setCreating(false)
-            onSelect(id)
-            reload()
-          }}
-        />
       )}
     </>
   )
@@ -171,15 +163,13 @@ function ContactView({ contactId, onOpenMatter }: {
             <span
               className={cn(
                 'grid h-7 w-7 shrink-0 place-items-center bg-sunken text-[11px] font-medium text-ink-secondary',
-                contact.type === 'Individual' ? 'rounded-full' : 'rounded-lg',
+                contact.type === 'Individual' ? 'rounded-full' : 'rounded-sm',
               )}
             >
               {initials(contact.displayName)}
             </span>
 
-            <h2 className="m-0 truncate text-[20px] leading-[26px] font-semibold tracking-[-0.015em]">
-              {contact.displayName}
-            </h2>
+            <h2 className="type-title-lg m-0 truncate">{contact.displayName}</h2>
 
             <Badge>{contact.type === 'Organisation' ? 'Personne morale' : 'Personne physique'}</Badge>
           </>
@@ -204,34 +194,42 @@ function ContactView({ contactId, onOpenMatter }: {
         <div className="grid content-start gap-4 overflow-y-auto px-4 pt-3 pb-5">
           <section>
             {/* The grouping is the point: only client relations feed billing. */}
-            <RoleCaption>Relations client · {clientRoles.length} · facturables</RoleCaption>
-
-            {clientRoles.length === 0 && (
-              <Micro>Aucune relation client, rien à facturer.</Micro>
+            {clientRoles.length === 0 ? (
+              <RoleCaption>Aucune relation client, rien à facturer</RoleCaption>
+            ) : (
+              <RoleCaption client>Relations client · {clientRoles.length} · facturables</RoleCaption>
             )}
 
-            {clientRoles.map((role) => (
-              <RoleRow key={role.matterId} role={role} onOpen={onOpenMatter} client />
-            ))}
+            <div className="grid gap-1.5">
+              {clientRoles.map((role) => (
+                <RoleRow key={role.matterId} role={role} onOpen={onOpenMatter} client />
+              ))}
+            </div>
 
             {otherRoles.length > 0 && (
               <>
                 <RoleCaption>Autres rôles · {otherRoles.length} · non facturables</RoleCaption>
-                {otherRoles.map((role) => (
-                  <RoleRow key={role.matterId} role={role} onOpen={onOpenMatter} />
-                ))}
+                <div className="grid gap-1.5">
+                  {otherRoles.map((role) => (
+                    <RoleRow key={role.matterId} role={role} onOpen={onOpenMatter} />
+                  ))}
+                </div>
               </>
             )}
 
-            <p className="mt-2.5 mb-0 max-w-[64ch] text-[11px] leading-4 text-muted">
-              Le rôle est du texte libre propre à chaque dossier : le même tiers peut être client ici
-              et fournisseur mis en cause là. Seules les relations marquées « client » alimentent la
-              facturation, c’est le seul rôle que l’application interprète.
-            </p>
+            <div className="mt-3 flex items-start gap-2 rounded-md border border-line-subtle px-3 py-2.5">
+              <Info size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-secondary" />
+              <p className="m-0 max-w-[64ch] text-[11.5px] leading-[17px] text-ink-secondary">
+                Le rôle est du <strong className="font-medium text-ink">texte libre</strong> propre à
+                chaque dossier : le même tiers peut être client ici et fournisseur mis en cause là.
+                Seules les relations marquées « client » alimentent la facturation, c’est le seul rôle
+                que l’application interprète.
+              </p>
+            </div>
           </section>
 
           <section>
-            <h3 className="m-0 flex items-baseline gap-1.5 pb-1 text-[12px] font-semibold">
+            <h3 className="type-title m-0 flex items-baseline gap-2 pb-2">
               Derniers échanges <Micro>tous dossiers confondus</Micro>
             </h3>
 
@@ -299,8 +297,13 @@ const ContextTitle = ({ children }: { children: string }) => (
   </h3>
 )
 
-const RoleCaption = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-1.5 pt-3.5 pb-1 font-mono text-[10px] tracking-[0.05em] uppercase text-muted first:pt-0">
+const RoleCaption = ({ client, children }: { client?: boolean; children: React.ReactNode }) => (
+  <div
+    className={cn(
+      'type-group flex items-center gap-1.5 pt-3.5 pb-1.5 first:pt-0',
+      client ? 'text-brand-on-subtle' : 'text-muted',
+    )}
+  >
     {children}
   </div>
 )
@@ -315,14 +318,16 @@ function RoleRow({ role, onOpen, client }: {
       type="button"
       onClick={() => onOpen(role.matterId)}
       className={cn(
-        'flex w-full min-h-[34px] items-center gap-2.5 border-t border-line-subtle px-2 py-1.5 text-left text-[12px] hover:bg-hover',
-        client && 'border-l-[3px] border-l-brand',
+        'flex w-full items-center gap-2.5 rounded-sm border border-l-[3px] px-2.5 py-[7px] text-left',
+        client
+          ? 'border-[#BFD3C5] border-l-brand bg-[#F4F8F5]'
+          : 'border-line-subtle border-l-line bg-[#F8F9F6]',
       )}
     >
       <span className="grid min-w-0 flex-1">
-        <span className="truncate">{role.matterName}</span>
+        <span className="truncate text-[12.5px] leading-[17px] font-medium">{role.matterName}</span>
         {/* Roles are long, and shortening them automatically destroys their meaning. */}
-        <span className="truncate text-[11px] text-muted" title={role.role ?? undefined}>
+        <span className="truncate text-[11px] leading-[15px] text-muted" title={role.role ?? undefined}>
           {role.role}
         </span>
       </span>
@@ -332,86 +337,6 @@ function RoleRow({ role, onOpen, client }: {
       </Badge>
 
       <span className="shrink-0 font-mono text-[11px] text-muted">{role.matterReference}</span>
-    </button>
-  )
-}
-
-function NewContact({ onCreated, onCancel }: {
-  onCreated: (id: string) => void
-  onCancel: () => void
-}) {
-  const [type, setType] = useState<ContactType>('Organisation')
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [error, setError] = useState<string | null>(null)
-
-  async function create() {
-    try {
-      const created = await post<{ id: string }>('/api/contacts', {
-        type,
-        legalName: type === 'Organisation' ? name : null,
-        lastName: type === 'Individual' ? name : null,
-        email: email || null,
-        phone: phone || null,
-      })
-
-      onCreated(created.id)
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : String(failure))
-    }
-  }
-
-  return (
-    <Dialog title="Nouveau tiers" onClose={onCancel}>
-      <div className="flex gap-0.5">
-        <Segment active={type === 'Organisation'} onClick={() => setType('Organisation')}>
-          Personne morale
-        </Segment>
-        <Segment active={type === 'Individual'} onClick={() => setType('Individual')}>
-          Personne physique
-        </Segment>
-      </div>
-
-      <Field label={type === 'Organisation' ? 'Raison sociale' : 'Nom'}>
-        <Input inputSize="lg" autoFocus value={name} onChange={(event) => setName(event.target.value)} />
-      </Field>
-
-      <Field label="Courriel">
-        <Input inputSize="lg" value={email} onChange={(event) => setEmail(event.target.value)} />
-      </Field>
-
-      <Field label="Téléphone">
-        <Input inputSize="lg" value={phone} onChange={(event) => setPhone(event.target.value)} />
-      </Field>
-
-      {error && <p className="m-0 text-danger">{error}</p>}
-
-      <DialogActions>
-        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
-        <Button size="lg" disabled={!name.trim()} onClick={() => void create()}>
-          Créer le tiers
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
-
-function Segment({ active, onClick, children }: {
-  active: boolean
-  onClick: () => void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'h-6 rounded-sm px-2.5 text-[12px] transition-colors',
-        active ? 'bg-brand-subtle text-brand-on-subtle' : 'text-ink-secondary hover:bg-hover',
-      )}
-    >
-      {children}
     </button>
   )
 }

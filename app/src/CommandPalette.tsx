@@ -126,7 +126,7 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
     >
       <div
         onClick={(event) => event.stopPropagation()}
-        className="flex h-fit max-h-[68vh] w-[640px] max-w-[calc(100%-48px)] flex-col overflow-hidden rounded-2xl bg-panel shadow-e3"
+        className="flex h-fit max-h-[68vh] w-[640px] max-w-[calc(100%-48px)] flex-col overflow-hidden rounded-xl bg-panel shadow-e3"
       >
         <div className="flex h-12 shrink-0 items-center gap-2.5 border-b border-line-subtle px-3.5 text-ink-secondary">
           <Search size={15} strokeWidth={1.75} className="shrink-0" />
@@ -192,7 +192,7 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
                     <Label>{item.label}</Label>
                     {item.meta && <Meta>{item.meta}</Meta>}
                     {isActive && (
-                      <span className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-sm border border-line-strong bg-panel px-1 font-mono text-[10px] text-ink-secondary">
+                      <span className="grid h-[18px] min-w-[18px] shrink-0 place-items-center rounded-[3px] border border-line-strong bg-panel px-1 font-mono text-[10px] text-ink-secondary">
                         ⏎
                       </span>
                     )}
@@ -254,7 +254,7 @@ function Result({ active, onClick, children }: {
       type="button"
       onClick={onClick}
       className={cn(
-        'flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left transition-colors',
+        'flex h-[34px] w-full items-center gap-2.5 rounded-sm px-2.5 text-left transition-colors',
         active ? 'bg-brand-subtle' : 'hover:bg-hover',
       )}
     >

@@ -136,7 +136,7 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
       {error && <p className="m-0 text-danger">{error}</p>}
 
       {page && (
-        <div className="flex flex-wrap items-center gap-3.5 rounded-lg bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
+        <div className="flex flex-wrap items-center gap-3.5 rounded-md bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
           <span>Aujourd’hui {formatDuration(page.totals.todayMinutes)}</span>
           <span>Cette semaine {formatDuration(page.totals.weekMinutes)}</span>
           <span>Total {formatDuration(page.totals.matterMinutes)}</span>

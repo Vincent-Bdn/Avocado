@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils.js'
 
 /** h 20, radius 3, 11px. The composer's type chips and the dashed attachment affordances. */
 const chip = cva(
-  'inline-flex h-5 items-center gap-1 rounded-sm px-2 text-[11px] transition-colors whitespace-nowrap',
+  'inline-flex h-5 items-center gap-1 rounded-[3px] px-2 text-[11px] transition-colors whitespace-nowrap',
   {
     variants: {
       tone: {

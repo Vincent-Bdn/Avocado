@@ -33,8 +33,8 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
   return (
     <div className="grid h-full grid-rows-[56px_minmax(0,1fr)] bg-app">
       <header className="flex items-center gap-3 border-b border-line-subtle bg-panel px-7">
-        <img src="./icon.png" alt="" className="h-6 w-6 rounded-lg" />
-        <span className="flex-1 text-title font-semibold tracking-[-0.02em]">Avocado</span>
+        <img src="./icon.png" alt="" className="h-6 w-6 rounded-md" />
+        <span className="flex-1 type-title">Avocado</span>
 
         <ol className="m-0 flex list-none items-center gap-2 p-0 text-[11.5px]">
           {steps.map((label, index) => (

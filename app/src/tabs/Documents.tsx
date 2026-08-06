@@ -107,7 +107,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
             if (event.dataTransfer.files.length) void upload(event.dataTransfer.files)
           }}
           className={cn(
-            'flex items-center gap-3 rounded-lg border-[1.5px] border-dashed px-3.5 py-3.5',
+            'flex items-center gap-3 rounded-md border-[1.5px] border-dashed px-3.5 py-3.5',
             dragging ? 'border-[var(--focus-ring)] bg-brand-subtle' : 'border-line bg-app',
           )}
         >
@@ -170,7 +170,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
               )}
 
               {promoting === item.id && (
-                <div className="my-1.5 ml-11 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--focus-ring)] px-3 py-2.5">
+                <div className="my-1.5 ml-11 flex flex-wrap items-center gap-2 rounded-md border border-[var(--focus-ring)] px-3 py-2.5">
                   <Input
                     autoFocus
                     className="flex-1 basis-[260px]"
@@ -205,7 +205,7 @@ function DocumentRow({ item }: { item: DocumentItem }) {
     <Row>
       {item.exhibitNumber !== null ? (
         // The number pill: brand-tinted, so a pièce is identifiable before reading anything.
-        <span className="grid h-5 min-w-[26px] shrink-0 place-items-center rounded-sm border border-[#bfd3c5] bg-brand-subtle px-1.5 font-mono text-[11px] font-medium text-brand-on-subtle tnum">
+        <span className="grid h-5 min-w-[26px] shrink-0 place-items-center rounded-[3px] border border-[#bfd3c5] bg-brand-subtle px-1.5 font-mono text-[11px] font-medium text-brand-on-subtle tnum">
           {item.exhibitNumber}
         </span>
       ) : (

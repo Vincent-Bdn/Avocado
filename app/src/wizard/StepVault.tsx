@@ -63,14 +63,14 @@ export function StepVault({ suggested, onBack, onPrepared }: {
         </WizardLead>
 
         <div className="mt-[22px]">
-          <label htmlFor="vault-path" className="mb-1.5 block text-label font-medium text-ink-secondary">
+          <label htmlFor="vault-path" className="type-label mb-1.5 block text-ink-secondary">
             Emplacement du coffre
           </label>
 
           <div className="flex items-center gap-2">
             <div
               className={cn(
-                'flex h-[34px] min-w-0 flex-1 items-center gap-2 rounded-md border bg-panel px-2.5',
+                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-sm border bg-panel px-2.5',
                 refusal
                   ? 'border-danger shadow-[0_0_0_2px_color-mix(in_srgb,var(--status-danger)_16%,transparent)]'
                   : 'border-line-strong',
@@ -94,7 +94,7 @@ export function StepVault({ suggested, onBack, onPrepared }: {
         </div>
 
         {refusal && (
-          <div className="mt-3 flex items-start gap-[11px] rounded-lg border border-[#ebc9c5] border-l-[3px] border-l-danger bg-[#fdf4f3] px-4 py-3.5">
+          <div className="mt-3 flex items-start gap-[11px] rounded-md border border-[#ebc9c5] border-l-[3px] border-l-danger bg-[#fdf4f3] px-4 py-3.5">
             <ShieldAlert size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-danger" />
 
             <div className="min-w-0 flex-1">
@@ -107,7 +107,7 @@ export function StepVault({ suggested, onBack, onPrepared }: {
               </p>
 
               {/* The arrangement that works, on its own white card inside the refusal. */}
-              <div className="mt-[11px] rounded-lg border border-line-subtle bg-panel px-3 py-[11px]">
+              <div className="mt-[11px] rounded-md border border-line-subtle bg-panel px-3 py-[11px]">
                 <div className="text-[12px] leading-[17px] font-medium">Le montage qui fonctionne</div>
 
                 <ArrangementLine>

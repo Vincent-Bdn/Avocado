@@ -5,10 +5,11 @@ import { CommandPalette } from './CommandPalette.js'
 import { MatterView } from './MatterView.js'
 import { NewMatter } from './NewMatter.js'
 import { Settings } from './Settings.js'
-import { Contacts } from './sections/Contacts.js'
+import { Contacts, NewContact } from './sections/Contacts.js'
 import { Home } from './sections/Home.js'
 import { UpcomingDeadlines } from './sections/UpcomingDeadlines.js'
 import { Button } from './components/ui/button.js'
+import { EmptyState } from './components/ui/empty-state.js'
 import { Input } from './components/ui/input.js'
 import { Panel, PanelHeader } from './components/ui/panel.js'
 import { cn } from './lib/utils.js'
@@ -21,12 +22,20 @@ type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'settings'
  * The shell: rail 48, secondary panel 232, content, 6px gutters, panels at radius 8 with no shadow
  * between them. Only Dossiers and Tiers carry a secondary panel, so the rest drop to two bands
  * rather than leaving an empty column.
+ *
+ * Creation lives here rather than inside a section, because « Créer un dossier » is offered from the
+ * accueil, from the dossier list and from ⌘N, and all three have to open the same dialog.
  */
 export function AppShell() {
   const [section, setSection] = useState<Section>('home')
   const [selectedMatter, setSelectedMatter] = useState<string | null>(null)
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [creatingMatter, setCreatingMatter] = useState(false)
+  const [creatingContact, setCreatingContact] = useState(false)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
 
   const openMatter = useCallback((id: string) => {
     setSelectedMatter(id)
@@ -40,9 +49,16 @@ export function AppShell() {
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      if (!(event.metaKey || event.ctrlKey)) return
+
+      if (event.key.toLowerCase() === 'k') {
         event.preventDefault()
         setPaletteOpen(true)
+      }
+
+      if (event.key.toLowerCase() === 'n') {
+        event.preventDefault()
+        setCreatingMatter(true)
       }
     }
 
@@ -61,15 +77,37 @@ export function AppShell() {
     >
       <Rail section={section} onSection={setSection} />
 
-      {section === 'home' && <Home onOpenMatter={openMatter} />}
+      {section === 'home' && (
+        <Home
+          key={reloadToken}
+          onOpenMatter={openMatter}
+          onNewMatter={() => setCreatingMatter(true)}
+          onNewContact={() => setCreatingContact(true)}
+          onSearch={() => setPaletteOpen(true)}
+        />
+      )}
+
       {section === 'deadlines' && <UpcomingDeadlines onOpenMatter={openMatter} />}
       {section === 'settings' && <Settings />}
 
       {section === 'contacts' && (
-        <Contacts selected={selectedContact} onSelect={setSelectedContact} onOpenMatter={openMatter} />
+        <Contacts
+          key={reloadToken}
+          selected={selectedContact}
+          onSelect={setSelectedContact}
+          onOpenMatter={openMatter}
+          onNewContact={() => setCreatingContact(true)}
+        />
       )}
 
-      {section === 'matters' && <Matters selected={selectedMatter} onSelect={setSelectedMatter} />}
+      {section === 'matters' && (
+        <Matters
+          key={reloadToken}
+          selected={selectedMatter}
+          onSelect={setSelectedMatter}
+          onNewMatter={() => setCreatingMatter(true)}
+        />
+      )}
 
       {paletteOpen && (
         <CommandPalette
@@ -78,16 +116,38 @@ export function AppShell() {
           onOpenContact={openContact}
         />
       )}
+
+      {creatingMatter && (
+        <NewMatter
+          onCancel={() => setCreatingMatter(false)}
+          onCreated={(id) => {
+            setCreatingMatter(false)
+            openMatter(id)
+            refresh()
+          }}
+        />
+      )}
+
+      {creatingContact && (
+        <NewContact
+          onCancel={() => setCreatingContact(false)}
+          onCreated={(id) => {
+            setCreatingContact(false)
+            openContact(id)
+            refresh()
+          }}
+        />
+      )}
     </div>
   )
 }
 
-function Matters({ selected, onSelect }: {
+function Matters({ selected, onSelect, onNewMatter }: {
   selected: string | null
   onSelect: (id: string | null) => void
+  onNewMatter: () => void
 }) {
   const [page, setPage] = useState<MatterListPage | null>(null)
-  const [creating, setCreating] = useState(false)
   const [showClosed, setShowClosed] = useState(false)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -116,45 +176,27 @@ function Matters({ selected, onSelect }: {
 
   useEffect(reload, [reload])
 
-  useEffect(() => {
-    const shortcut = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
-        event.preventDefault()
-        setCreating(true)
-      }
-    }
-
-    window.addEventListener('keydown', shortcut)
-    return () => window.removeEventListener('keydown', shortcut)
-  }, [])
-
   return (
     <>
       <Panel>
         <PanelHeader>
           <span>Dossiers · {page?.total ?? 0}</span>
-          <Button
-            variant="ghost"
-            size="iconSm"
-            title="Nouveau dossier (Ctrl+N)"
-            onClick={() => setCreating(true)}
-          >
+          <Button variant="ghost" size="iconSm" title="Nouveau dossier (Ctrl+N)" onClick={onNewMatter}>
             <Plus size={14} strokeWidth={2} />
           </Button>
         </PanelHeader>
 
         <div className="flex shrink-0 gap-0.5 border-b border-line-subtle px-1.5 py-1">
-          <Segment active={!showClosed} onClick={() => setShowClosed(false)}>
-            En cours
-          </Segment>
-          <Segment active={showClosed} onClick={() => setShowClosed(true)}>
-            Clôturés
-          </Segment>
+          <SegmentGroup>
+            <Segment active={!showClosed} onClick={() => setShowClosed(false)}>En cours</Segment>
+            <Segment active={showClosed} onClick={() => setShowClosed(true)}>Clôturés</Segment>
+          </SegmentGroup>
         </div>
 
         <div className="shrink-0 border-b border-line-subtle px-1.5 py-1">
           <Input
-            className="h-6 w-full text-[11.5px]"
+            inputSize="sm"
+            className="w-full"
             value={search}
             placeholder="Nom, référence, client…"
             onChange={(event) => setSearch(event.target.value)}
@@ -177,7 +219,7 @@ function Matters({ selected, onSelect }: {
               onClick={() => onSelect(matter.id)}
               className={cn(
                 'grid h-9 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-2',
-                'rounded-md px-2 py-1 text-left transition-colors',
+                'rounded-sm px-2 py-1 text-left transition-colors',
                 matter.id === selected
                   ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
                   : 'hover:bg-hover',
@@ -201,27 +243,16 @@ function Matters({ selected, onSelect }: {
         <MatterView matterId={selected} onChanged={reload} />
       ) : (
         <Panel className="items-center justify-center">
-          <div className="grid max-w-[460px] justify-items-start gap-2 rounded-lg border border-line-subtle bg-app px-6 py-7">
-            <h3 className="m-0 text-[13.5px] font-semibold">Votre premier dossier</h3>
-            <p className="m-0 text-[12px] leading-[18px] text-muted">
-              Un dossier réunit son client, le journal de tout ce qui s’y passe, ses documents, ses
-              échéances et le temps que vous y consacrez.
-            </p>
-            <Button onClick={() => setCreating(true)}>Nouveau dossier</Button>
-          </div>
+          <EmptyState
+            icon={<FolderClosed size={18} strokeWidth={1.8} />}
+            title="Votre premier dossier"
+            className="max-w-[460px]"
+            actions={<Button onClick={onNewMatter}>Nouveau dossier</Button>}
+          >
+            Un dossier réunit son client, le journal de tout ce qui s’y passe, ses documents, ses
+            échéances et le temps que vous y consacrez.
+          </EmptyState>
         </Panel>
-      )}
-
-      {creating && (
-        <NewMatter
-          onCancel={() => setCreating(false)}
-          onCreated={(id) => {
-            setCreating(false)
-            setShowClosed(false)
-            onSelect(id)
-            reload()
-          }}
-        />
       )}
     </>
   )
@@ -237,8 +268,8 @@ function Rail({ section, onSection }: { section: Section; onSection: (next: Sect
   ]
 
   return (
-    <nav className="flex flex-col items-center gap-1 rounded-xl bg-sunken py-2">
-      <img src="./icon.png" alt="Avocado" className="mb-2 h-[26px] w-[26px] rounded-lg" />
+    <nav className="flex flex-col items-center gap-1 rounded-lg bg-sunken py-2">
+      <img src="./icon.png" alt="Avocado" className="mb-2 h-[26px] w-[26px] rounded-md" />
 
       {items.map(([id, title, Icon]) => (
         <RailItem key={id} label={title} active={section === id} onClick={() => onSection(id)}>
@@ -269,7 +300,7 @@ function RailItem({ label, active, onClick, children }: {
       aria-current={active ? 'page' : undefined}
       onClick={onClick}
       className={cn(
-        'grid h-8 w-8 place-items-center rounded-lg transition-colors',
+        'grid h-8 w-8 place-items-center rounded-md transition-colors',
         // Collapsed, the 2px marker alone identifies the section.
         active
           ? 'bg-brand-subtle text-brand-on-subtle shadow-[inset_2px_0_0_var(--brand)]'
@@ -281,8 +312,19 @@ function RailItem({ label, active, onClick, children }: {
   )
 }
 
-/** The filter strip's segmented control: h 20, radius 3, 11px. */
-function Segment({ active, onClick, children }: {
+/**
+ * Segmented control: outer 26 with 22px segments, 2px padding, sunken well, radius 5 / 3. The active
+ * thumb does not slide, it changes instantly: a 170ms transition on a list filter reads as lag.
+ */
+export function SegmentGroup({ children }: { children: ReactNode }) {
+  return (
+    <div className="inline-flex h-[26px] items-center gap-0.5 rounded-[5px] border border-line-subtle bg-sunken p-0.5">
+      {children}
+    </div>
+  )
+}
+
+export function Segment({ active, onClick, children }: {
   active: boolean
   onClick: () => void
   children: ReactNode
@@ -292,8 +334,8 @@ function Segment({ active, onClick, children }: {
       type="button"
       onClick={onClick}
       className={cn(
-        'h-5 rounded-sm px-2 text-[11px] transition-colors',
-        active ? 'bg-brand-subtle text-brand-on-subtle' : 'text-ink-secondary hover:bg-hover',
+        'h-[22px] rounded-[3px] px-2.5 text-[11.5px]',
+        active ? 'bg-panel font-medium text-ink shadow-e1' : 'text-ink-secondary hover:text-ink',
       )}
     >
       {children}
