@@ -66,7 +66,11 @@ export class Backend {
         reject(new Error(`Le service Avocado n’a pas répondu en ${STARTUP_TIMEOUT_MS / 1000} s.`))
       }, STARTUP_TIMEOUT_MS)
 
+      // Kept open for the life of the process. Closing it once the handshake arrived silently threw
+      // away every backend log line from then on — which made anything that happens after startup,
+      // like the working folder being swept a second later, impossible to see from here.
       const lines = createInterface({ input: stdout })
+      let ready = false
 
       lines.on('line', (line) => {
         // Logging goes to stdout too, so match the marker rather than parsing the first line.
@@ -75,8 +79,12 @@ export class Backend {
           return
         }
 
+        if (ready) {
+          return
+        }
+
+        ready = true
         clearTimeout(timer)
-        lines.close()
         resolve(JSON.parse(line.slice(READY_PREFIX.length)) as BackendHandshake)
       })
 

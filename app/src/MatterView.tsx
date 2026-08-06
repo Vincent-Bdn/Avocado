@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Plus, X } from 'lucide-react'
+import { Check, Plus, Star, X } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
 import { MatterForm } from './MatterForm.js'
@@ -55,6 +55,21 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
    * so the secondary panel is refreshed, but navigating away from what she was reading would be the
    * application deciding for her.
    */
+  async function toggleFavourite() {
+    if (!matter) return
+
+    try {
+      await api(`/api/matters/${matterId}/favourite`, {
+        method: 'PUT',
+        body: JSON.stringify({ isFavourite: !matter.isFavourite }),
+      })
+
+      refreshAll()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
+  }
+
   async function toggleClosed() {
     if (!matter) return
 
@@ -118,6 +133,23 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         </div>
 
         <div className="absolute top-3 right-4 flex gap-2">
+          {/* One click, its own endpoint: pinning must not be a read-modify-write of the whole
+              dossier, or a star could fail because the n° RG is somewhere else. */}
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-pressed={matter.isFavourite}
+            title={matter.isFavourite ? 'Retirer des favoris' : 'Mettre en favori'}
+            onClick={() => void toggleFavourite()}
+            className={matter.isFavourite ? 'border-accent text-accent' : undefined}
+          >
+            <Star
+              size={14}
+              strokeWidth={2}
+              fill={matter.isFavourite ? 'currentColor' : 'none'}
+            />
+          </Button>
+
           <Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>
 
           <Button

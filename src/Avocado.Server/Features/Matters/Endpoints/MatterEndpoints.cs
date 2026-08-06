@@ -14,6 +14,7 @@ public static class MatterEndpoints
         group.MapPost("/{id:guid}/close", CloseMatter.HandleAsync);
         group.MapPost("/{id:guid}/reopen", ReopenMatter.HandleAsync);
         group.MapPost("/{id:guid}/parties", ManageParties.AddAsync);
+        group.MapPut("/{id:guid}/favourite", SetFavourite.HandleAsync);
 
         routes.MapPut("/api/parties/{id:guid}", ManageParties.UpdateAsync).WithTags("Matters");
         routes.MapDelete("/api/parties/{id:guid}", ManageParties.RemoveAsync).WithTags("Matters");

@@ -9,6 +9,7 @@ import { EmptyState } from '../components/ui/empty-state.js'
 import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
 import { Select } from '../components/ui/select.js'
+import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { formatSize } from '../lib/urgency.js'
 import { Caption, Micro, Row, RowAction, RowMain, TabPanel } from './shared.js'
@@ -70,6 +71,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [workspace, setWorkspace] = useState<WorkspaceState>({ open: [], abandoned: [] })
   const [templates, setTemplates] = useState<TemplateItem[]>([])
   const [generating, setGenerating] = useState(false)
+  const toasts = useToasts()
   const input = useRef<HTMLInputElement>(null)
 
   const reload = useCallback(() => {
@@ -167,21 +169,40 @@ export function Documents({ matterId, isOpen, onChanged }: {
     }
   }
 
-  /** Decrypts into the coffre's working folder and hands the path to the operating system. */
+  /**
+   * Decrypts into the coffre's working folder and hands the path to the operating system.
+   *
+   * A closed dossier opens read-only — reading an old lettre de mission to reuse its wording is a
+   * normal thing to do — and the toast says so, because a file that looks editable and silently
+   * discards the edits would be worse than one that refuses to open.
+   */
   async function open(item: DocumentItem) {
     setError(null)
 
     try {
-      const { path } = await post<{ path: string }>(`/api/documents/${item.id}/open`, {})
+      const { path, readOnly } = await post<{ path: string; readOnly: boolean }>(
+        `/api/documents/${item.id}/open`,
+        {},
+      )
+
       const failure = await window.avocado.openWorkingCopy(path)
 
       if (failure) {
-        setError(`Aucune application n’est associée à « ${item.fileName} » : ${failure}`)
+        toasts.failed(
+          `Impossible d’ouvrir « ${item.fileName} »`,
+          'Aucune application n’est associée à ce type de fichier sur cet ordinateur.',
+        )
+      } else if (readOnly) {
+        toasts.succeeded(
+          'Ouvert en lecture seule',
+          'Ce dossier est clôturé : vos modifications ne seront pas reprises dans le coffre. ' +
+          'Enregistrez ailleurs si vous voulez repartir de ce document.',
+        )
       }
 
       await readWorkspace()
     } catch (failure) {
-      setError(messageOf(failure))
+      toasts.failed('Impossible d’ouvrir le document', messageOf(failure))
     }
   }
 
@@ -242,7 +263,9 @@ export function Documents({ matterId, isOpen, onChanged }: {
   })
 
   return (
-    <TabPanel>
+    <TabPanel className="relative">
+      {toasts.view}
+
       {isOpen && (
         <div
           onDragOver={(event) => { event.preventDefault(); setDragging(true) }}
@@ -598,16 +621,17 @@ function DocumentRow({
           checkedOut ? 'opacity-100' : 'opacity-0',
         )}
       >
-        {isOpen && (
-          checkedOut ? (
-            <RowAction label="Terminer la modification et remettre au coffre" onClick={onClose}>
-              <Check size={13} strokeWidth={2} />
-            </RowAction>
-          ) : (
-            <RowAction label="Ouvrir et modifier" onClick={onOpen}>
-              <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
-            </RowAction>
-          )
+        {checkedOut ? (
+          <RowAction label="Terminer la modification et remettre au coffre" onClick={onClose}>
+            <Check size={13} strokeWidth={2} />
+          </RowAction>
+        ) : (
+          <RowAction
+            label={isOpen ? 'Ouvrir et modifier' : 'Ouvrir en lecture seule'}
+            onClick={onOpen}
+          >
+            <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
+          </RowAction>
         )}
 
         <RowAction

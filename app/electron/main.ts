@@ -131,7 +131,7 @@ app.whenReady().then(async () => {
      * cannot turn this into « open any file on this machine ».
      */
     ipcMain.handle('avocado:openWorkingCopy', async (_event, target: string) => {
-      const working = path.join(vaultDirectory, '.travail')
+      const working = path.join(vaultDirectory, '.working-dir')
       const resolved = path.resolve(target)
 
       if (!resolved.startsWith(path.resolve(working) + path.sep)) {

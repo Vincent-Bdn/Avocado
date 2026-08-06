@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileSpreadsheet, ListChecks, Pencil, Trash2, X } from 'lucide-react'
+import { Check, FileSpreadsheet, ListChecks, PenLine, Pencil, Trash2, X } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
+import { SplitButton, SplitButtonItem } from '../components/ui/split-button.js'
 import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
@@ -81,7 +82,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null)
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
-  const [billing, setBilling] = useState(false)
+  const [billing, setBilling] = useState<'time' | 'manual' | null>(null)
   const toasts = useToasts()
 
   const reload = useCallback(() => {
@@ -130,50 +131,100 @@ export function Billing({ matterId, isOpen, onChanged }: {
 
   const { summary, statement } = data
 
+  // Nothing left to bill and something already billed. « Reste à facturer : −150 € » is a provision
+  // showing through, not an answer to a question anyone asked.
+  const settled = summary.billableMinutes === 0 && summary.invoicedCents > 0
+
   return (
     <TabPanel className="relative">
       {toasts.view}
 
-      {/* The subtraction has to be checkable by eye: a total you cannot recompute is never believed. */}
-      <section className="rounded-md border border-[#E8D5AE] bg-[#FDF8ED] px-4 py-3.5 text-[#6E4A0E]">
-        <div className="text-[12px] font-medium">Reste à facturer</div>
-        <div className="font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
-          {formatEuros(summary.leftToBillCents)}
-        </div>
-
-        <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
-          <Line label="Temps facturable" value={formatEuros(summary.billableTimeCents)} />
-          <Line label="− Mouvements" value={formatEuros(summary.ledgerCents)} />
-          <Line label="− Déjà facturé" value={formatEuros(summary.invoicedCents)} />
-          <div className="mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold">
-            <span>= Reste à facturer</span>
-            <span>{formatEuros(summary.leftToBillCents)}</span>
+      {/*
+        Two different questions, and only one of them is ever the live one. While there are hours to
+        bill, the answer is « combien » and the subtraction has to be checkable by eye. Once
+        everything is billed, « reste à facturer : −150 € » is not an answer at all — it is a
+        provision showing through — so the card switches to what she actually wants then: what the
+        dossier earned against what its hours were worth.
+      */}
+      {settled ? (
+        <section className="rounded-md border border-[#BFD3C5] bg-[#F4F8F5] px-4 py-3.5 text-brand-on-subtle">
+          <div className="flex items-center gap-1.5 text-[12px] font-medium">
+            <Check size={13} strokeWidth={2.5} />
+            Tout le temps saisi est facturé
           </div>
-        </div>
 
-        {/* Boni or mali: what she chose to bill above or below the hours, accumulated. */}
-        {summary.varianceCents !== 0 && (
-          <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
-            <div className="type-group opacity-80">
-              {summary.varianceCents > 0 ? 'Boni' : 'Mali'}
+          <div className="mt-1 font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
+            {formatEuros(summary.invoicedCents)}
+          </div>
+          <div className="font-mono text-[11px] tnum">facturés sur ce dossier</div>
+
+          {summary.varianceCents !== 0 && (
+            <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
+              <Line
+                label="Valeur des heures facturées"
+                value={formatEuros(summary.invoicedCents - summary.varianceCents)}
+              />
+              <Line label="Facturé" value={formatEuros(summary.invoicedCents)} />
+              <div
+                className={cn(
+                  'mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold',
+                  summary.varianceCents > 0 ? 'text-success' : 'text-warning',
+                )}
+              >
+                <span>= {summary.varianceCents > 0 ? 'Boni' : 'Mali'}</span>
+                <span>
+                  {summary.varianceCents > 0 ? '+ ' : '− '}
+                  {formatEuros(Math.abs(summary.varianceCents))}
+                </span>
+              </div>
             </div>
-            <div className="font-mono text-[15px] leading-5 font-semibold tnum">
-              {summary.varianceCents > 0 ? '+ ' : '− '}
-              {formatEuros(Math.abs(summary.varianceCents))}
-            </div>
-            <div className="font-mono text-[10px] tnum opacity-80">
-              écart entre ce qui a été facturé et ce que les heures valaient
+          )}
+
+          {summary.leftToBillCents < 0 && (
+            <p className="m-0 mt-2 text-[11px] leading-4">
+              Le client est en avance de {formatEuros(-summary.leftToBillCents)} : provision reçue ou
+              facture émise au-delà du temps saisi.
+            </p>
+          )}
+        </section>
+      ) : (
+        <section className="rounded-md border border-[#E8D5AE] bg-[#FDF8ED] px-4 py-3.5 text-[#6E4A0E]">
+          <div className="text-[12px] font-medium">Reste à facturer</div>
+          <div className="font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
+            {formatEuros(summary.leftToBillCents)}
+          </div>
+
+          <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
+            <Line label="Temps non facturé" value={formatEuros(summary.billableTimeCents)} />
+            <Line label="− Mouvements" value={formatEuros(summary.ledgerCents)} />
+            <Line label="− Factures libres" value={formatEuros(summary.manualInvoicedCents)} />
+            <div className="mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold">
+              <span>= Reste à facturer</span>
+              <span>{formatEuros(summary.leftToBillCents)}</span>
             </div>
           </div>
-        )}
 
-        <p className="m-0 mt-2 text-[11px] leading-4">
-          {formatDuration(summary.billableMinutes)} facturables.{' '}
-          {statement.since
-            ? `Depuis la dernière facture du ${new Date(statement.since).toLocaleDateString('fr-FR')} : ${formatDuration(statement.billableMinutes)} soit ${formatEuros(statement.billableAmountCents)}.`
-            : 'Aucune facture enregistrée pour l’instant.'}
-        </p>
-      </section>
+          {/* Boni or mali: what she chose to bill above or below the hours, accumulated. */}
+          {summary.varianceCents !== 0 && (
+            <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
+              <div className="type-group opacity-80">
+                {summary.varianceCents > 0 ? 'Boni' : 'Mali'}
+              </div>
+              <div className="font-mono text-[15px] leading-5 font-semibold tnum">
+                {summary.varianceCents > 0 ? '+ ' : '− '}
+                {formatEuros(Math.abs(summary.varianceCents))}
+              </div>
+            </div>
+          )}
+
+          <p className="m-0 mt-2 text-[11px] leading-4">
+            {formatDuration(summary.billableMinutes)} facturables.{' '}
+            {statement.since
+              ? `Dernière facture le ${new Date(statement.since).toLocaleDateString('fr-FR')}.`
+              : 'Aucune facture enregistrée pour l’instant.'}
+          </p>
+        </section>
+      )}
 
       {error && <p className="m-0 text-danger">{error}</p>}
 
@@ -185,24 +236,41 @@ export function Billing({ matterId, isOpen, onChanged }: {
         </Micro>
 
         {isOpen && (
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setBilling(true)}>
-              <ListChecks size={14} strokeWidth={1.75} />
-              Facturer du temps passé
-            </Button>
-            <Micro>ou enregistrez à la main une facture établie ailleurs :</Micro>
-          </div>
+          <SplitButton label="Facturer…" icon={<ListChecks size={14} strokeWidth={1.75} />}>
+            {(close) => (
+              <>
+                <SplitButtonItem
+                  icon={<ListChecks size={14} strokeWidth={1.75} />}
+                  title="À partir du temps passé"
+                  detail="Choisir les lignes, voir ce qu’elles valent, décider du montant"
+                  onClick={() => { close(); setBilling('time') }}
+                />
+                <SplitButtonItem
+                  icon={<PenLine size={14} strokeWidth={1.75} />}
+                  title="Saisir une facture établie ailleurs"
+                  detail="Un montant et une référence, sans rattacher d’heures"
+                  onClick={() => { close(); setBilling('manual') }}
+                />
+              </>
+            )}
+          </SplitButton>
         )}
 
-        {billing && (
+        {billing === 'time' && (
           <BillTimeDialog
             matterId={matterId}
-            onCancel={() => setBilling(false)}
-            onBilled={() => { setBilling(false); refresh() }}
+            onCancel={() => setBilling(null)}
+            onBilled={() => { setBilling(null); refresh() }}
           />
         )}
 
-        {isOpen && <InvoiceForm matterId={matterId} onSaved={refresh} />}
+        {billing === 'manual' && (
+          <InvoiceDialog
+            matterId={matterId}
+            onCancel={() => setBilling(null)}
+            onSaved={() => { setBilling(null); refresh() }}
+          />
+        )}
 
         <div className="grid">
           {data.invoices.map((invoice) =>
@@ -547,12 +615,32 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
   )
 }
 
+/** Saisir une facture établie ailleurs. The same fields as the inline correction, in a dialog. */
+function InvoiceDialog({ matterId, onCancel, onSaved }: {
+  matterId: string
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  return (
+    <Dialog title="Saisir une facture établie ailleurs" onClose={onCancel}>
+      <p className="m-0 text-[12.5px] leading-[19px] text-muted">
+        Pour une facture qui ne correspond pas à des heures saisies ici : un forfait, une provision
+        facturée, une régularisation. Son montant est retranché du reste à facturer.
+      </p>
+
+      <InvoiceForm matterId={matterId} onSaved={onSaved} onCancel={onCancel} bare />
+    </Dialog>
+  )
+}
+
 /** One form for both adding and correcting, so the two can never drift apart. */
-function InvoiceForm({ matterId, invoice, onSaved, onCancel }: {
+function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
   matterId: string
   invoice?: BillingInvoice
   onSaved: () => void
   onCancel?: () => void
+  /** Inside a dialog the bordered strip would be a box in a box. */
+  bare?: boolean
 }) {
   const [date, setDate] = useState(invoice?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10))
   const [amount, setAmount] = useState(invoice ? centsToAmount(invoice.amountExclVatCents) : '')
@@ -598,9 +686,8 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel }: {
     }
   }
 
-  return (
-    <div className="grid gap-1">
-      <InlineForm editing={Boolean(invoice)}>
+  const fields = (
+    <>
         <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
         <Input
           className="w-28 font-mono tnum"
@@ -624,13 +711,26 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel }: {
           {invoice ? 'Enregistrer' : 'Ajouter la facture'}
         </Button>
 
-        {onCancel && (
+        {onCancel && !bare && (
           <Button variant="secondary" size="icon" aria-label="Annuler" onClick={onCancel}>
             <X size={13} strokeWidth={2} />
           </Button>
         )}
-      </InlineForm>
+    </>
+  )
 
+  if (bare) {
+    return (
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-2">{fields}</div>
+        {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-1">
+      <InlineForm editing={Boolean(invoice)}>{fields}</InlineForm>
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
     </div>
   )

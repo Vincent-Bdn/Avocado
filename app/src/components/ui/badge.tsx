@@ -48,10 +48,13 @@ export function NumberPill({ bordered, tight, className, children }: {
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center rounded-[3px] font-mono leading-3 tnum',
-        tight ? 'min-w-4 px-1 py-0.5 text-[10px]' : 'px-1.5 text-[11px]',
+        'rounded-[3px] text-center font-mono tnum',
+        // The tab counters sit beside a 12px label, so the box is 15px and its line box is exactly
+        // 15px too: the digit is centred by construction, and nothing towers over the word.
+        tight
+          ? 'inline-block h-[15px] min-w-[15px] px-1 text-[10px] leading-[15px]'
+          : 'inline-flex items-center justify-center px-1.5 text-[11px] leading-3',
         !tight && (bordered ? 'border py-[3px]' : 'py-1'),
-        bordered && tight && 'border',
         className,
       )}
     >

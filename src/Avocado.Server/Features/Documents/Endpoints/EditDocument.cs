@@ -40,9 +40,18 @@ public static class EditDocument
                 statusCode: StatusCodes.Status410Gone);
         }
 
-        var path = await workspace.CheckOutAsync(tenant.VaultId, document, cancellationToken);
+        // A closed dossier still opens: reading an old lettre de mission to reuse its wording is a
+        // normal thing to do. It opens read-only, because a frozen journal beside a document that
+        // silently rewrites itself would be a promise kept in one place and broken in another.
+        var isOpen = await database.Matters
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == document.MatterId)
+            .Select(candidate => candidate.ClosedOn == null)
+            .FirstAsync(cancellationToken);
 
-        return Results.Ok(new { path });
+        var path = await workspace.CheckOutAsync(tenant.VaultId, document, isOpen, cancellationToken);
+
+        return Results.Ok(new { path, readOnly = !isOpen });
     }
 
     public static async Task<IResult> CloseAsync(
