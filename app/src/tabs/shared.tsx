@@ -25,9 +25,16 @@ export function InlineForm({ editing, children }: { editing?: boolean; children:
 }
 
 /** A dense list row: 34px minimum, top rule, never wrapping. */
-export function Row({ className, children }: { className?: string; children: ReactNode }) {
+export function Row({ className, onDoubleClick, children }: {
+  className?: string
+  onDoubleClick?: () => void
+  children: ReactNode
+}) {
   return (
-    <div className={cn('flex min-h-[34px] items-center gap-2.5 border-t border-line-subtle px-2 py-1.5 text-[12px]', className)}>
+    <div
+      onDoubleClick={onDoubleClick}
+      className={cn('flex min-h-[34px] items-center gap-2.5 border-t border-line-subtle px-2 py-1.5 text-[12px]', className)}
+    >
       {children}
     </div>
   )
@@ -51,8 +58,12 @@ export const Caption = ({ children }: { children: ReactNode }) => (
   </div>
 )
 
-export const Micro = ({ className, children }: { className?: string; children: ReactNode }) => (
-  <span className={cn('text-[11px] leading-4 text-muted', className)}>{children}</span>
+export const Micro = ({ className, title, children }: {
+  className?: string
+  title?: string
+  children: ReactNode
+}) => (
+  <span title={title} className={cn('text-[11px] leading-4 text-muted', className)}>{children}</span>
 )
 
 /** 24px icon action revealed in a row's right-hand gutter. */

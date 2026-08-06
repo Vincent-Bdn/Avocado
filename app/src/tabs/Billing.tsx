@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Trash2, X } from 'lucide-react'
-import { ApiError, api, post } from '../api.js'
+import { FileSpreadsheet, ListChecks, Pencil, Trash2, X } from 'lucide-react'
+import { ApiError, api, post, saveAs } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
+import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
@@ -18,6 +19,19 @@ interface BillingInvoice {
   amountExclVatCents: number
   isPaid: boolean
   paidOn: string | null
+  billedTimeCents: number
+  varianceCents: number
+  billedEntryCount: number
+}
+
+interface UnbilledEntry {
+  id: string
+  date: string
+  task: string
+  durationMinutes: number
+  isBillable: boolean
+  amountCents: number
+  invoiceId: string | null
 }
 
 interface BillingMovement {
@@ -34,6 +48,8 @@ interface BillingOverview {
     billableMinutes: number
     ledgerCents: number
     invoicedCents: number
+    manualInvoicedCents: number
+    varianceCents: number
     leftToBillCents: number
   }
   invoices: BillingInvoice[]
@@ -64,6 +80,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null)
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
+  const [billing, setBilling] = useState(false)
 
   const reload = useCallback(() => {
     api<BillingOverview>(`/api/matters/${matterId}/billing`)
@@ -114,6 +131,22 @@ export function Billing({ matterId, isOpen, onChanged }: {
           </div>
         </div>
 
+        {/* Boni or mali: what she chose to bill above or below the hours, accumulated. */}
+        {summary.varianceCents !== 0 && (
+          <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
+            <div className="type-group opacity-80">
+              {summary.varianceCents > 0 ? 'Boni' : 'Mali'}
+            </div>
+            <div className="font-mono text-[15px] leading-5 font-semibold tnum">
+              {summary.varianceCents > 0 ? '+ ' : '− '}
+              {formatEuros(Math.abs(summary.varianceCents))}
+            </div>
+            <div className="font-mono text-[10px] tnum opacity-80">
+              écart entre ce qui a été facturé et ce que les heures valaient
+            </div>
+          </div>
+        )}
+
         <p className="m-0 mt-2 text-[11px] leading-4">
           {formatDuration(summary.billableMinutes)} facturables.{' '}
           {statement.since
@@ -131,6 +164,24 @@ export function Billing({ matterId, isOpen, onChanged }: {
           il note ce qui est parti, pour savoir ce qui reste.
         </Micro>
 
+        {isOpen && (
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setBilling(true)}>
+              <ListChecks size={14} strokeWidth={1.75} />
+              Facturer du temps passé
+            </Button>
+            <Micro>ou enregistrez à la main une facture établie ailleurs :</Micro>
+          </div>
+        )}
+
+        {billing && (
+          <BillTimeDialog
+            matterId={matterId}
+            onCancel={() => setBilling(false)}
+            onBilled={() => { setBilling(false); refresh() }}
+          />
+        )}
+
         {isOpen && <InvoiceForm matterId={matterId} onSaved={refresh} />}
 
         <div className="grid">
@@ -146,18 +197,50 @@ export function Billing({ matterId, isOpen, onChanged }: {
             ) : (
               <Row key={invoice.id} className="group">
                 <RowDate>{new Date(invoice.date).toLocaleDateString('fr-FR')}</RowDate>
-                <RowMain><span>{invoice.externalReference ?? 'Sans référence'}</span></RowMain>
+                <RowMain>
+                  <span>{invoice.externalReference ?? 'Sans référence'}</span>
+                  {invoice.billedEntryCount > 0 && (
+                    <Micro>
+                      {invoice.billedEntryCount} ligne{invoice.billedEntryCount > 1 ? 's' : ''} de temps
+                      {invoice.varianceCents !== 0 &&
+                        ` · ${invoice.varianceCents > 0 ? 'boni' : 'mali'} ${formatEuros(Math.abs(invoice.varianceCents))}`}
+                    </Micro>
+                  )}
+                </RowMain>
+
                 <RowAmount>{formatEuros(invoice.amountExclVatCents)}</RowAmount>
                 <Badge tone={invoice.isPaid ? 'brand' : 'accent'}>
                   {invoice.isPaid ? 'Payée' : 'En attente'}
                 </Badge>
 
-                {isOpen && (
-                  <Actions
-                    onEdit={() => setEditingInvoice(invoice.id)}
-                    onDelete={() => void remove(`/api/invoices/${invoice.id}`)}
-                  />
-                )}
+                <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                  {invoice.billedEntryCount > 0 && (
+                    <RowAction
+                      label="Détail de facturation (Excel), à joindre à la facture"
+                      onClick={() => void saveAs(
+                        `/api/invoices/${invoice.id}/detail.xlsx`,
+                        `detail-facturation-${invoice.externalReference ?? invoice.date.slice(0, 10)}.xlsx`,
+                      )}
+                    >
+                      <FileSpreadsheet size={13} strokeWidth={1.75} />
+                    </RowAction>
+                  )}
+
+                  {isOpen && (
+                    <>
+                      <RowAction label="Modifier" onClick={() => setEditingInvoice(invoice.id)}>
+                        <Pencil size={13} strokeWidth={1.75} />
+                      </RowAction>
+                      <RowAction
+                        label="Supprimer"
+                        danger
+                        onClick={() => void remove(`/api/invoices/${invoice.id}`)}
+                      >
+                        <Trash2 size={13} strokeWidth={1.75} />
+                      </RowAction>
+                    </>
+                  )}
+                </span>
               </Row>
             ),
           )}
@@ -239,6 +322,213 @@ const Actions = ({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
     </RowAction>
   </span>
 )
+
+/**
+ * Facturer du temps passé.
+ *
+ * Lawyers rarely bill everything at once, so this is the normal path: pick the lines, see what they
+ * are worth, then decide what to bill. The two figures are shown side by side because the difference
+ * between them is the interesting one — billing below the recorded time is a mali, above it a boni,
+ * and both are deliberate acts a practice benefits from watching.
+ *
+ * The selected lines are hard-linked to the facture, so they stop counting towards « reste à
+ * facturer ». Answering that question by date instead would break the first time an old entry is
+ * corrected.
+ */
+function BillTimeDialog({ matterId, onCancel, onBilled }: {
+  matterId: string
+  onCancel: () => void
+  onBilled: () => void
+}) {
+  const [entries, setEntries] = useState<UnbilledEntry[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [reference, setReference] = useState('')
+  const [amount, setAmount] = useState('')
+  const [paid, setPaid] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<{ items: UnbilledEntry[] }>(`/api/matters/${matterId}/time-entries`)
+      .then((page) => {
+        const billable = page.items.filter((entry) => entry.isBillable && entry.invoiceId === null)
+        setEntries(billable)
+        // Everything is selected to begin with: billing all of it is the common case, and unticking
+        // three lines is less work than ticking twenty.
+        setSelected(new Set(billable.map((entry) => entry.id)))
+      })
+      .catch((failure: unknown) => setError(messageOf(failure)))
+  }, [matterId])
+
+  const chosen = entries.filter((entry) => selected.has(entry.id))
+  const timeCents = chosen.reduce((total, entry) => total + entry.amountCents, 0)
+  const minutes = chosen.reduce((total, entry) => total + entry.durationMinutes, 0)
+
+  const billedCents = amount.trim() ? parseAmountToCents(amount) : timeCents
+  const variance = billedCents === null ? 0 : billedCents - timeCents
+
+  function toggle(id: string) {
+    setSelected((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+
+      return next
+    })
+  }
+
+  async function bill() {
+    if (chosen.length === 0) {
+      setError('Choisissez au moins une ligne.')
+      return
+    }
+
+    if (amount.trim() && billedCents === null) {
+      setError('Indiquez un montant positif, par exemple 6 000,00.')
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      await post(`/api/matters/${matterId}/invoices/from-time`, {
+        timeEntryIds: [...selected],
+        date,
+        amountExclVatCents: amount.trim() ? billedCents : null,
+        externalReference: reference.trim() || null,
+        isPaid: paid,
+      })
+
+      onBilled()
+    } catch (failure) {
+      setError(messageOf(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog title="Facturer du temps passé" width={640} onClose={onCancel}>
+      {entries.length === 0 ? (
+        <p className="m-0 text-[12.5px] text-muted">
+          Tout le temps facturable de ce dossier est déjà rattaché à une facture.
+        </p>
+      ) : (
+        <>
+          <div className="max-h-[280px] overflow-y-auto rounded-sm border border-line-subtle">
+            {entries.map((entry) => (
+              <label
+                key={entry.id}
+                className="flex cursor-pointer items-center gap-2.5 border-b border-line-subtle px-2.5 py-1.5 text-[12px] last:border-b-0 hover:bg-hover"
+              >
+                <input
+                  type="checkbox"
+                  checked={selected.has(entry.id)}
+                  onChange={() => toggle(entry.id)}
+                />
+
+                <span className="w-[74px] shrink-0 font-mono text-[11.5px] text-ink-secondary tnum">
+                  {new Date(entry.date).toLocaleDateString('fr-FR')}
+                </span>
+
+                <span className="min-w-0 flex-1 truncate">{entry.task}</span>
+
+                <span className="shrink-0 font-mono text-[11.5px] text-muted tnum">
+                  {formatDuration(entry.durationMinutes)}
+                </span>
+
+                <span className="w-[84px] shrink-0 text-right font-mono tnum">
+                  {formatEuros(entry.amountCents)}
+                </span>
+              </label>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-baseline gap-3 rounded-sm bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
+            <span>
+              <span className="text-muted">Sélection</span> {chosen.length} ligne
+              {chosen.length > 1 ? 's' : ''}
+            </span>
+            <span aria-hidden="true" className="h-3 w-px bg-line" />
+            <span>
+              <span className="text-muted">Durée</span> {formatDuration(minutes)}
+            </span>
+            <span className="flex-1" />
+            <span>
+              <span className="text-muted">Valeur des heures</span>{' '}
+              <strong className="font-semibold">{formatEuros(timeCents)}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Date de la facture">
+              <Input
+                inputSize="lg"
+                type="date"
+                value={date}
+                onChange={(event) => setDate(event.target.value)}
+              />
+            </Field>
+
+            <Field label="Référence">
+              <Input
+                inputSize="lg"
+                value={reference}
+                placeholder="F-2026-014"
+                onChange={(event) => setReference(event.target.value)}
+              />
+            </Field>
+
+            <Field label="Montant facturé HT">
+              <Input
+                inputSize="lg"
+                className="font-mono tnum"
+                value={amount}
+                placeholder={centsToAmount(timeCents)}
+                onChange={(event) => { setAmount(event.target.value); setError(null) }}
+              />
+            </Field>
+          </div>
+
+          {/* Stated the moment she types a different amount, not discovered afterwards. */}
+          {variance !== 0 && (
+            <div
+              className={cn(
+                'rounded-sm border px-3 py-2 text-[12px]',
+                variance > 0
+                  ? 'border-[#BFD3C5] bg-[#F4F8F5] text-brand-on-subtle'
+                  : 'border-[#E8D5AE] bg-[#FDF8ED] text-[#6E4A0E]',
+              )}
+            >
+              <strong className="font-semibold">
+                {variance > 0 ? 'Boni' : 'Mali'} de {formatEuros(Math.abs(variance))}
+              </strong>{' '}
+              {variance > 0
+                ? 'facturé au-delà de la valeur des heures sélectionnées.'
+                : 'accordé au client sur la valeur des heures sélectionnées.'}
+            </div>
+          )}
+
+          <label className="flex items-center gap-2 text-[13px]">
+            <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
+            Déjà payée
+          </label>
+        </>
+      )}
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy || chosen.length === 0} onClick={() => void bill()}>
+          Établir la facture
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
 
 /** One form for both adding and correcting, so the two can never drift apart. */
 function InvoiceForm({ matterId, invoice, onSaved, onCancel }: {

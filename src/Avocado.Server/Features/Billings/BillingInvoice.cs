@@ -24,5 +24,21 @@ public class BillingInvoice
 
     public DateOnly? PaidOn { get; set; }
 
+    /// <summary>
+    /// What the hours attached to this facture were worth at the dossier's rate, recorded at the
+    /// moment it was issued.
+    /// <para>
+    /// The difference with <see cref="AmountExclVatCents"/> is the <b>boni</b> or the <b>mali</b>:
+    /// billing 6 000 € for 7 200 € of recorded time is a 1 200 € mali, deliberately granted, and the
+    /// reverse is a boni. It is stored rather than recomputed because the rate, the entries and the
+    /// corrections all move afterwards, and the figure she wants is what the arbitrage actually was
+    /// on the day she made it.
+    /// </para>
+    /// </summary>
+    public long BilledTimeCents { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Positive = boni (billed above the recorded time), negative = mali.</summary>
+    public long VarianceCents => AmountExclVatCents - BilledTimeCents;
 }

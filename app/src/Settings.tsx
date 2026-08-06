@@ -6,6 +6,7 @@ import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
+import { Templates } from './sections/Templates.js'
 import { cn } from './lib/utils.js'
 import { centsToAmount, parseAmountToCents } from './lib/amount.js'
 import type { PracticeSettings } from './types.js'
@@ -56,6 +57,16 @@ export function Settings() {
 
       <div className="flex-1 overflow-y-auto">
         {error && <p className="px-4 py-3 text-danger">{error}</p>}
+
+        <Section
+          id="templates"
+          title="Modèles de documents"
+          summary="Lettre de mission, courrier type…"
+          open={open === 'templates'}
+          onToggle={toggle}
+        >
+          <Templates />
+        </Section>
 
         <Section
           id="rate"

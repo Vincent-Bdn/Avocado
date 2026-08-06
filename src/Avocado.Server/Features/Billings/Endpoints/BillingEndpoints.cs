@@ -8,6 +8,10 @@ public static class BillingEndpoints
         routes.MapPost("/api/matters/{matterId:guid}/invoices", CreateInvoice.HandleAsync).WithTags("Billing");
         routes.MapPost("/api/matters/{matterId:guid}/ledger-entries", CreateLedgerEntry.HandleAsync)
             .WithTags("Billing");
+        routes.MapPost("/api/matters/{matterId:guid}/invoices/from-time", BillTimeEntries.HandleAsync)
+            .WithTags("Billing");
+        routes.MapGet("/api/invoices/{id:guid}/detail.xlsx", ExportBillingDetail.HandleAsync)
+            .WithTags("Billing");
 
         routes.MapPut("/api/invoices/{id:guid}", UpdateInvoice.HandleAsync).WithTags("Billing");
         routes.MapPut("/api/ledger-entries/{id:guid}", UpdateLedgerEntry.HandleAsync).WithTags("Billing");

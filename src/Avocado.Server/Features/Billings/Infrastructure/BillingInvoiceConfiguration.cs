@@ -8,6 +8,7 @@ internal sealed class BillingInvoiceConfiguration : IEntityTypeConfiguration<Bil
     public void Configure(EntityTypeBuilder<BillingInvoice> builder)
     {
         builder.ToTable("invoices");
+        builder.Ignore(invoice => invoice.VarianceCents);
         builder.HasKey(invoice => invoice.Id);
 
         builder.Property(invoice => invoice.ExternalReference).HasMaxLength(120);

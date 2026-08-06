@@ -3,6 +3,7 @@ using System;
 using Avocado.Server.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Avocado.Server.Data.Migrations
 {
     [DbContext(typeof(AvocadoDbContext))]
-    partial class AvocadoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260806201324_DocumentVersions")]
+    partial class DocumentVersions
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -87,10 +90,6 @@ namespace Avocado.Server.Data.Migrations
                     b.Property<long>("AmountExclVatCents")
                         .HasColumnType("INTEGER")
                         .HasColumnName("amount_excl_vat_cents");
-
-                    b.Property<long>("BilledTimeCents")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("billed_time_cents");
 
                     b.Property<string>("CreatedAt")
                         .IsRequired()
@@ -532,57 +531,6 @@ namespace Avocado.Server.Data.Migrations
                     b.ToTable("practice_settings", (string)null);
                 });
 
-            modelBuilder.Entity("Avocado.Server.Features.Templates.DocumentTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("id");
-
-                    b.Property<string>("BlobSha256")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("blob_sha256");
-
-                    b.Property<string>("CreatedAt")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("Kind")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("kind");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT")
-                        .HasColumnName("name");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("size_bytes");
-
-                    b.Property<string>("UpdatedAt")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Kind");
-
-                    b.ToTable("document_templates", (string)null);
-                });
-
             modelBuilder.Entity("Avocado.Server.Features.TimeEntries.TimeEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -611,10 +559,6 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("hourly_rate_cents_override");
 
-                    b.Property<Guid?>("InvoiceId")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("invoice_id");
-
                     b.Property<bool>("IsBillable")
                         .HasColumnType("INTEGER")
                         .HasColumnName("is_billable");
@@ -642,8 +586,6 @@ namespace Avocado.Server.Data.Migrations
                     b.HasIndex("ActivityId");
 
                     b.HasIndex("Date");
-
-                    b.HasIndex("InvoiceId");
 
                     b.HasIndex("UserId");
 
@@ -802,11 +744,6 @@ namespace Avocado.Server.Data.Migrations
                         .HasForeignKey("ActivityId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("Avocado.Server.Features.Billings.BillingInvoice", "Invoice")
-                        .WithMany()
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("Avocado.Server.Features.Matters.Matter", "Matter")
                         .WithMany()
                         .HasForeignKey("MatterId")
@@ -819,8 +756,6 @@ namespace Avocado.Server.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Activity");
-
-                    b.Navigation("Invoice");
 
                     b.Navigation("Matter");
 

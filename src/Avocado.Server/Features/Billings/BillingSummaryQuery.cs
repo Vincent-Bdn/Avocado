@@ -23,8 +23,10 @@ public static class BillingSummaryQuery
 
         // Materialised rather than aggregated in SQL: the per-entry rate override makes the value a
         // row-level expression, and a matter has tens of entries, not thousands.
+        // Hours already attached to a facture are excluded — that link is what makes the figure mean
+        // « depuis la dernière facture » instead of « depuis l'ouverture ».
         var billable = await database.TimeEntries
-            .Where(entry => entry.MatterId == matterId && entry.IsBillable)
+            .Where(entry => entry.MatterId == matterId && entry.IsBillable && entry.InvoiceId == null)
             .Select(entry => new { entry.DurationMinutes, entry.HourlyRateCentsOverride })
             .ToListAsync(cancellationToken);
 
@@ -36,10 +38,24 @@ public static class BillingSummaryQuery
             .Where(entry => entry.MatterId == matterId)
             .SumAsync(entry => (long?)entry.AmountCents, cancellationToken) ?? 0;
 
-        var invoicedCents = await database.Invoices
+        var invoices = await database.Invoices
             .Where(invoice => invoice.MatterId == matterId)
-            .SumAsync(invoice => (long?)invoice.AmountExclVatCents, cancellationToken) ?? 0;
+            .Select(invoice => new { invoice.AmountExclVatCents, invoice.BilledTimeCents })
+            .ToListAsync(cancellationToken);
 
-        return BillingSummary.Compute(billableTimeCents, billableMinutes, ledgerCents, invoicedCents);
+        var invoicedCents = invoices.Sum(invoice => invoice.AmountExclVatCents);
+
+        // A facture established from selected hours consumed those hours, so subtracting its amount
+        // as well would count the same work twice. Only the hand-recorded ones are subtracted.
+        var manualInvoicedCents = invoices
+            .Where(invoice => invoice.BilledTimeCents == 0)
+            .Sum(invoice => invoice.AmountExclVatCents);
+
+        var varianceCents = invoices
+            .Where(invoice => invoice.BilledTimeCents != 0)
+            .Sum(invoice => invoice.AmountExclVatCents - invoice.BilledTimeCents);
+
+        return BillingSummary.Compute(
+            billableTimeCents, billableMinutes, ledgerCents, invoicedCents, manualInvoicedCents, varianceCents);
     }
 }

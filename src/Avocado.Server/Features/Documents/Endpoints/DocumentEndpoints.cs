@@ -1,3 +1,5 @@
+using Avocado.Server.Features.Documents.Workspace;
+
 namespace Avocado.Server.Features.Documents.Endpoints;
 
 public static class DocumentEndpoints
@@ -12,12 +14,17 @@ public static class DocumentEndpoints
             .DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute());
 
+        routes.MapGet("/api/documents/workspace", EditDocument.Status).WithTags("Documents");
+
         var group = routes.MapGroup("/api/documents").WithTags("Documents");
 
         group.MapGet("/{id:guid}/content", DownloadDocument.HandleAsync);
         group.MapPut("/{id:guid}", UpdateDocument.HandleAsync);
         group.MapPut("/{id:guid}/exhibit", PromoteToExhibit.HandleAsync);
         group.MapDelete("/{id:guid}/exhibit", WithdrawExhibit.HandleAsync);
+        group.MapPost("/{id:guid}/open", EditDocument.OpenAsync);
+        group.MapPost("/{id:guid}/close", EditDocument.CloseAsync);
+        group.MapPost("/{id:guid}/resolve", EditDocument.ResolveAsync);
         group.MapDelete("/{id:guid}", DeleteDocument.HandleAsync);
 
         return routes;

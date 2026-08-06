@@ -37,6 +37,8 @@ public static class ListTimeEntries
                 entry.IsBillable,
                 entry.HourlyRateCentsOverride,
                 entry.ActivityId,
+                entry.InvoiceId,
+                InvoiceReference = entry.Invoice!.ExternalReference,
             })
             .ToListAsync(cancellationToken);
 
@@ -54,7 +56,9 @@ public static class ListTimeEntries
                     rate,
                     entry.HourlyRateCentsOverride is not null,
                     entry.IsBillable ? rate * entry.DurationMinutes / 60 : 0,
-                    entry.ActivityId);
+                    entry.ActivityId,
+                    entry.InvoiceId,
+                    entry.InvoiceReference);
             })
             .ToList();
 

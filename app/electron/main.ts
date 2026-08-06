@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session, shell } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Backend, type BackendHandshake } from './backend.js'
@@ -124,6 +124,40 @@ app.whenReady().then(async () => {
 
     // The recovery step will not let the user continue until one of these has actually happened.
     ipcMain.handle('avocado:removableDrives', () => listRemovableDrives())
+
+    /**
+     * Opens a working copy with whatever the OS uses for that file type. The guard is the point: the
+     * renderer can only ever ask for a path inside the coffre's `.travail` folder, so a bug in the UI
+     * cannot turn this into « open any file on this machine ».
+     */
+    ipcMain.handle('avocado:openWorkingCopy', async (_event, target: string) => {
+      const working = path.join(vaultDirectory, '.travail')
+      const resolved = path.resolve(target)
+
+      if (!resolved.startsWith(path.resolve(working) + path.sep)) {
+        throw new Error('Chemin hors du dossier de travail.')
+      }
+
+      // Returns '' on success and a message on failure, which is the opposite of every other
+      // Electron API, so it is normalised here rather than at every call site.
+      const failure = await shell.openPath(resolved)
+      return failure || null
+    })
+
+    ipcMain.handle('avocado:saveAs', async (_event, fileName: string, base64: string) => {
+      const chosen = await dialog.showSaveDialog({
+        title: 'Enregistrer',
+        defaultPath: path.join(app.getPath('documents'), fileName),
+        buttonLabel: 'Enregistrer',
+      })
+
+      if (chosen.canceled || !chosen.filePath) {
+        return null
+      }
+
+      await writeFile(chosen.filePath, Buffer.from(base64, 'base64'))
+      return chosen.filePath
+    })
 
     ipcMain.handle('avocado:saveRecoveryKey', (_event, drivePath: string, contents: string) =>
       saveRecoveryKey(drivePath, contents))

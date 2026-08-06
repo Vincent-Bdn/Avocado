@@ -28,6 +28,14 @@ internal sealed class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntr
             .HasForeignKey(entry => entry.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Deleting a facture releases its hours back to « à facturer » rather than deleting them:
+        // an invoice cancelled is work still done.
+        builder.HasOne(entry => entry.Invoice)
+            .WithMany()
+            .HasForeignKey(entry => entry.InvoiceId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(entry => entry.InvoiceId);
         builder.HasIndex(entry => new { entry.MatterId, entry.Date });
         builder.HasIndex(entry => entry.Date);
     }

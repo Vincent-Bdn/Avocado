@@ -9,7 +9,12 @@ public sealed record BillingInvoiceItem(
     string? ExternalReference,
     long AmountExclVatCents,
     bool IsPaid,
-    DateOnly? PaidOn);
+    DateOnly? PaidOn,
+    /// <summary>What the hours on this facture were worth. Zero for a hand-recorded one.</summary>
+    long BilledTimeCents,
+    /// <summary>Positive = boni, negative = mali. Zero on a hand-recorded facture.</summary>
+    long VarianceCents,
+    int BilledEntryCount);
 
 /// <param name="Kind">Derived from the stored sign, so the badge and the rendered ± cannot disagree.</param>
 /// <param name="AmountCents">Signed, as stored. The UI renders « + 1 200,00 € » / « − 105,00 € ».</param>

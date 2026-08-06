@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Trash2, X } from 'lucide-react'
+import { Pencil, ReceiptText, Trash2, X } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
@@ -19,6 +19,8 @@ interface TimeEntryItem {
   isRateOverridden: boolean
   amountCents: number
   fromActivityId: string | null
+  invoiceId: string | null
+  invoiceReference: string | null
 }
 
 interface TimeEntryPage {
@@ -123,6 +125,9 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
                 // A half-rate agreed in February must still be visible in June.
                 entry.isRateOverridden && 'bg-accent-subtle text-warning',
                 !entry.isBillable && 'text-muted',
+                // Billed hours are still worth reading, so they are dimmed rather than hidden: the
+                // dossier's history is the point of the tab.
+                entry.invoiceId && 'text-muted',
               )}
             >
               <RowDate>
@@ -135,6 +140,20 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
                 {entry.fromActivityId && <Micro>depuis le journal</Micro>}
               </RowMain>
 
+              {entry.invoiceId && (
+                <span
+                  className="flex shrink-0 items-center gap-1 rounded-[3px] bg-sunken px-1.5 py-1 text-[10.5px] leading-3 text-muted"
+                  title={
+                    entry.invoiceReference
+                      ? `Facturée sur ${entry.invoiceReference}`
+                      : 'Facturée'
+                  }
+                >
+                  <ReceiptText size={10} strokeWidth={2} />
+                  facturée
+                </span>
+              )}
+
               <span className="font-mono tnum">{formatDuration(entry.durationMinutes)}</span>
 
               <span className="font-mono text-muted tnum">
@@ -145,7 +164,10 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
                 {entry.isBillable ? formatEuros(entry.amountCents) : ''}
               </RowAmount>
 
-              {isOpen && (
+              {/* A billed line is not editable here: correcting it would silently change what the
+                  client was invoiced. The way back is to delete the facture, which releases its
+                  hours. */}
+              {isOpen && !entry.invoiceId && (
                 <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   <RowAction label="Modifier" onClick={() => setEditing(entry.id)}>
                     <Pencil size={13} strokeWidth={1.75} />

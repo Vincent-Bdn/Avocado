@@ -53,6 +53,18 @@ public class TimeEntry
     public Guid? UserId { get; set; }
     public Users.User? User { get; set; }
 
+    /// <summary>
+    /// The facture this hour was billed on, once it has been.
+    /// <para>
+    /// This is what makes « reste à facturer » mean something after the second invoice. Lawyers
+    /// rarely bill everything at once, so the question is never « what has this dossier earned » but
+    /// « what have I earned since the last facture », and answering that by date is a heuristic that
+    /// breaks the first time an old entry is corrected. A hard link does not.
+    /// </para>
+    /// </summary>
+    public Guid? InvoiceId { get; set; }
+    public Billings.BillingInvoice? Invoice { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public long AmountCents(long matterHourlyRateCents) =>

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Download, FileText, Folder, Paperclip, Pencil, Trash2, Undo2, X } from 'lucide-react'
-import { ApiError, api, download } from '../api.js'
+import {
+  Check, Download, FilePlus2, FileText, Folder, Paperclip, Pencil, SquareArrowOutUpRight, Trash2, Undo2, X,
+} from 'lucide-react'
+import { ApiError, api, download, post } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
+import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
+import { Select } from '../components/ui/select.js'
 import { cn } from '../lib/utils.js'
 import { formatSize } from '../lib/urgency.js'
 import { Caption, Micro, Row, RowAction, RowMain, TabPanel } from './shared.js'
@@ -20,7 +24,20 @@ interface DocumentItem {
   mimeType: string | null
   documentDate: string | null
   addedAt: string
+  updatedAt: string
+  version: number
   originActivityId: string | null
+}
+
+interface WorkspaceState {
+  open: { documentId: string; path: string }[]
+  abandoned: { documentId: string; fileName: string; modifiedUtc: string }[]
+}
+
+interface TemplateItem {
+  id: string
+  name: string
+  kind: string | null
 }
 
 interface DocumentPage {
@@ -50,6 +67,9 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [busy, setBusy] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
+  const [workspace, setWorkspace] = useState<WorkspaceState>({ open: [], abandoned: [] })
+  const [templates, setTemplates] = useState<TemplateItem[]>([])
+  const [generating, setGenerating] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   const reload = useCallback(() => {
@@ -59,6 +79,28 @@ export function Documents({ matterId, isOpen, onChanged }: {
   }, [matterId])
 
   useEffect(reload, [reload])
+
+  useEffect(() => {
+    api<TemplateItem[]>('/api/templates').then(setTemplates).catch(() => setTemplates([]))
+  }, [])
+
+  const readWorkspace = useCallback(
+    () => api<WorkspaceState>('/api/documents/workspace').then(setWorkspace).catch(() => undefined),
+    [],
+  )
+
+  useEffect(() => { void readWorkspace() }, [readWorkspace])
+
+  /**
+   * While anything is open in Word the list polls, because the reintegration happens in the backend
+   * on its own schedule and the row's « modifié » line is the only sign she has that a save landed.
+   */
+  useEffect(() => {
+    if (workspace.open.length === 0) return
+
+    const timer = setInterval(() => { reload(); void readWorkspace() }, 3000)
+    return () => clearInterval(timer)
+  }, [workspace.open.length, reload, readWorkspace])
 
   const refresh = () => {
     setEditing(null)
@@ -125,6 +167,49 @@ export function Documents({ matterId, isOpen, onChanged }: {
     }
   }
 
+  /** Decrypts into the coffre's working folder and hands the path to the operating system. */
+  async function open(item: DocumentItem) {
+    setError(null)
+
+    try {
+      const { path } = await post<{ path: string }>(`/api/documents/${item.id}/open`, {})
+      const failure = await window.avocado.openWorkingCopy(path)
+
+      if (failure) {
+        setError(`Aucune application n’est associée à « ${item.fileName} » : ${failure}`)
+      }
+
+      await readWorkspace()
+    } catch (failure) {
+      setError(messageOf(failure))
+    }
+  }
+
+  /** Puts the last save away and removes the working copy. */
+  async function close(id: string) {
+    setError(null)
+
+    try {
+      await post(`/api/documents/${id}/close`, {})
+      refresh()
+      await readWorkspace()
+    } catch (failure) {
+      setError(messageOf(failure))
+    }
+  }
+
+  async function resolve(id: string, keep: boolean) {
+    setError(null)
+
+    try {
+      await post(`/api/documents/${id}/resolve?keep=${keep}`, {})
+      refresh()
+      await readWorkspace()
+    } catch (failure) {
+      setError(messageOf(failure))
+    }
+  }
+
   async function remove(id: string) {
     setError(null)
 
@@ -151,6 +236,9 @@ export function Documents({ matterId, isOpen, onChanged }: {
     onDelete: () => void remove(item.id),
     folders: page?.folders ?? [],
     onFile: (folder: string | null) => void file(item, folder),
+    checkedOut: workspace.open.some((entry) => entry.documentId === item.id),
+    onOpen: () => void open(item),
+    onClose: () => void close(item.id),
   })
 
   return (
@@ -198,6 +286,51 @@ export function Documents({ matterId, isOpen, onChanged }: {
       )}
 
       {error && <p className="m-0 text-danger">{error}</p>}
+
+      {/*
+        Left behind by a crash. Never deleted on sight: the copy on disk may hold an afternoon the
+        coffre has never seen, so the choice is hers and the wording says which is which.
+      */}
+      {workspace.abandoned.map((file) => (
+        <div
+          key={file.documentId}
+          className="flex flex-wrap items-center gap-2 rounded-md border border-[#E8D5AE] border-l-[3px] border-l-[#8A5A10] bg-[#FDF8ED] px-3.5 py-3 text-[#6E4A0E]"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-[12.5px] font-semibold">
+              « {file.fileName} » est resté ouvert lors du dernier arrêt
+            </div>
+            <p className="m-0 mt-0.5 text-[11.5px] leading-[17px]">
+              Sa dernière modification date du{' '}
+              {new Date(file.modifiedUtc).toLocaleString('fr-FR')}. Reprendre le remet dans le coffre ;
+              écarter le supprime définitivement.
+            </p>
+          </div>
+
+          <Button onClick={() => void resolve(file.documentId, true)}>Reprendre les modifications</Button>
+          <Button variant="secondary" onClick={() => void resolve(file.documentId, false)}>Écarter</Button>
+        </div>
+      ))}
+
+      {isOpen && templates.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={() => setGenerating(true)}>
+            <FilePlus2 size={14} strokeWidth={1.75} />
+            Générer depuis un modèle
+          </Button>
+          <Micro>{templates.length} modèle{templates.length > 1 ? 's' : ''} disponible{templates.length > 1 ? 's' : ''}</Micro>
+        </div>
+      )}
+
+      {generating && (
+        <GenerateDialog
+          matterId={matterId}
+          templates={templates}
+          folders={page?.folders ?? []}
+          onCancel={() => setGenerating(false)}
+          onGenerated={() => { setGenerating(false); refresh() }}
+        />
+      )}
 
       {page?.total === 0 && (
         <EmptyState icon={<FileText size={18} strokeWidth={1.8} />} title="Aucun document">
@@ -248,6 +381,85 @@ export function Documents({ matterId, isOpen, onChanged }: {
   )
 }
 
+/**
+ * Picking a modèle and where the result should be filed. The generated file lands in the coffre, not
+ * in a download: it is a draft she will finish in Word, and the edits go straight back.
+ */
+function GenerateDialog({ matterId, templates, folders, onCancel, onGenerated }: {
+  matterId: string
+  templates: TemplateItem[]
+  folders: string[]
+  onCancel: () => void
+  onGenerated: () => void
+}) {
+  const [templateId, setTemplateId] = useState(templates[0]?.id ?? '')
+  const [fileName, setFileName] = useState('')
+  const [folder, setFolder] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function generate() {
+    setBusy(true)
+    setError(null)
+
+    try {
+      await post(`/api/matters/${matterId}/documents/from-template/${templateId}`, {
+        fileName: fileName.trim() || null,
+        folder: folder.trim() || null,
+      })
+
+      onGenerated()
+    } catch (failure) {
+      setError(messageOf(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog title="Générer depuis un modèle" onClose={onCancel}>
+      <Field label="Modèle">
+        <Select className="h-8" value={templateId} onChange={(event) => setTemplateId(event.target.value)}>
+          {templates.map((template) => (
+            <option key={template.id} value={template.id}>
+              {template.kind ? `${template.kind} · ${template.name}` : template.name}
+            </option>
+          ))}
+        </Select>
+      </Field>
+
+      <Field label="Nom du fichier">
+        <Input
+          inputSize="lg"
+          value={fileName}
+          placeholder="laissé vide, il est composé du modèle et de la référence"
+          onChange={(event) => setFileName(event.target.value)}
+        />
+      </Field>
+
+      <Field label="Classer dans">
+        <Input
+          inputSize="lg"
+          list="generate-folders"
+          value={folder}
+          placeholder="Correspondance"
+          onChange={(event) => setFolder(event.target.value)}
+        />
+        <datalist id="generate-folders">
+          {folders.map((name) => <option key={name} value={name} />)}
+        </datalist>
+      </Field>
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy || !templateId} onClick={() => void generate()}>Générer</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 /** Filed folders first and alphabetical, then everything not yet filed. */
 function groupByFolder(items: DocumentItem[]): [string | null, DocumentItem[]][] {
   const groups = new Map<string | null, DocumentItem[]>()
@@ -267,20 +479,23 @@ function groupByFolder(items: DocumentItem[]): [string | null, DocumentItem[]][]
 }
 
 function DocumentRow({
-  item, isOpen, editing, nextNumber, folders,
-  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile,
+  item, isOpen, editing, nextNumber, folders, checkedOut,
+  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile, onOpen, onClose,
 }: {
   item: DocumentItem
   isOpen: boolean
   editing: boolean
   nextNumber: number
   folders: string[]
+  checkedOut: boolean
   onEdit: () => void
   onCancel: () => void
   onLabel: (label: string) => void
   onWithdraw: () => void
   onDelete: () => void
   onFile: (folder: string | null) => void
+  onOpen: () => void
+  onClose: () => void
 }) {
   const [label, setLabel] = useState(item.exhibitLabel ?? '')
   const [folder, setFolder] = useState(item.folder ?? '')
@@ -339,7 +554,8 @@ function DocumentRow({
   }
 
   return (
-    <Row className="group">
+    // Double-click is the gesture everyone already has for « ouvrir », so it is the one bound here.
+    <Row className="group cursor-default" onDoubleClick={onOpen}>
       {isExhibit ? (
         // The number pill: brand-tinted, so a pièce is identifiable before reading anything.
         <NumberPill
@@ -360,12 +576,42 @@ function DocumentRow({
         {item.exhibitLabel && <Micro className="font-mono">{item.fileName}</Micro>}
       </RowMain>
 
+      {checkedOut && (
+        <span className="flex shrink-0 items-center gap-1 rounded-[3px] bg-brand-subtle px-1.5 py-1 text-[10.5px] leading-3 text-brand-on-subtle">
+          <SquareArrowOutUpRight size={10} strokeWidth={2} />
+          ouvert
+        </span>
+      )}
+
+      {item.version > 1 && (
+        <Micro className="font-mono tnum" title={`Modifié le ${new Date(item.updatedAt).toLocaleString('fr-FR')}`}>
+          v{item.version}
+        </Micro>
+      )}
+
       <Micro>{item.type}</Micro>
       <Micro className="font-mono tnum">{formatSize(item.sizeBytes)}</Micro>
 
-      <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <span
+        className={cn(
+          'flex gap-0.5 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
+          checkedOut ? 'opacity-100' : 'opacity-0',
+        )}
+      >
+        {isOpen && (
+          checkedOut ? (
+            <RowAction label="Terminer la modification et remettre au coffre" onClick={onClose}>
+              <Check size={13} strokeWidth={2} />
+            </RowAction>
+          ) : (
+            <RowAction label="Ouvrir et modifier" onClick={onOpen}>
+              <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
+            </RowAction>
+          )
+        )}
+
         <RowAction
-          label="Télécharger"
+          label="Télécharger une copie"
           onClick={() => void download(`/api/documents/${item.id}/content`, item.fileName)}
         >
           <Download size={13} strokeWidth={1.75} />

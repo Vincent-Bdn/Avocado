@@ -22,7 +22,10 @@ public sealed record TimeEntryListItem(
     long AppliedRateCents,
     bool IsRateOverridden,
     long AmountCents,
-    Guid? FromActivityId);
+    Guid? FromActivityId,
+    /// <summary>Set once the line has been billed. The row greys out and stops being selectable.</summary>
+    Guid? InvoiceId,
+    string? InvoiceReference);
 
 /// <param name="MatterMinutes">« Total du dossier », alongside today and this week.</param>
 public sealed record TimeEntryTotals(

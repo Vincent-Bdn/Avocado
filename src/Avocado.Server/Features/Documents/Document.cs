@@ -53,6 +53,15 @@ public class Document
 
     public DateTimeOffset AddedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    /// <summary>Last time the bytes changed, which is not the same as when the file arrived.</summary>
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Bumped every time an edit is reintegrated from the working folder. Not a version *history* —
+    /// the previous bytes are dropped — but it answers « ai-je bien enregistré ? » at a glance.
+    /// </summary>
+    public int Version { get; set; } = 1;
+
     /// <summary>Set when this document is promoted to a numbered exhibit. Unique within the matter.</summary>
     public int? ExhibitNumber { get; set; }
 
