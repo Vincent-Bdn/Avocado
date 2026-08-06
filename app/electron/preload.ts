@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('avocado', {
     ipcRenderer.invoke('avocado:connection') as Promise<{
       url: string
       token: string
-      vaultId: string
+      vaultState: string
     }>,
+
+  /** Native folder picker for the setup wizard. Returns null if the user cancels. */
+  chooseFolder: (startIn?: string) =>
+    ipcRenderer.invoke('avocado:chooseFolder', startIn) as Promise<string | null>,
 })

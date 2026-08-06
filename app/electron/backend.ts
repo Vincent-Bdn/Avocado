@@ -8,7 +8,8 @@ import path from 'node:path'
 export interface BackendHandshake {
   url: string
   token: string
-  vaultId: string
+  /** Absent, Locked or Unlocked. The renderer decides between wizard and application from this. */
+  vaultState: string
 }
 
 const READY_PREFIX = 'AVOCADO_READY '

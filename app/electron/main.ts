@@ -80,6 +80,19 @@ app.whenReady().then(async () => {
     // Resolved before the window exists, so the renderer never has to ask twice or poll.
     ipcMain.handle('avocado:connection', () => handshake)
 
+    // The wizard needs a real folder picker. Typing a path is not something to ask of someone who
+    // has never seen a file dialog fail.
+    ipcMain.handle('avocado:chooseFolder', async (_event, startIn?: string) => {
+      const result = await dialog.showOpenDialog({
+        title: 'Emplacement du coffre',
+        defaultPath: startIn,
+        properties: ['openDirectory', 'createDirectory'],
+        buttonLabel: 'Choisir ce dossier',
+      })
+
+      return result.canceled ? null : (result.filePaths[0] ?? null)
+    })
+
     applyContentSecurityPolicy()
     await createWindow()
   } catch (error) {

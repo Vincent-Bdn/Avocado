@@ -88,8 +88,10 @@ public class VaultManagerTests
         var syncedPath = Path.Combine(directory.Path, "Dropbox", "Cabinet");
         Directory.CreateDirectory(syncedPath);
 
-        var exception = Assert.Throws<VaultException>(() => VaultManager.Create(syncedPath, new FakeDeviceKeyStore()));
-        Assert.Contains("cloud-synced", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var exception = Assert.Throws<SyncedFolderException>(
+            () => VaultManager.Create(syncedPath, new FakeDeviceKeyStore()));
+
+        Assert.Contains("Dropbox", exception.DetectedRoot, StringComparison.OrdinalIgnoreCase);
 
         // Still possible when the user insists, since the detector is a heuristic.
         using var forced = VaultManager.Create(syncedPath, new FakeDeviceKeyStore(), allowSyncedFolder: true).Vault;

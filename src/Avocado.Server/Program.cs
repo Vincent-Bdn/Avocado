@@ -12,6 +12,9 @@ using Avocado.Server.Features.Matters.Endpoints;
 using Avocado.Server.Features.Searches.Endpoints;
 using Avocado.Server.Features.TimeEntries.Endpoints;
 using Avocado.Server.Features.Users.Endpoints;
+using Avocado.Server.Features.Vaults;
+using Avocado.Server.Features.Vaults.Endpoints;
+using Avocado.Server.Features.Vaults.Enums;
 using Avocado.Server.Hosting;
 using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -22,8 +25,8 @@ var builder = WebApplication.CreateBuilder(args);
 var vaultDirectory =
     builder.Configuration["vault"]
     ?? Environment.GetEnvironmentVariable("AVOCADO_VAULT")
-    ?? throw new InvalidOperationException(
-        "No vault folder configured. Pass --vault <folder> or set AVOCADO_VAULT.");
+    ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Avocado");
 
 // Per-launch, injected by the Electron shell. Without it any web page in any browser on this machine
 // could call the API: browsers happily send cross-origin requests to 127.0.0.1, and a DNS-rebinding
@@ -40,8 +43,14 @@ builder.WebHost.ConfigureKestrel(kestrel => kestrel.Listen(
     IPAddress.Loopback,
     int.TryParse(Environment.GetEnvironmentVariable("AVOCADO_PORT"), out var fixedPort) ? fixedPort : 0));
 
-builder.Services.AddSingleton<IVaultStore>(_ =>
-    new SingleVaultStore(VaultManager.UnlockWithDeviceKey(vaultDirectory)));
+// Resolved before the host is built and never throws: on a new machine there is no vault yet, and
+// the setup wizard is served over this same API. Refusing to boot would make the first run
+// unreachable — which is exactly the dead end this replaced.
+var session = new VaultSession(vaultDirectory);
+session.TryResume();
+
+builder.Services.AddSingleton(session);
+builder.Services.AddSingleton<IVaultStore>(session);
 builder.Services.AddSingleton<VaultDbContextFactory>();
 builder.Services.AddScoped(services =>
     new TenantContext(services.GetRequiredService<IVaultStore>().Get(Guid.Empty).Id));
@@ -65,25 +74,23 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseMiddleware<LocalApiTokenMiddleware>(apiToken);
+app.UseMiddleware<VaultReadyMiddleware>();
 
-var vault = app.Services.GetRequiredService<IVaultStore>().Get(Guid.Empty);
-await VaultMigrator.EnsureUpToDateAsync(
-    vault,
-    app.Services.GetRequiredService<VaultDbContextFactory>(),
-    app.Logger);
-
-app.MapGet("/health", (IVaultStore store) =>
+if (session.State == VaultState.Unlocked)
 {
-    var opened = store.Get(Guid.Empty);
-    return Results.Ok(new
-    {
-        vaultId = opened.Id,
-        folder = opened.Paths.Root,
-        unlockPaths = opened.Keyring.Keys.Select(k => new { Kind = k.Kind.ToString(), k.Label }),
-        hasRecoveryKey = opened.Keyring.HasRecoveryKey,
-    });
-});
+    await VaultMigrator.EnsureUpToDateAsync(
+        session.Get(Guid.Empty),
+        app.Services.GetRequiredService<VaultDbContextFactory>(),
+        app.Logger);
+}
 
+app.MapGet("/health", (VaultSession vaultSession) => Results.Ok(new
+{
+    state = vaultSession.State.ToString(),
+    folder = vaultSession.Paths.Root,
+}));
+
+app.MapVault();
 app.MapUsers();
 app.MapContacts();
 app.MapMatters();
@@ -105,7 +112,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
     {
         url = addresses.FirstOrDefault(),
         token = apiToken,
-        vaultId = vault.Id,
+        vaultState = session.State.ToString(),
     }));
 });
 

@@ -70,10 +70,11 @@ public static class CloudSyncDetector
     {
         if (IsInsideSyncedFolder(directory, out var root))
         {
-            throw new VaultException(
+            throw new SyncedFolderException(
                 $"This folder is inside '{root}', which looks like a cloud-synced folder. " +
                 "A live database there will be corrupted by the sync client. " +
-                "Put the vault on a local disk and point automatic backups at the synced folder instead.");
+                "Put the vault on a local disk and point automatic backups at the synced folder instead.",
+                root!);
         }
     }
 }

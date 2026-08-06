@@ -179,7 +179,12 @@ public class CloudSyncDetectorTests
 
         Assert.True(CloudSyncDetector.IsInsideSyncedFolder(vaultPath, out var detected));
         Assert.Contains(syncFolder, detected, StringComparison.OrdinalIgnoreCase);
-        Assert.Throws<VaultException>(() => CloudSyncDetector.ThrowIfInsideSyncedFolder(vaultPath));
+
+        // Its own type, so the UI can offer the override without matching on the message text.
+        var exception = Assert.Throws<SyncedFolderException>(
+            () => CloudSyncDetector.ThrowIfInsideSyncedFolder(vaultPath));
+
+        Assert.Contains(syncFolder, exception.DetectedRoot, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
