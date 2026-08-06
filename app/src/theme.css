@@ -1,0 +1,116 @@
+@import 'tailwindcss';
+
+/* Self-hosted, bundled by Vite. No CDN at runtime, which is what makes the "no data leaves this
+   machine" claim checkable. IBM Plex is OFL 1.1; the licence travels in node_modules/@fontsource
+   and must stay with any redistribution of the font files. */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+
+/* The design system's tokens, verbatim. They stay the source of truth for light and dark. */
+@import './tokens.css';
+
+/*
+  Tailwind's theme points at those variables rather than copying their values, so `bg-panel` resolves
+  through --surface-panel and follows the theme switch. Copying hex values here would be a second
+  source of truth that silently drifts from tokens.css the first time it is re-issued.
+*/
+@theme {
+  --color-app: var(--surface-app);
+  --color-panel: var(--surface-panel);
+  --color-raised: var(--surface-raised);
+  --color-hover: var(--surface-hover);
+  --color-sunken: var(--surface-sunken);
+
+  --color-ink: var(--text-primary);
+  --color-ink-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-disabled: var(--text-disabled);
+  --color-on-brand: var(--text-on-brand);
+
+  --color-line-subtle: var(--border-subtle);
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-on-subtle: var(--brand-on-subtle);
+  --color-accent: var(--accent);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-success: var(--status-success);
+  --color-warning: var(--status-warning);
+  --color-danger: var(--status-danger);
+  --color-info: var(--status-info);
+
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+
+  /* The design system's type scale. 13px body is deliberate: desktop density on a 1440x900 laptop. */
+  --text-display: 28px;
+  --text-display--line-height: 34px;
+  --text-title-lg: 20px;
+  --text-title-lg--line-height: 26px;
+  --text-title: 15px;
+  --text-title--line-height: 21px;
+  --text-body: 13px;
+  --text-body--line-height: 20px;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-caption: 11px;
+  --text-caption--line-height: 15px;
+  --text-kbd: 10.5px;
+  --text-kbd--line-height: 14px;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+
+  --shadow-e1: var(--elevation-1);
+  --shadow-e2: var(--elevation-2);
+  --shadow-e3: var(--elevation-3);
+
+  /* Row heights and control sizes, so density is a token rather than a number retyped per file. */
+  --spacing-row: 30px;
+  --spacing-row-comfort: 36px;
+  --spacing-control-sm: 24px;
+  --spacing-control: 28px;
+  --spacing-control-lg: 32px;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--surface-app);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 20px;
+    letter-spacing: -0.005em;
+    /* Panels scroll; the window never does. */
+    overflow: hidden;
+  }
+
+  /* Every date, duration, amount and reference number. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}

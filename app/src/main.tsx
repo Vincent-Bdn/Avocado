@@ -2,7 +2,9 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App.js'
 import { applyTheme } from './theme.js'
-import './tokens.css'
+// theme.css pulls in Tailwind, the fonts and tokens.css. The three below are the not-yet-converted
+// screens; each disappears as its handoff is worked through.
+import './theme.css'
 import './app.css'
 import './shell.css'
 import './wizard/wizard.css'
