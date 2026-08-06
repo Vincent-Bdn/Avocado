@@ -38,16 +38,20 @@ export function Badge({ tone, className, children }: VariantProps<typeof badge> 
  * The numeric pill: a pièce number, a tab counter, a page number. Same construction as the badge, so
  * a bordered pill and a plain one are the same height and their digits sit on the same line.
  */
-export function NumberPill({ bordered, className, children }: {
+export function NumberPill({ bordered, tight, className, children }: {
   bordered?: boolean
+  /** The tab bar's counters, which sit beside a 12px label and must not tower over it. */
+  tight?: boolean
   className?: string
   children: ReactNode
 }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center justify-center rounded-[3px] px-1.5 font-mono text-[11px] leading-3 tnum',
-        bordered ? 'border py-[3px]' : 'py-1',
+        'inline-flex items-center justify-center rounded-[3px] font-mono leading-3 tnum',
+        tight ? 'min-w-4 px-1 py-0.5 text-[10px]' : 'px-1.5 text-[11px]',
+        !tight && (bordered ? 'border py-[3px]' : 'py-1'),
+        bordered && tight && 'border',
         className,
       )}
     >

@@ -59,13 +59,14 @@ public static class EditDocument
     /// What is open right now, and what a previous crash left behind. The client polls the first
     /// while anything is open, and shows the second once, at launch.
     /// </summary>
-    public static IResult Status(
+    public static async Task<IResult> StatusAsync(
         DocumentWorkspace workspace,
-        TenantContext tenant) =>
+        TenantContext tenant,
+        CancellationToken cancellationToken) =>
         Results.Ok(new
         {
             open = workspace.Status(),
-            abandoned = workspace.Abandoned(tenant.VaultId),
+            abandoned = await workspace.AbandonedAsync(tenant.VaultId, cancellationToken),
         });
 
     public static async Task<IResult> ResolveAsync(

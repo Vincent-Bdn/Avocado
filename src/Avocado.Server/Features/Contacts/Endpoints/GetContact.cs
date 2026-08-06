@@ -56,6 +56,7 @@ public static class GetContact
                 activity.Id,
                 activity.MatterId,
                 activity.Matter!.Reference,
+                activity.Matter.Name,
                 activity.Type,
                 activity.OccurredAt,
                 activity.Subject ?? activity.Body))

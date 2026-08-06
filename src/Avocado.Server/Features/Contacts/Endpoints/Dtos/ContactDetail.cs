@@ -24,6 +24,7 @@ public sealed record ContactExchange(
     Guid ActivityId,
     Guid MatterId,
     string MatterReference,
+    string MatterName,
     ActivityType Type,
     DateTimeOffset OccurredAt,
     string? Summary);

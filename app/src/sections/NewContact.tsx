@@ -5,7 +5,6 @@ import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
-import { Select } from '../components/ui/select.js'
 import { Sheet } from '../components/ui/sheet.js'
 import { Textarea } from '../components/ui/textarea.js'
 import { cn } from '../lib/utils.js'
@@ -85,6 +84,7 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
   // « Personnes rattachées »: the gérant of a société, the DAF, the spouse in an indivision.
   const [organisations, setOrganisations] = useState<ContactSummary[]>([])
   const [attachedTo, setAttachedTo] = useState(contact?.attachedToContactId ?? attachTo?.id ?? '')
+  const [attachedToName, setAttachedToName] = useState(attachTo?.name ?? '')
   const [attachedAs, setAttachedAs] = useState(contact?.attachedAs ?? '')
 
   const [lookupOn, setLookupOn] = useState(annuaireEnabled)
@@ -92,11 +92,14 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const term = legalName.trim()
+  // A SIREN is nine digits and nothing else, so typing one is unambiguous enough to drive the same
+  // query as a name. It is the faster path when she has the Kbis in front of her.
+  const sirenDigits = siren.replace(/\D/g, '')
+  const term = sirenDigits.length === 9 && !picked ? sirenDigits : legalName.trim()
   const morale = type === 'Organisation'
   // An existing tiers is never re-queried behind the user's back while they correct a typo in a name.
   const searchable = morale && lookupOn && !contact && !picked && term.length >= 3
-  const locked = morale && lookupOn && !contact && !picked
+  const locked = morale && lookupOn && !contact && !picked && sirenDigits.length !== 9
 
   /**
    * Debounced by 250ms and cancelled on every keystroke. The previous list is kept while a new query
@@ -105,9 +108,16 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
    */
   useEffect(() => {
     api<ContactSummary[]>('/api/contacts')
-      .then((all) => setOrganisations(all.filter((candidate) => candidate.type === 'Organisation')))
+      .then((all) => {
+        const morales = all.filter((candidate) => candidate.type === 'Organisation')
+        setOrganisations(morales)
+
+        // Editing an existing person: show the name, not the identifier she has never seen.
+        const current = morales.find((candidate) => candidate.id === (contact?.attachedToContactId ?? attachTo?.id))
+        if (current) setAttachedToName(current.displayName)
+      })
       .catch(() => setOrganisations([]))
-  }, [])
+  }, [contact?.attachedToContactId, attachTo?.id])
 
   useEffect(() => {
     if (!searchable) {
@@ -283,7 +293,8 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
 
             {lookupOn && !contact && !picked && term.length < 3 && (
               <p className="m-0 type-caption text-muted">
-                Trois caractères suffisent. Rien n’est envoyé avant la troisième lettre.
+                Trois caractères suffisent, ou saisissez directement les neuf chiffres du SIREN. Rien
+                n’est envoyé avant la troisième lettre.
               </p>
             )}
 
@@ -299,13 +310,20 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="SIREN">
-              <Input
-                inputSize="lg"
-                className="font-mono tnum"
-                value={siren}
-                disabled={locked}
-                onChange={(event) => setSiren(event.target.value)}
-              />
+              <span className="relative flex items-center">
+                <Input
+                  inputSize="lg"
+                  className="w-full font-mono tnum"
+                  value={siren}
+                  placeholder={lookupOn && !contact ? '842 671 093' : undefined}
+                  disabled={locked}
+                  onChange={(event) => { setSiren(event.target.value); setPicked(null) }}
+                />
+
+                {lookup.state === 'loading' && sirenDigits.length === 9 && (
+                  <Loader2 size={14} strokeWidth={2} className="absolute right-2 animate-spin text-muted" />
+                )}
+              </span>
             </Field>
 
             <Field label="Forme juridique">
@@ -346,18 +364,36 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
 
           <Field label="Rattachée à">
             <div className="grid gap-1.5">
-              <Select
-                className="h-8"
-                value={attachedTo}
-                onChange={(event) => setAttachedTo(event.target.value)}
-              >
-                <option value="">Aucune</option>
+              {/*
+                Typed, not picked from a list. A practice has hundreds of sociétés and scrolling a
+                select to « SAS Berthier Négoce » is slower than typing three letters of it.
+              */}
+              <Input
+                inputSize="lg"
+                list="attach-organisations"
+                value={attachedToName}
+                placeholder="Aucune, ou tapez le début de la raison sociale"
+                onChange={(event) => {
+                  const typed = event.target.value
+                  setAttachedToName(typed)
+                  setAttachedTo(
+                    organisations.find((candidate) => candidate.displayName === typed)?.id ?? '',
+                  )
+                }}
+              />
+
+              <datalist id="attach-organisations">
                 {organisations.map((organisation) => (
-                  <option key={organisation.id} value={organisation.id}>
-                    {organisation.displayName}
-                  </option>
+                  <option key={organisation.id} value={organisation.displayName} />
                 ))}
-              </Select>
+              </datalist>
+
+              {attachedToName.trim() && !attachedTo && (
+                <p className="m-0 type-caption text-warning">
+                  Aucune personne morale de ce nom. Choisissez-en une dans la liste, ou créez-la
+                  d’abord.
+                </p>
+              )}
 
               {attachedTo && (
                 <Input

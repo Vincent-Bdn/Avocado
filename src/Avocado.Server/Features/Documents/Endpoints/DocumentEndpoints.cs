@@ -14,7 +14,7 @@ public static class DocumentEndpoints
             .DisableAntiforgery()
             .WithMetadata(new RequestSizeLimitAttribute());
 
-        routes.MapGet("/api/documents/workspace", EditDocument.Status).WithTags("Documents");
+        routes.MapGet("/api/documents/workspace", EditDocument.StatusAsync).WithTags("Documents");
 
         var group = routes.MapGroup("/api/documents").WithTags("Documents");
 

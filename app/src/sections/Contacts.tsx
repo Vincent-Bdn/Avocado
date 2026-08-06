@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Info, Plus, Users } from 'lucide-react'
+import { Building2, ChevronDown, Info, Plus, User, Users } from 'lucide-react'
 import { ApiError, api } from '../api.js'
 import { Avatar } from '../components/ui/avatar.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { Input } from '../components/ui/input.js'
+import { Select } from '../components/ui/select.js'
 import { MetaDivider, PageHeader } from '../components/ui/page-header.js'
 import { Panel, PanelHeader } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
@@ -48,6 +49,7 @@ interface ContactDetail {
     activityId: string
     matterId: string
     matterReference: string
+    matterName: string
     type: ActivityType
     occurredAt: string
     summary: string | null
@@ -75,6 +77,8 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   const [reloadToken, setReloadToken] = useState(0)
   const [items, setItems] = useState<ContactSummary[]>([])
   const [search, setSearch] = useState('')
+  const [showOrganisations, setShowOrganisations] = useState(true)
+  const [showPeople, setShowPeople] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -89,6 +93,9 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   }, [search, selected, onSelect])
 
   useEffect(reload, [reload])
+
+  const organisations = items.filter((contact) => contact.type === 'Organisation')
+  const people = items.filter((contact) => contact.type === 'Individual')
 
   return (
     <>
@@ -115,24 +122,45 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
 
           {items.length === 0 && <p className="px-2 py-3 text-muted">Aucun tiers.</p>}
 
-          {items.map((contact) => (
-            <button
-              key={contact.id}
-              type="button"
-              onClick={() => onSelect(contact.id)}
-              className={cn(
-                'grid h-9 w-full content-center rounded-sm px-2 py-1 text-left transition-colors',
-                contact.id === selected
-                  ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
-                  : 'hover:bg-hover',
-              )}
-            >
-              <span className="truncate text-[12px] leading-4">{contact.displayName}</span>
-              <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
-                {contact.type === 'Organisation' ? 'Personne morale' : 'Personne physique'}
-              </span>
-            </button>
-          ))}
+          {/*
+            Two groups rather than one long list. A practice's address book is mostly sociétés with a
+            handful of confrères and experts among them, and the two are looked up in completely
+            different circumstances. Collapsed state is remembered for the session only: it is a way
+            of reading the list, not a setting.
+          */}
+          <Group
+            label="Personnes morales"
+            icon={<Building2 size={12} strokeWidth={2} />}
+            count={organisations.length}
+            open={showOrganisations}
+            onToggle={() => setShowOrganisations((current) => !current)}
+          >
+            {organisations.map((contact) => (
+              <ContactRow
+                key={contact.id}
+                contact={contact}
+                selected={contact.id === selected}
+                onSelect={() => onSelect(contact.id)}
+              />
+            ))}
+          </Group>
+
+          <Group
+            label="Personnes physiques"
+            icon={<User size={12} strokeWidth={2} />}
+            count={people.length}
+            open={showPeople}
+            onToggle={() => setShowPeople((current) => !current)}
+          >
+            {people.map((contact) => (
+              <ContactRow
+                key={contact.id}
+                contact={contact}
+                selected={contact.id === selected}
+                onSelect={() => onSelect(contact.id)}
+              />
+            ))}
+          </Group>
         </div>
       </Panel>
 
@@ -169,6 +197,7 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
   const [contact, setContact] = useState<ContactDetail | null>(null)
   const [editing, setEditing] = useState(false)
   const [attaching, setAttaching] = useState(false)
+  const [matterFilter, setMatterFilter] = useState('')
 
   useEffect(() => {
     api<ContactDetail>(`/api/contacts/${contactId}`).then(setContact).catch(() => setContact(null))
@@ -178,6 +207,9 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
 
   const clientRoles = contact.roles.filter((role) => role.isClient)
   const otherRoles = contact.roles.filter((role) => !role.isClient)
+  const exchanges = matterFilter
+    ? contact.recentExchanges.filter((exchange) => exchange.matterId === matterFilter)
+    : contact.recentExchanges
 
   return (
     <Panel>
@@ -247,13 +279,28 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
           </section>
 
           <section>
-            <h3 className="type-title m-0 flex items-baseline gap-2 pb-2">
-              Derniers échanges <Micro>tous dossiers confondus</Micro>
+            <h3 className="type-title m-0 flex flex-wrap items-baseline gap-2 pb-2">
+              Derniers échanges
+              <Micro>{matterFilter ? 'sur ce dossier' : 'tous dossiers confondus'}</Micro>
+
+              {/* The list is short by design, so the useful control is not a search but « lequel ». */}
+              <Select
+                className="ml-auto h-6 max-w-[220px] text-[11.5px]"
+                value={matterFilter}
+                onChange={(event) => setMatterFilter(event.target.value)}
+              >
+                <option value="">Tous les dossiers</option>
+                {contact.roles.map((role) => (
+                  <option key={role.matterId} value={role.matterId}>
+                    {role.matterReference} · {role.matterName}
+                  </option>
+                ))}
+              </Select>
             </h3>
 
-            {contact.recentExchanges.length === 0 && <Micro>Aucun échange.</Micro>}
+            {exchanges.length === 0 && <Micro>Aucun échange.</Micro>}
 
-            {contact.recentExchanges.map((exchange) => (
+            {exchanges.map((exchange) => (
               <button
                 key={exchange.activityId}
                 type="button"
@@ -269,7 +316,12 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
                   {exchange.summary && ` · ${exchange.summary}`}
                 </span>
 
-                <span className="shrink-0 font-mono text-[11px] text-muted">
+                {/* The dossier column, so a line is never read out of context. */}
+                <span className="w-[150px] shrink-0 truncate text-right text-[11px] text-muted">
+                  {exchange.matterName}
+                </span>
+
+                <span className="shrink-0 font-mono text-[11px] text-muted tnum">
                   {exchange.matterReference}
                 </span>
               </button>
@@ -347,6 +399,60 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
         />
       )}
     </Panel>
+  )
+}
+
+/** A collapsible band, the way an explorer pane groups what it holds. */
+function Group({ label, icon, count, open, onToggle, children }: {
+  label: string
+  icon: React.ReactNode
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: React.ReactNode
+}) {
+  if (count === 0) return null
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex h-6 w-full items-center gap-1 rounded-[3px] px-1 text-left hover:bg-hover"
+      >
+        <ChevronDown
+          size={12}
+          strokeWidth={2}
+          className={cn('shrink-0 text-muted transition-transform', !open && '-rotate-90')}
+        />
+        <span className="shrink-0 text-muted">{icon}</span>
+        <span className="type-group flex-1 truncate text-muted">{label}</span>
+        <span className="font-mono text-[10px] text-muted tnum">{count}</span>
+      </button>
+
+      {open && children}
+    </section>
+  )
+}
+
+function ContactRow({ contact, selected, onSelect }: {
+  contact: ContactSummary
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex h-8 w-full items-center gap-2 rounded-sm px-2 py-1 text-left transition-colors',
+        selected ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]' : 'hover:bg-hover',
+      )}
+    >
+      <Avatar name={contact.displayName} type={contact.type} size={16} />
+      <span className="truncate text-[12px] leading-4">{contact.displayName}</span>
+    </button>
   )
 }
 

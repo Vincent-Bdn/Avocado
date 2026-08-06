@@ -66,6 +66,7 @@ builder.Services.AddScoped(services =>
 builder.Services.AddScoped<CurrentUser>();
 
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<FailureDetails>();
 
 // Injected rather than DateTime.Now: every screen's urgency tiers and relative distances are computed
 // against "today", and a fixed clock is the only way to test that boundary.

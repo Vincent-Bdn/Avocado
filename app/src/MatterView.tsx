@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Plus } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
 import { MatterForm } from './MatterForm.js'
@@ -15,6 +15,7 @@ import { Input } from './components/ui/input.js'
 import { Panel } from './components/ui/panel.js'
 import { Select } from './components/ui/select.js'
 import { NewContact } from './sections/NewContact.js'
+import { RowAction } from './tabs/shared.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
@@ -151,7 +152,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           >
             {title}
             {count !== null && (
-              <NumberPill className="bg-sunken px-1 text-[10px] text-ink-secondary">{count}</NumberPill>
+              <NumberPill tight className="bg-sunken text-ink-secondary">{count}</NumberPill>
             )}
           </button>
         ))}
@@ -203,6 +204,11 @@ function focusComposer() {
 /** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
 function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: () => void }) {
   const [addingParty, setAddingParty] = useState(false)
+  const [editingParty, setEditingParty] = useState<string | null>(null)
+
+  async function removeParty(id: string) {
+    await api(`/api/parties/${id}`, { method: 'DELETE' }).then(onChanged).catch(() => onChanged())
+  }
 
   return (
     <aside className="grid content-start gap-3 overflow-y-auto border-l border-line-subtle p-2.5">
@@ -272,25 +278,53 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
       <section>
         <ContextTitle>Parties</ContextTitle>
 
-        {matter.parties.map((party) => (
-          <div key={party.id} className="group/party mb-1.5 flex items-center gap-2">
-            <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
+        {matter.parties.map((party) =>
+          editingParty === party.id ? (
+            <PartyRole
+              key={party.id}
+              party={party}
+              onCancel={() => setEditingParty(null)}
+              onSaved={() => { setEditingParty(null); onChanged() }}
+            />
+          ) : (
+            <div key={party.id} className="group/party mb-1.5 flex items-center gap-2">
+              <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
 
-            <span className="grid min-w-0">
-              <span className="truncate text-[11.5px]">{party.displayName}</span>
-              {/* Free text and often long: truncated, with the full wording in the title. */}
-              <span
-                className={cn(
-                  'truncate text-[10.5px]',
-                  party.isClient ? 'text-brand-on-subtle' : 'text-muted',
-                )}
-                title={party.role ?? undefined}
-              >
-                {party.role}
+              <span className="grid min-w-0 flex-1">
+                <span className="truncate text-[11.5px]">{party.displayName}</span>
+
+                {/*
+                  The role is free text and often long, so it truncates with the full wording in the
+                  title. It is also the only place it can be written, which is why the whole line is
+                  a button: « aucun rôle » has to be as clickable as a role that is already there.
+                */}
+                <button
+                  type="button"
+                  title={party.role ?? 'Indiquer le rôle de cette partie'}
+                  onClick={() => setEditingParty(party.id)}
+                  className={cn(
+                    'truncate text-left text-[10.5px] hover:underline',
+                    party.role
+                      ? party.isClient ? 'text-brand-on-subtle' : 'text-muted'
+                      : 'text-disabled italic',
+                  )}
+                >
+                  {party.role ?? 'indiquer le rôle…'}
+                </button>
               </span>
-            </span>
-          </div>
-        ))}
+
+              {!party.isClient && (
+                <RowAction
+                  label="Retirer du dossier"
+                  danger
+                  onClick={() => void removeParty(party.id)}
+                >
+                  <X size={12} strokeWidth={2} />
+                </RowAction>
+              )}
+            </div>
+          ),
+        )}
 
         <button
           type="button"
@@ -311,6 +345,58 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
         />
       )}
     </aside>
+  )
+}
+
+/** Writing the role. Inline, because it is one line of free text and a dialog would be theatre. */
+function PartyRole({ party, onCancel, onSaved }: {
+  party: MatterDetail['parties'][number]
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const [role, setRole] = useState(party.role ?? '')
+  const [busy, setBusy] = useState(false)
+
+  async function save() {
+    setBusy(true)
+
+    try {
+      await api(`/api/parties/${party.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          contactId: party.contactId,
+          isClient: party.isClient,
+          role: role.trim() || null,
+        }),
+      })
+
+      onSaved()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mb-1.5 grid gap-1 rounded-sm border border-[var(--focus-ring)] p-1.5">
+      <span className="truncate text-[11px] font-medium">{party.displayName}</span>
+
+      <Input
+        autoFocus
+        inputSize="sm"
+        value={role}
+        placeholder="Partie adverse, expert judiciaire…"
+        onChange={(event) => setRole(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') void save()
+          if (event.key === 'Escape') onCancel()
+        }}
+      />
+
+      <div className="flex gap-1">
+        <Button size="sm" disabled={busy} onClick={() => void save()}>Enregistrer</Button>
+        <Button variant="secondary" size="sm" onClick={onCancel}>Annuler</Button>
+      </div>
+    </div>
   )
 }
 

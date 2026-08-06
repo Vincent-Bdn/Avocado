@@ -221,36 +221,38 @@ function Matters({ selected, onSelect, onNewMatter }: {
                 <div className="my-1 border-t border-line" />
               )}
 
+              {/*
+                Flex, not grid. A two-column grid auto-places three children as (1,1) (1,2) (2,1),
+                so the relative time landed on its own second row under the name and the two text
+                lines shared the first — which is what put « il y a 1 h » in a box of its own.
+                Nesting the two text lines makes the placement unambiguous.
+              */}
               <button
                 type="button"
                 onClick={() => onSelect(matter.id)}
                 className={cn(
-                  'grid h-11 w-full grid-cols-[minmax(0,1fr)_auto] content-center gap-x-3 gap-y-1',
-                  'rounded-sm px-2 py-1 text-left transition-colors',
+                  'flex h-11 w-full items-center gap-2 rounded-sm px-2 py-1 text-left transition-colors',
                   matter.id === selected
                     ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]'
                     : 'hover:bg-hover',
                 )}
               >
-                {/* Dense rows never wrap; they truncate. */}
-                <span className="flex min-w-0 items-center gap-1.5">
-                  {matter.isFavourite && (
-                    <Star
-                      size={11}
-                      strokeWidth={2}
-                      fill="currentColor"
-                      className="shrink-0 text-accent"
-                    />
-                  )}
-                  <span className="truncate text-[12px] leading-4">{matter.name}</span>
+                <span className="grid min-w-0 flex-1 gap-0.5">
+                  {/* Dense rows never wrap; they truncate. */}
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {matter.isFavourite && (
+                      <Star size={11} strokeWidth={2} fill="currentColor" className="shrink-0 text-accent" />
+                    )}
+                    <span className="truncate text-[12px] leading-4">{matter.name}</span>
+                  </span>
+
+                  <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
+                    {matter.reference}
+                    {matter.clientName && ` · ${matter.clientName}`}
+                  </span>
                 </span>
 
-                <span className="truncate font-mono text-[10px] leading-[13px] text-muted">
-                  {matter.reference}
-                  {matter.clientName && ` · ${matter.clientName}`}
-                </span>
-
-                <span className="row-span-2 self-center font-mono text-[10px] text-muted">
+                <span className="shrink-0 font-mono text-[10px] whitespace-nowrap text-muted tnum">
                   {formatRelative(matter.lastActivityAt)}
                 </span>
               </button>

@@ -71,27 +71,60 @@ public sealed class DocumentWorkspace(
         var path = Path.Combine(directory, SafeName(document.FileName));
         var reference = new BlobReference(document.BlobSha256, document.SizeBytes);
 
+        // A leftover copy of the same document, still held by the reader that opened it last time,
+        // must not turn « ouvrir » into a failure. When the bytes already match, reuse the file.
+        if (File.Exists(path))
+        {
+            var existing = await TryHashAsync(path, cancellationToken);
+
+            if (existing is null || string.Equals(existing, document.BlobSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                Register(vaultId, document, path);
+                return path;
+            }
+        }
+
         await using (var source = vault.Blobs.OpenRead(reference))
         await using (var target = File.Create(path))
         {
             await source.CopyToAsync(target, cancellationToken);
         }
 
-        var info = new FileInfo(path);
-        _open[document.Id] = new CheckedOut(
-            vaultId,
-            document.Id,
-            path,
-            document.BlobSha256,
-            info.Length,
-            info.LastWriteTimeUtc);
-
+        Register(vaultId, document, path);
         logger.LogInformation("Document {DocumentId} checked out to {Path}.", document.Id, path);
 
         return path;
     }
 
-    /// <summary>Takes a last look, puts the changes away and removes the working copy.</summary>
+    private void Register(Guid vaultId, Document document, string path)
+    {
+        var info = new FileInfo(path);
+
+        _open[document.Id] = new CheckedOut(
+            vaultId, document.Id, path, document.BlobSha256, info.Length, info.LastWriteTimeUtc);
+    }
+
+    private static async Task<string?> TryHashAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await HashAsync(path, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Takes a last look, puts the changes away and removes the working copy.
+    /// <para>
+    /// The removal is retried, because the application she used to open the file often still holds it
+    /// for a second or two after its window closes. If it is still held after that the folder stays,
+    /// and is swept away at the next launch rather than reported as an error now: the bytes are
+    /// already safe in the coffre, so nothing is at stake.
+    /// </para>
+    /// </summary>
     public async Task CheckInAsync(Guid documentId, CancellationToken cancellationToken)
     {
         if (!_open.TryRemove(documentId, out var entry))
@@ -100,35 +133,79 @@ public sealed class DocumentWorkspace(
         }
 
         await SyncAsync(entry, cancellationToken);
-        Discard(entry);
+        await DiscardAsync(Path.GetDirectoryName(entry.Path)!, cancellationToken);
     }
 
     public IReadOnlyList<CheckedOutStatus> Status() =>
         [.. _open.Values.Select(entry => new CheckedOutStatus(entry.DocumentId, entry.Path))];
 
     /// <summary>
-    /// Files left in the working folder by a crash. Reported, never deleted on sight: the copy on
-    /// disk may hold work the coffre has never seen.
+    /// What is left in the working folder, once everything that already matches the coffre has been
+    /// swept away.
+    ///
+    /// <para>Most leftovers are not abandoned work at all: they are copies that were reintegrated
+    /// correctly and whose folder could not be removed because the reader still held the file. Those
+    /// hash identically to what the coffre holds and are deleted here, silently, which is what makes
+    /// the folder clean itself up.</para>
+    ///
+    /// <para>What remains — bytes the coffre has never seen — is reported and never deleted on sight.
+    /// A crash must not silently discard an afternoon's drafting.</para>
     /// </summary>
-    public IReadOnlyList<AbandonedFile> Abandoned(Guid vaultId)
+    public async Task<IReadOnlyList<AbandonedFile>> AbandonedAsync(
+        Guid vaultId,
+        CancellationToken cancellationToken)
     {
         var root = WorkingRoot(vaultStore.Get(vaultId));
+
         if (!Directory.Exists(root))
         {
             return [];
         }
 
-        return
-        [
-            .. Directory.EnumerateDirectories(root)
-                .Where(directory => !_open.ContainsKey(ParseId(directory)))
-                .SelectMany(directory => Directory.EnumerateFiles(directory))
-                .Where(file => !IsScratch(file))
-                .Select(file => new AbandonedFile(
-                    ParseId(Path.GetDirectoryName(file)!),
-                    Path.GetFileName(file),
-                    new FileInfo(file).LastWriteTimeUtc)),
-        ];
+        await using var database = contextFactory.Create(vaultId);
+        var abandoned = new List<AbandonedFile>();
+
+        foreach (var directory in Directory.EnumerateDirectories(root))
+        {
+            var documentId = ParseId(directory);
+
+            if (_open.ContainsKey(documentId))
+            {
+                continue;
+            }
+
+            var file = Directory.EnumerateFiles(directory).FirstOrDefault(candidate => !IsScratch(candidate));
+
+            if (file is null)
+            {
+                await DiscardAsync(directory, cancellationToken);
+                continue;
+            }
+
+            var stored = await database.Documents
+                .AsNoTracking()
+                .Where(candidate => candidate.Id == documentId)
+                .Select(candidate => candidate.BlobSha256)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var sha = await TryHashAsync(file, cancellationToken);
+
+            if (sha is null)
+            {
+                // Still held by something. Leave it alone; the next look will find it released.
+                continue;
+            }
+
+            if (stored is null || string.Equals(stored, sha, StringComparison.OrdinalIgnoreCase))
+            {
+                await DiscardAsync(directory, cancellationToken);
+                continue;
+            }
+
+            abandoned.Add(new AbandonedFile(documentId, Path.GetFileName(file), new FileInfo(file).LastWriteTimeUtc));
+        }
+
+        return abandoned;
     }
 
     /// <summary>Reintegrates an abandoned file, or throws it away, on the user's explicit say-so.</summary>
@@ -156,11 +233,38 @@ public sealed class DocumentWorkspace(
             }
         }
 
-        TryDeleteDirectory(directory);
+        await DiscardAsync(directory, cancellationToken);
+    }
+
+    /// <summary>
+    /// A clean shutdown puts every open file away and empties the working folder, so the plaintext
+    /// does not outlive the session. A hard kill cannot run this, which is exactly why the sweep in
+    /// <see cref="AbandonedAsync"/> exists.
+    /// </summary>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        foreach (var documentId in _open.Keys.ToList())
+        {
+            try
+            {
+                await CheckInAsync(documentId, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Could not put document {DocumentId} away on shutdown.", documentId);
+            }
+        }
+
+        await base.StopAsync(cancellationToken);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Sweep once at startup rather than waiting for someone to open the Documents tab. A hard
+        // kill cannot run StopAsync, so without this the plaintext left by the last session would sit
+        // in the coffre folder until she happened to look at a dossier's documents.
+        await SweepAsync(stoppingToken);
+
         using var timer = new PeriodicTimer(PollInterval);
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
@@ -178,6 +282,44 @@ public sealed class DocumentWorkspace(
                     logger.LogDebug(exception, "Document {DocumentId} not readable yet.", entry.DocumentId);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Runs the same reconciliation the Documents tab asks for, for every vault currently open.
+    /// Anything genuinely modified survives and is reported the first time a screen asks.
+    /// </summary>
+    private async Task SweepAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Desktop: one vault, and every id resolves to it. TryGet rather than Get so a locked
+            // vault at startup is a no-op rather than a background-service crash.
+            if (!vaultStore.TryGet(Guid.Empty, out var vault) || vault is null)
+            {
+                logger.LogInformation("Working folder not swept: no vault open yet.");
+                return;
+            }
+
+            var root = WorkingRoot(vault);
+            var before = Directory.Exists(root) ? Directory.GetDirectories(root).Length : 0;
+            var left = await AbandonedAsync(vault.Id, cancellationToken);
+
+            // Logged either way. This folder holds plaintext, so « how many were there and how many
+            // are left » is the one line worth having in the journal after a crash.
+            logger.LogInformation(
+                "Working folder swept: {Before} folder(s) found, {Left} awaiting a decision.",
+                before, left.Count);
+
+            // Leave nothing behind at all when there is nothing left to hold.
+            if (left.Count == 0 && Directory.Exists(root) && Directory.GetFileSystemEntries(root).Length == 0)
+            {
+                await DiscardAsync(root, cancellationToken);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Startup sweep of the working folder failed.");
         }
     }
 
@@ -311,19 +453,35 @@ public sealed class DocumentWorkspace(
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    private void Discard(CheckedOut entry) => TryDeleteDirectory(Path.GetDirectoryName(entry.Path)!);
-
-    private void TryDeleteDirectory(string directory)
+    /// <summary>
+    /// Four attempts over about a second. Word and most PDF readers release the handle shortly after
+    /// their window closes, and retrying costs nothing next to asking the user to try again.
+    /// </summary>
+    private async Task DiscardAsync(string directory, CancellationToken cancellationToken)
     {
-        try
+        for (var attempt = 0; attempt < 4; attempt++)
         {
-            Directory.Delete(directory, recursive: true);
-        }
-        catch (Exception exception)
-        {
-            // A file still held by Word cannot be deleted, and that is not worth failing a request
-            // over: it will be offered as abandoned on the next launch.
-            logger.LogWarning(exception, "Could not remove working folder {Directory}.", directory);
+            try
+            {
+                if (Directory.Exists(directory))
+                {
+                    Directory.Delete(directory, recursive: true);
+                }
+
+                return;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == 3)
+                {
+                    // Still held. Not worth failing a request over: the bytes are already in the
+                    // coffre, and the next launch sweeps the folder away once the handle is released.
+                    logger.LogWarning(exception, "Could not remove working folder {Directory}.", directory);
+                    return;
+                }
+
+                await Task.Delay(250, cancellationToken);
+            }
         }
     }
 

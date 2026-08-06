@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
+import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
 import { formatDuration, formatEuros } from '../labels.js'
@@ -81,6 +82,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null)
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
   const [billing, setBilling] = useState(false)
+  const toasts = useToasts()
 
   const reload = useCallback(() => {
     api<BillingOverview>(`/api/matters/${matterId}/billing`)
@@ -95,6 +97,22 @@ export function Billing({ matterId, isOpen, onChanged }: {
     setEditingMovement(null)
     reload()
     onChanged()
+  }
+
+  /** Says where the file went. An export that reports nothing is an export you have to go and check. */
+  async function exportDetail(invoice: BillingInvoice) {
+    try {
+      const saved = await saveAs(
+        `/api/invoices/${invoice.id}/detail.xlsx`,
+        `detail-facturation-${invoice.externalReference ?? invoice.date.slice(0, 10)}.xlsx`,
+      )
+
+      if (saved) {
+        toasts.succeeded('Détail de facturation enregistré', saved)
+      }
+    } catch (failure) {
+      toasts.failed('Export impossible', messageOf(failure))
+    }
   }
 
   async function remove(path: string) {
@@ -113,7 +131,9 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const { summary, statement } = data
 
   return (
-    <TabPanel>
+    <TabPanel className="relative">
+      {toasts.view}
+
       {/* The subtraction has to be checkable by eye: a total you cannot recompute is never believed. */}
       <section className="rounded-md border border-[#E8D5AE] bg-[#FDF8ED] px-4 py-3.5 text-[#6E4A0E]">
         <div className="text-[12px] font-medium">Reste à facturer</div>
@@ -217,10 +237,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
                   {invoice.billedEntryCount > 0 && (
                     <RowAction
                       label="Détail de facturation (Excel), à joindre à la facture"
-                      onClick={() => void saveAs(
-                        `/api/invoices/${invoice.id}/detail.xlsx`,
-                        `detail-facturation-${invoice.externalReference ?? invoice.date.slice(0, 10)}.xlsx`,
-                      )}
+                      onClick={() => void exportDetail(invoice)}
                     >
                       <FileSpreadsheet size={13} strokeWidth={1.75} />
                     </RowAction>
