@@ -30,7 +30,7 @@ export function RecoverySheet({ recoveryCode, fingerprint, createdOn }: {
   return (
     <div className="sheet" aria-hidden="true">
       <header className="sheet-head">
-        <div className="sheet-title">Avocado — clé de récupération</div>
+        <div className="sheet-title">Avocado, clé de récupération</div>
         <div className="sheet-date">{createdOn}</div>
       </header>
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Check, Copy, Printer, Usb, X } from 'lucide-react'
 import { RecoverySheet, fingerprintOf } from './RecoverySheet.js'
 
 interface Drive {
@@ -10,7 +12,7 @@ interface Drive {
 /**
  * The hardest screen in the application, and the only one that cannot be dismissed.
  *
- * The framing is deliberate: not « in case you forget your password », but *this key is what makes
+ * The framing is deliberate: not « en cas d'oubli de votre mot de passe », but *this key is what makes
  * your backups readable*. A backup encrypted with a key that only ever existed on a drowned laptop is
  * a useless file, and a lawyer understands that immediately.
  *
@@ -47,175 +49,214 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
     return () => clearInterval(timer)
   }, [])
 
+  function copy() {
+    // One group per line, as it reads on screen and on the printed sheet. The parser ignores
+    // whitespace, so pasting it back into the unlock field works either way.
+    void navigator.clipboard.writeText(groups.join('\n'))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
   async function saveTo(drive: Drive) {
     setError(null)
 
     try {
       const contents =
-        `Avocado — clé de récupération\r\n` +
+        `Avocado, clé de récupération\r\n` +
         `Coffre créé le ${createdOn}\r\n` +
         `Empreinte ${fingerprint}\r\n\r\n` +
-        `${recoveryCode}\r\n\r\n` +
+        `${groups.join('\r\n')}\r\n\r\n` +
         `Sans cette clé, les sauvegardes de ce coffre ne peuvent être rouvertes par personne.\r\n`
 
       setSavedTo(await window.avocado.saveRecoveryKey(drive.path, contents))
     } catch (failure) {
-      setError(`Écriture impossible sur ${drive.path} — ${String(failure)}`)
+      setError(`Écriture impossible sur ${drive.path} : ${String(failure)}`)
     }
   }
 
   // Genuinely disabled until something real happened *and* the box is ticked.
   const secured = printed || savedTo !== null
-  const canContinue = secured && acknowledged
 
   return (
     <>
       <div className="wizard-scroll">
         <div className="wizard-wide">
-        <div className="wizard-main">
-          <h1>Votre clé de récupération</h1>
+          <div className="wizard-main">
+            <h1>Votre clé de récupération</h1>
 
-          <p className="lead">
-            Vos sauvegardes sont chiffrées avec cette clé. Sans elle, une sauvegarde n’est qu’un
-            fichier illisible : c’est elle, et elle seule, qui vous permettra de rouvrir vos dossiers
-            sur un autre ordinateur. <strong>Personne d’autre n’en possède de copie</strong> — ni nous,
-            ni votre système, ni un service d’assistance.
-          </p>
+            <p className="lead">
+              Vos sauvegardes sont chiffrées avec cette clé. Sans elle, une sauvegarde n’est qu’un
+              fichier illisible : c’est elle, et elle seule, qui vous permettra de rouvrir vos dossiers
+              sur un autre ordinateur. <strong>Personne d’autre n’en possède de copie</strong>, ni
+              nous, ni votre système, ni un service d’assistance.
+            </p>
 
-          <div className="key-card">
-            <div className="key-grid">
-              {groups.map((group) => (
-                <span key={group} className="key-group">{group}</span>
-              ))}
+            <div className="key-card">
+              <div className="key-head">
+                <span className="key-eyebrow mono">Clé du coffre · {createdOn}</span>
+                <span className="grow" />
+                <span className="key-hint">54 caractères, sans I, L, O ni U</span>
+              </div>
+
+              <div className="key-grid">
+                {groups.map((group) => (
+                  <span key={group} className="key-group">{group}</span>
+                ))}
+              </div>
+
+              <div className="key-caption">
+                <span className="muted">
+                  Neuf groupes de six, lisibles à voix haute et recopiables à la main.
+                </span>
+
+                <button type="button" className="ghost-button" onClick={copy}>
+                  {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={1.75} />}
+                  {copied ? 'Copiée' : 'Copier'}
+                </button>
+              </div>
             </div>
 
-            <div className="key-caption">
-              <span className="muted">
-                Neuf groupes de six, lisibles à voix haute et recopiables à la main.
-              </span>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(recoveryCode)
-                  setCopied(true)
-                }}
-              >
-                {copied ? 'Copié' : 'Copier'}
-              </button>
+            <div className="secure-lead">Choisissez au moins une façon de la mettre à l’abri :</div>
+
+            <div className="secure-options">
+              <section className="option option-recommended">
+                <header>
+                  <Printer size={16} strokeWidth={1.75} />
+                  <h3>L’imprimer</h3>
+                  <span className="badge-recommended">recommandé</span>
+                </header>
+
+                <p>
+                  Une page A4 avec un QR code, la clé en toutes lettres et une ligne pour noter où vous
+                  la rangez. À classer là où vous classez déjà ce qui compte.
+                </p>
+
+                <span className="grow" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrinted(true)
+                    window.print()
+                  }}
+                >
+                  Imprimer la fiche
+                </button>
+
+                {printed && (
+                  <p className="done">
+                    <Check size={12} strokeWidth={2.5} /> Impression lancée
+                  </p>
+                )}
+              </section>
+
+              <section className="option">
+                <header>
+                  <Usb size={16} strokeWidth={1.75} />
+                  <h3>L’enregistrer sur une clé USB</h3>
+                </header>
+
+                <p>
+                  Un petit fichier texte sur un support amovible, rangé ailleurs que près de
+                  l’ordinateur.
+                </p>
+
+                {drives.length === 0 ? (
+                  <div className="no-drive">
+                    <strong>Aucun support amovible branché</strong>
+                    <span className="muted">
+                      Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
+                    </span>
+                    <span className="mono muted searching">recherche en cours…</span>
+                  </div>
+                ) : (
+                  <ul className="drives">
+                    {drives.map((drive) => (
+                      <li key={drive.path}>
+                        <span className="drive-name">
+                          <span className="mono">{drive.path}</span> {drive.label}
+                          {drive.freeBytes > 0 && (
+                            <span className="muted"> ({formatBytes(drive.freeBytes)} libres)</span>
+                          )}
+                        </span>
+
+                        <button
+                          type="button"
+                          className="secondary-button"
+                          onClick={() => void saveTo(drive)}
+                        >
+                          Enregistrer sur {drive.path}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <span className="grow" />
+
+                <p className="muted micro">
+                  Les disques internes sont exclus volontairement : une clé enregistrée sur le disque
+                  de cet ordinateur disparaîtrait avec lui.
+                </p>
+
+                {savedTo && (
+                  <p className="done">
+                    <Check size={12} strokeWidth={2.5} /> Écrite dans {savedTo}
+                  </p>
+                )}
+                {error && <p className="danger">{error}</p>}
+              </section>
             </div>
           </div>
 
-          <h2 className="section-title">Choisissez au moins une façon de la mettre à l’abri :</h2>
+          <aside className="wizard-aside">
+            <section className="note-card">
+              <h3>Ce que cette clé fait, et ne fait pas</h3>
 
-          <div className="secure-options">
-            <section className="option option-recommended">
-              <header>
-                <h3>L’imprimer</h3>
-                <span className="badge-recommended">recommandé</span>
-              </header>
-              <p>
-                Une page A4 avec un QR code, la clé en toutes lettres et une ligne pour noter où vous
-                la rangez. À classer là où vous classez déjà ce qui compte.
+              <p className="yes">
+                <Check size={12} strokeWidth={2.5} />
+                Elle rouvre vos sauvegardes sur un ordinateur neuf, après un vol, une panne ou un dégât
+                des eaux.
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setPrinted(true)
-                  window.print()
-                }}
-              >
-                Imprimer la fiche
-              </button>
-              {printed && <p className="done">✓ Impression lancée</p>}
+              <p className="no">
+                <X size={12} strokeWidth={2.5} />
+                Elle ne vous sera pas demandée au quotidien : sur cette machine, l’application s’ouvre
+                seule.
+              </p>
+              <p className="no">
+                <X size={12} strokeWidth={2.5} />
+                Ce n’est pas un mot de passe oublié qu’on peut réinitialiser : il n’existe aucune autre
+                copie.
+              </p>
             </section>
 
-            <section className="option">
-              <header>
-                <h3>L’enregistrer sur une clé USB</h3>
-              </header>
+            <section className="note-card">
+              <h3>Si vous la perdez</h3>
               <p>
-                Un petit fichier texte sur un support amovible, rangé ailleurs que près de
-                l’ordinateur.
+                Tant que cette application s’ouvre encore, vous pouvez en éditer une nouvelle en deux
+                clics depuis les réglages. C’est perdre{' '}
+                <strong>la clé et la machine en même temps</strong> qui est sans retour.
               </p>
-
-              {drives.length === 0 ? (
-                <div className="no-drive">
-                  <strong>Aucun support amovible détecté</strong>
-                  <span className="muted">
-                    Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
-                  </span>
-                  <span className="mono muted searching">recherche en cours…</span>
-                  <span className="muted footnote">
-                    Les disques internes sont exclus volontairement : une clé enregistrée sur le disque
-                    de cet ordinateur disparaîtrait avec lui.
-                  </span>
-                </div>
-              ) : (
-                <ul className="drives">
-                  {drives.map((drive) => (
-                    <li key={drive.path}>
-                      <span className="mono">{drive.path}</span>
-                      <span>— {drive.label}</span>
-                      {drive.freeBytes > 0 && (
-                        <span className="muted mono">({formatBytes(drive.freeBytes)} libres)</span>
-                      )}
-                      <button type="button" className="secondary-button" onClick={() => void saveTo(drive)}>
-                        Enregistrer sur {drive.path}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {savedTo && <p className="done">✓ Écrite dans {savedTo}</p>}
-              {error && <p className="danger">{error}</p>}
             </section>
-          </div>
-        </div>
 
-        <aside className="wizard-aside">
-          <section className="note-card">
-            <h3>Ce que cette clé fait, et ne fait pas</h3>
-            <p className="yes">
-              ✓ Elle rouvre vos sauvegardes sur un ordinateur neuf, après un vol, une panne ou un
-              dégât des eaux.
-            </p>
-            <p className="no">
-              ✕ Elle ne vous sera pas demandée au quotidien : sur cette machine, l’application s’ouvre
-              seule.
-            </p>
-            <p className="no">
-              ✕ Ce n’est pas un mot de passe oublié qu’on peut réinitialiser : il n’existe aucune autre
-              copie.
-            </p>
-          </section>
-
-          <section className="note-card">
-            <h3>Si vous la perdez</h3>
-            <p>
-              Tant que cette application s’ouvre encore, vous pouvez en éditer une nouvelle en deux
-              clics depuis les réglages. C’est perdre <strong>la clé et la machine en même temps</strong>{' '}
-              qui est sans retour.
-            </p>
-          </section>
-
-          <section className="note-card note-caution">
-            <h3>Ce que nous vous déconseillons</h3>
-            <p>
-              Un fichier <span className="mono">.txt</span> sur le bureau, ou un courriel à soi-même :
-              ils disparaissent avec l’ordinateur, précisément le jour où la clé servirait.
-            </p>
-          </section>
+            <section className="note-card note-caution">
+              <h3>Ce que nous vous déconseillons</h3>
+              <p>
+                Un fichier <span className="mono">.txt</span> sur le bureau, ou un courriel à
+                soi-même : ils disparaissent avec l’ordinateur, précisément le jour où la clé
+                servirait.
+              </p>
+            </section>
           </aside>
         </div>
       </div>
 
       <footer className="wizard-gate">
-        <label className="confirm">
+        <label className={`confirm ${secured ? '' : 'confirm-waiting'}`}>
           <input
             type="checkbox"
             checked={acknowledged}
+            disabled={!secured}
             onChange={(event) => setAcknowledged(event.target.checked)}
           />
           J’ai mis cette clé à l’abri, hors de cet ordinateur.
@@ -226,12 +267,19 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
         <button type="button" className="secondary-button" onClick={onBack}>
           Retour
         </button>
-        <button type="button" disabled={!canContinue} onClick={onContinue}>
+        <button type="button" disabled={!secured || !acknowledged} onClick={onContinue}>
           Continuer
         </button>
       </footer>
 
-      <RecoverySheet recoveryCode={recoveryCode} fingerprint={fingerprint} createdOn={createdOn} />
+      {/*
+        Portalled to the body: the print stylesheet hides #root, and a sheet rendered inside the
+        wizard would be hidden along with it. That is exactly why printing produced a blank page.
+      */}
+      {createPortal(
+        <RecoverySheet recoveryCode={recoveryCode} fingerprint={fingerprint} createdOn={createdOn} />,
+        document.body,
+      )}
     </>
   )
 }

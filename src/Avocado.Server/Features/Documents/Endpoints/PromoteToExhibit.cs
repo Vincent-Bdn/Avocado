@@ -26,7 +26,7 @@ public static class PromoteToExhibit
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["exhibitLabel"] = ["Le libellé de pièce est obligatoire — il est cité dans les conclusions."],
+                ["exhibitLabel"] = ["Le libellé de pièce est obligatoire : il est cité dans les conclusions."],
             });
         }
 

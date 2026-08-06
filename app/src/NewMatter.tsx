@@ -71,7 +71,7 @@ export function NewMatter({ onCreated, onCancel }: {
           Client
           {contacts.length > 0 && (
             <select value={clientId} onChange={(event) => setClientId(event.target.value)}>
-              <option value="">— nouveau tiers —</option>
+              <option value="">Nouveau tiers</option>
               {contacts.map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {contact.displayName}

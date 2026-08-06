@@ -52,8 +52,8 @@ export function AppShell() {
       <nav className="rail">
         <img src="./icon.png" alt="Avocado" className="rail-mark" />
         <span className="rail-item rail-active" title="Dossiers">D</span>
-        <span className="rail-item rail-todo" title="Tiers — à venir">T</span>
-        <span className="rail-item rail-todo" title="Échéances — à venir">É</span>
+        <span className="rail-item rail-todo" title="Tiers, à venir">T</span>
+        <span className="rail-item rail-todo" title="Échéances, à venir">É</span>
       </nav>
 
       <aside className="secondary-panel">

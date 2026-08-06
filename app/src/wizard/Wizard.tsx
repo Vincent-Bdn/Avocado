@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check, Clock, Lock, ShieldCheck } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
 import { StepRecovery } from './StepRecovery.js'
@@ -34,12 +35,19 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
 
         <ol className="wizard-steps">
           {steps.map((label, index) => (
-            <li
-              key={label}
-              className={index < step ? 'step-done' : index === step ? 'step-current' : 'step-later'}
-            >
-              <span className="step-dot">{index < step ? '✓' : ''}</span>
-              {label}
+            <li key={label}>
+              {index > 0 && <span className="step-link" aria-hidden="true" />}
+
+              <span
+                className={index < step ? 'step-done' : index === step ? 'step-current' : 'step-later'}
+              >
+                {index < step ? (
+                  <Check size={12} strokeWidth={3} className="step-check" />
+                ) : (
+                  <span className="step-dot" />
+                )}
+                {label}
+              </span>
             </li>
           ))}
         </ol>
@@ -86,41 +94,54 @@ function StepWelcome({ onContinue }: { onContinue: () => void }) {
     <>
       <div className="wizard-scroll">
         <div className="wizard-column">
-        <h1>Bonjour, et bienvenue dans Avocado.</h1>
+          <h1>Bonjour, et bienvenue dans Avocado.</h1>
 
-        <p className="lead">
-          Trois minutes de réglages, puis vous n’entendrez plus parler de tout ceci. Deux choses
-          méritent votre attention : où vos dossiers sont rangés, et comment les retrouver si cet
-          ordinateur disparaît.
-        </p>
+          <p className="lead">
+            Trois minutes de réglages, puis vous n’entendrez plus parler de tout ceci. Deux choses
+            méritent votre attention : <strong>où vivront vos dossiers</strong>, et{' '}
+            <strong>comment les retrouver si cet ordinateur disparaît</strong>.
+          </p>
 
-        <ul className="points">
-          <li>
-            <strong>Tout reste sur votre ordinateur, chiffré.</strong>
-            <span>
-              Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien à
-              négocier avec un hébergeur.
-            </span>
-          </li>
-          <li>
-            <strong>Aucun mot de passe à retenir au quotidien.</strong>
-            <span>
-              La clé est gardée par votre système et liée à cette machine et à votre session. Vous
-              ouvrez l’application, elle s’ouvre.
-            </span>
-          </li>
-          <li>
-            <strong>Une clé de récupération, à mettre à l’abri une bonne fois.</strong>
-            <span>
-              C’est elle qui rendra vos sauvegardes lisibles sur une autre machine. Nous y viendrons à
-              la troisième étape.
-            </span>
-          </li>
-        </ul>
+          <div className="points">
+            <article className="point">
+              <Lock size={16} strokeWidth={1.75} />
+              <div>
+                <span className="point-title">Tout reste sur votre ordinateur, chiffré</span>
+                <span className="point-body">
+                  Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien
+                  à négocier avec un hébergeur.
+                </span>
+              </div>
+            </article>
 
-        <p className="footnote muted">
-          Version 1.0 · logiciel libre · aucune donnée ne quitte ce poste
-        </p>
+            <article className="point">
+              <Clock size={16} strokeWidth={1.75} />
+              <div>
+                <span className="point-title">Aucun mot de passe à retenir au quotidien</span>
+                <span className="point-body">
+                  La clé est gardée par votre système et liée à cette machine et à votre session. Vous
+                  ouvrez l’application, elle s’ouvre.
+                </span>
+              </div>
+            </article>
+
+            <article className="point">
+              <ShieldCheck size={16} strokeWidth={1.75} />
+              <div>
+                <span className="point-title">
+                  Une clé de récupération, à mettre à l’abri une bonne fois
+                </span>
+                <span className="point-body">
+                  C’est elle qui rendra vos sauvegardes lisibles sur une autre machine. Nous y
+                  viendrons à la troisième étape.
+                </span>
+              </div>
+            </article>
+          </div>
+
+          <p className="footnote muted">
+            Version 1.0 · logiciel libre · aucune donnée ne quitte ce poste
+          </p>
         </div>
       </div>
 
@@ -135,11 +156,8 @@ function StepWelcome({ onContinue }: { onContinue: () => void }) {
 }
 
 /**
- * Not a congratulation: a two-line recap, then the one remaining question.
- *
- * Dropbox reappears here and is recommended — « une sauvegarde est un fichier fermé, que la
- * synchronisation copie sans risque ». Saying so explicitly is what keeps the step-2 refusal from
- * reading as arbitrary.
+ * Not a congratulation: a short recap, then the last action. The vault is written here and only here,
+ * so everything before this could be abandoned without leaving anything behind.
  */
 function StepDone({ directory, created, onCommit, onFinish }: {
   directory: string
@@ -155,7 +173,6 @@ function StepDone({ directory, created, onCommit, onFinish }: {
     setError(null)
 
     try {
-      // The first and only write. Everything before this was held in memory.
       if (!created) {
         await onCommit()
       }
@@ -172,28 +189,35 @@ function StepDone({ directory, created, onCommit, onFinish }: {
     <>
       <div className="wizard-scroll">
         <div className="wizard-column">
-        <h1>Tout est prêt.</h1>
+          <h1>Tout est prêt.</h1>
 
-        <ul className="recap">
-          <li>
-            ✓ Le coffre sera créé et chiffré dans <span className="mono">{directory}</span>
-          </li>
-          <li>✓ Clé de récupération mise à l’abri</li>
-        </ul>
+          <div className="points">
+            <article className="point">
+              <Lock size={16} strokeWidth={1.75} />
+              <div>
+                <span className="point-title">Le coffre sera créé et chiffré</span>
+                <span className="point-body mono">{directory}</span>
+              </div>
+            </article>
 
-        <h2 className="section-title">Où souhaitez-vous écrire les sauvegardes ?</h2>
+            <article className="point">
+              <ShieldCheck size={16} strokeWidth={1.75} />
+              <div>
+                <span className="point-title">Clé de récupération mise à l’abri</span>
+                <span className="point-body">
+                  Elle seule rouvrira vos sauvegardes sur un autre ordinateur.
+                </span>
+              </div>
+            </article>
+          </div>
 
-        <p className="muted">
-          Une sauvegarde est un fichier fermé, que la synchronisation copie sans risque. C’est le
-          coffre lui-même qui ne devait pas s’y trouver.
-        </p>
+          <p className="footnote muted">
+            Les sauvegardes automatiques et le choix de leur destination arriveront avec les réglages.
+            Une sauvegarde est un fichier fermé, que la synchronisation copie sans risque : c’est le
+            coffre lui-même qui ne devait pas s’y trouver.
+          </p>
 
-        <p className="footnote muted">
-          Cette question n’est pas encore branchée : les sauvegardes automatiques arrivent avec les
-          réglages. Rien n’est perdu — le coffre est chiffré et la clé est en sécurité.
-        </p>
-
-        {error && <p className="danger">{error}</p>}
+          {error && <p className="danger">{error}</p>}
         </div>
       </div>
 

@@ -1,13 +1,13 @@
 import { useState } from 'react'
+import { Folder, ShieldAlert } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultPrepared } from '../api.js'
 
 /**
  * Where the vault goes, and the refusal when that is a synced folder.
  *
- * The refusal explains the right arrangement rather than only forbidding the wrong one — vault on the
- * local disk, *backups* in the synced folder — and puts the corrected path inside the primary button,
- * so accepting takes a click and overriding takes a decision.
+ * The refusal explains the arrangement that works rather than only forbidding the wrong one, and puts
+ * the corrected path inside the primary button: accepting takes a click, overriding takes a decision.
  */
 export function StepVault({ suggested, onBack, onPrepared }: {
   suggested: string
@@ -52,71 +52,99 @@ export function StepVault({ suggested, onBack, onPrepared }: {
   return (
     <>
       <div className="wizard-scroll">
-        <div className="wizard-column">
-        <h1>Où ranger le coffre</h1>
+        <div className="wizard-column wizard-column-wide">
+          <h1>Où vivront vos dossiers ?</h1>
 
-        <p className="lead">
-          Un seul dossier sur ce disque contiendra tout : journal, documents, temps passé. Il est
-          chiffré en permanence.
-        </p>
+          <p className="lead">
+            Un seul dossier sur ce disque contiendra tout : journal, documents, temps passé. Il est
+            chiffré en permanence.
+          </p>
 
-        <div className="path-row">
-          <input
-            className={`mono path ${refusal ? 'path-refused' : ''}`}
-            value={directory}
-            onChange={(event) => {
-              setDirectory(event.target.value)
-              setRefusal(null)
-            }}
-          />
-          <button type="button" className="secondary-button" onClick={() => void browse()}>
-            Parcourir…
-          </button>
-        </div>
+          <div className="field">
+            <label className="field-label" htmlFor="vault-path">
+              Emplacement du coffre
+            </label>
 
-        {refusal && (
-          <div className="refusal">
-            <p>{refusal.detail}</p>
+            <div className="path-row">
+              <div className={`path-field ${refusal ? 'path-refused' : ''}`}>
+                <Folder size={14} strokeWidth={1.75} />
+                <input
+                  id="vault-path"
+                  className="mono"
+                  value={directory}
+                  onChange={(event) => {
+                    setDirectory(event.target.value)
+                    setRefusal(null)
+                  }}
+                />
+              </div>
 
-            <div className="arrangement">
-              <div className="sub-title">Le montage qui fonctionne</div>
-              <ul>
-                <li>
-                  <strong>Le coffre</strong> sur le disque local de cet ordinateur, où rien ne le copie
-                  pendant qu’Avocado y écrit.
-                </li>
-                <li>
-                  <strong>Les sauvegardes</strong> dans le dossier synchronisé — Avocado y dépose une
-                  copie chiffrée, fermée et cohérente. C’est exactement l’usage pour lequel la
-                  synchronisation est faite.
-                </li>
-              </ul>
-            </div>
-
-            <div className="refusal-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setDirectory(suggested)
-                  setRefusal(null)
-                  void prepare(suggested)
-                }}
-              >
-                Utiliser {suggested}
-              </button>
               <button type="button" className="secondary-button" onClick={() => void browse()}>
-                Choisir un autre dossier
+                Parcourir…
               </button>
             </div>
-
-            {/* Available, not inviting: quiet, right-aligned, below the two real buttons. */}
-            <button type="button" className="override" onClick={() => void prepare(directory, true)}>
-              Ce n’est pas un dossier synchronisé — passer outre
-            </button>
           </div>
-        )}
 
-        {error && <p className="danger">{error}</p>}
+          {refusal && (
+            <div className="refusal">
+              <ShieldAlert size={16} strokeWidth={1.75} className="refusal-icon" />
+
+              <div className="refusal-body">
+                <div className="refusal-title">Ce dossier est synchronisé.</div>
+
+                <p className="refusal-detail">{refusal.detail}</p>
+
+                <div className="arrangement">
+                  <div className="arrangement-title">Le montage qui fonctionne</div>
+
+                  <div className="arrangement-line">
+                    <span className="bullet" />
+                    <span>
+                      <strong>Le coffre sur le disque local</strong>, par exemple{' '}
+                      <code>{suggested}</code>
+                    </span>
+                  </div>
+
+                  <div className="arrangement-line">
+                    <span className="bullet" />
+                    <span>
+                      <strong>Les sauvegardes dans le dossier synchronisé</strong>. Avocado y dépose
+                      une copie chiffrée, fermée et cohérente : c’est exactement l’usage pour lequel la
+                      synchronisation est faite.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="refusal-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDirectory(suggested)
+                      setRefusal(null)
+                      void prepare(suggested)
+                    }}
+                  >
+                    Utiliser {suggested}
+                  </button>
+
+                  <button type="button" className="secondary-button" onClick={() => void browse()}>
+                    Choisir un autre dossier
+                  </button>
+                </div>
+
+                {/* Available, not inviting: quiet, right-aligned, below the two real buttons. */}
+                <button
+                  type="button"
+                  className="override"
+                  onClick={() => void prepare(directory, true)}
+                >
+                  Ce n’est pas un dossier synchronisé, passer outre
+                </button>
+              </div>
+            </div>
+          )}
+
+          {error && <p className="danger">{error}</p>}
         </div>
       </div>
 
