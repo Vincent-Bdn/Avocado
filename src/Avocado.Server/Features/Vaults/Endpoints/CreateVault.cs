@@ -5,14 +5,18 @@ using Avocado.Vault;
 
 namespace Avocado.Server.Features.Vaults.Endpoints;
 
+/// <summary>
+/// The two halves of creating a vault, deliberately separated.
+/// <para>
+/// <b>Prepare</b> validates the destination and generates the keys in memory, writing nothing.
+/// <b>Commit</b> is the first moment anything exists on disk, and only runs once the user has been
+/// through the whole wizard. Going back from the recovery step therefore leaves no folder behind, and
+/// no Back button has to delete anything — which is not a thing a Back button should do.
+/// </para>
+/// </summary>
 public static class CreateVault
 {
-    public static async Task<IResult> HandleAsync(
-        VaultCreateRequest request,
-        VaultSession session,
-        VaultDbContextFactory contextFactory,
-        ILoggerFactory loggers,
-        CancellationToken cancellationToken)
+    public static IResult Prepare(VaultCreateRequest request, VaultSession session)
     {
         if (string.IsNullOrWhiteSpace(request.Directory))
         {
@@ -30,10 +34,10 @@ public static class CreateVault
                 statusCode: StatusCodes.Status409Conflict);
         }
 
-        VaultCreation creation;
         try
         {
-            creation = session.Create(request.Directory, request.AllowSyncedFolder);
+            return Results.Ok(new VaultPreparedResponse(
+                session.Prepare(request.Directory, request.AllowSyncedFolder)));
         }
         catch (SyncedFolderException exception)
         {
@@ -57,15 +61,45 @@ public static class CreateVault
                 ["directory"] = [exception.Message],
             });
         }
+    }
+
+    /// <summary>Abandons the prepared keys. Nothing was written, so nothing is removed.</summary>
+    public static IResult Discard(VaultSession session)
+    {
+        session.DiscardPending();
+        return Results.NoContent();
+    }
+
+    public static async Task<IResult> CommitAsync(
+        VaultSession session,
+        VaultDbContextFactory contextFactory,
+        ILoggerFactory loggers,
+        CancellationToken cancellationToken)
+    {
+        if (!session.HasPending)
+        {
+            return Results.Problem(
+                title: "Rien à créer",
+                detail: "Aucun coffre n'a été préparé. Reprenez le choix du dossier.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        VaultCreation creation;
+        try
+        {
+            creation = session.Commit();
+        }
+        catch (VaultException exception)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["directory"] = [exception.Message],
+            });
+        }
 
         await VaultMigrator.EnsureUpToDateAsync(
             creation.Vault, contextFactory, loggers.CreateLogger("Avocado.Vaults"), cancellationToken);
 
-        // The only time this code exists anywhere. It is not stored, not logged, and cannot be
-        // fetched again — the wizard has one chance to get it onto paper or a USB key.
-        return Results.Ok(new VaultCreatedResponse(
-            creation.Vault.Id,
-            creation.Vault.Paths.Root,
-            creation.RecoveryCode));
+        return Results.Ok(new VaultCreatedResponse(creation.Vault.Id, creation.Vault.Paths.Root));
     }
 }

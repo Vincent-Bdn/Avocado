@@ -11,6 +11,40 @@ namespace Avocado.Vault;
 /// </param>
 public sealed record VaultCreation(OpenVault Vault, string RecoveryCode);
 
+/// <summary>
+/// A vault whose keys exist but which has not been written anywhere yet.
+/// <para>
+/// The wizard shows the recovery code from this, and only calls <see cref="VaultManager.Commit"/>
+/// once the whole flow has been seen through. Going back therefore leaves nothing on disk to clean
+/// up — and no Back button ever has to delete a folder, which is not a thing a Back button should do.
+/// </para>
+/// </summary>
+public sealed class PendingVault(VaultPaths paths, VaultKeyringCreation keys) : IDisposable
+{
+    private bool _handedOver;
+
+    public VaultPaths Paths { get; } = paths;
+
+    internal VaultKeyringCreation Keys { get; } = keys;
+
+    public string RecoveryCode => Keys.RecoveryCode;
+
+    /// <summary>
+    /// Called by <see cref="VaultManager.Commit"/> once the data key belongs to an open vault, so
+    /// disposing this afterwards does not zero a key that is now in use.
+    /// </summary>
+    internal void HandOver() => _handedOver = true;
+
+    /// <summary>Abandons the generated keys. Nothing was written, so there is nothing to remove.</summary>
+    public void Dispose()
+    {
+        if (!_handedOver)
+        {
+            Keys.DataKey.Dispose();
+        }
+    }
+}
+
 /// <summary>Creates, unlocks and inspects vaults on disk.</summary>
 public static class VaultManager
 {
@@ -22,6 +56,19 @@ public static class VaultManager
     /// Escape hatch for the detector's false positives. Enabling it is how databases get corrupted.
     /// </param>
     public static VaultCreation Create(
+        string directory,
+        IDeviceKeyStore? deviceKeyStore = null,
+        bool allowSyncedFolder = false)
+    {
+        using var pending = Prepare(directory, deviceKeyStore, allowSyncedFolder);
+        return Commit(pending);
+    }
+
+    /// <summary>
+    /// Validates the destination and generates the keys, writing nothing. Every refusal the wizard has
+    /// to show — synced folder, existing vault, orphaned database — happens here, before any state.
+    /// </summary>
+    public static PendingVault Prepare(
         string directory,
         IDeviceKeyStore? deviceKeyStore = null,
         bool allowSyncedFolder = false)
@@ -44,17 +91,33 @@ public static class VaultManager
                 "restore vault.json from a backup rather than overwriting it.");
         }
 
+        return new PendingVault(
+            paths,
+            VaultKeyring.Prepare(paths.KeyringFile, deviceKeyStore ?? DeviceKeyStore.ForCurrentPlatform()));
+    }
+
+    /// <summary>Writes the prepared vault to disk and opens it. The first moment anything exists.</summary>
+    public static VaultCreation Commit(PendingVault pending)
+    {
+        var paths = pending.Paths;
+        var keys = pending.Keys;
+
         paths.EnsureDirectories();
 
-        var creation = VaultKeyring.Create(paths.KeyringFile, deviceKeyStore ?? DeviceKeyStore.ForCurrentPlatform());
         try
         {
-            InitialiseDatabase(paths, creation.Keyring.VaultId, creation.DataKey);
-            return new VaultCreation(new OpenVault(paths, creation.Keyring, creation.DataKey), creation.RecoveryCode);
+            keys.Keyring.Persist();
+            InitialiseDatabase(paths, keys.Keyring.VaultId, keys.DataKey);
+
+            // The data key now belongs to the OpenVault; disposing the PendingVault must no longer
+            // zero it. Handing it over is the whole point of committing.
+            pending.HandOver();
+
+            return new VaultCreation(new OpenVault(paths, keys.Keyring, keys.DataKey), keys.RecoveryCode);
         }
         catch
         {
-            creation.DataKey.Dispose();
+            keys.DataKey.Dispose();
             throw;
         }
     }

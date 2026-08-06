@@ -21,11 +21,15 @@ export interface VaultStatus {
   suggestedDirectory: string
 }
 
+/** Keys generated in memory. Nothing has been written to disk yet. */
+export interface VaultPrepared {
+  /** Shown once. Never fetched again, never stored. */
+  recoveryCode: string
+}
+
 export interface VaultCreated {
   vaultId: string
   directory: string
-  /** Shown once. Never fetched again, never stored. */
-  recoveryCode: string
 }
 
 /**

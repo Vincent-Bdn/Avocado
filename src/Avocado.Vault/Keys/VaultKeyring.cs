@@ -47,6 +47,18 @@ public sealed class VaultKeyring
     /// </summary>
     public static VaultKeyringCreation Create(string path, IDeviceKeyStore deviceKeyStore)
     {
+        var creation = Prepare(path, deviceKeyStore);
+        creation.Keyring.Persist();
+        return creation;
+    }
+
+    /// <summary>
+    /// Builds the same keyring <em>without touching the disk</em>. The setup wizard shows the recovery
+    /// code before anything is written, so that going back leaves nothing behind to clean up — and a
+    /// folder is only created once the whole flow has been seen through.
+    /// </summary>
+    public static VaultKeyringCreation Prepare(string path, IDeviceKeyStore deviceKeyStore)
+    {
         if (File.Exists(path))
         {
             throw new VaultException($"A keyring already exists at '{path}'.");
@@ -70,7 +82,6 @@ public sealed class VaultKeyring
             }
 
             var recoveryCode = keyring.EnrollRecoveryKey(dataKey, save: false);
-            keyring.Save();
             return new VaultKeyringCreation(keyring, dataKey, recoveryCode);
         }
         catch
@@ -355,6 +366,9 @@ public sealed class VaultKeyring
         keyId.TryWriteBytes(data.AsSpan(prefix.Length + 16, 16));
         return data;
     }
+
+    /// <summary>Writes a keyring built by <see cref="Prepare"/> to disk for the first time.</summary>
+    public void Persist() => Save();
 
     /// <summary>
     /// Written via a temp file and an atomic move. Losing <c>vault.json</c> to a half-completed write

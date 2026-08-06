@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ApiError, post } from '../api.js'
-import type { VaultCreated } from '../api.js'
+import type { VaultPrepared } from '../api.js'
 
 /**
  * Where the vault goes, and the refusal when that is a synced folder.
@@ -9,10 +9,10 @@ import type { VaultCreated } from '../api.js'
  * local disk, *backups* in the synced folder — and puts the corrected path inside the primary button,
  * so accepting takes a click and overriding takes a decision.
  */
-export function StepVault({ suggested, onBack, onCreated }: {
+export function StepVault({ suggested, onBack, onPrepared }: {
   suggested: string
   onBack: () => void
-  onCreated: (created: VaultCreated) => void
+  onPrepared: (directory: string, prepared: VaultPrepared) => void
 }) {
   const [directory, setDirectory] = useState(suggested)
   const [refusal, setRefusal] = useState<{ detail: string } | null>(null)
@@ -28,12 +28,16 @@ export function StepVault({ suggested, onBack, onCreated }: {
     }
   }
 
-  async function create(allowSyncedFolder = false) {
+  async function prepare(target = directory, allowSyncedFolder = false) {
     setBusy(true)
     setError(null)
 
     try {
-      onCreated(await post<VaultCreated>('/api/vault', { directory, allowSyncedFolder }))
+      // Validates the destination and generates the keys. Still nothing on disk.
+      onPrepared(target, await post<VaultPrepared>('/api/vault/prepare', {
+        directory: target,
+        allowSyncedFolder,
+      }))
     } catch (failure) {
       if (failure instanceof ApiError && failure.code === 'synced-folder') {
         setRefusal({ detail: failure.message })
@@ -47,7 +51,8 @@ export function StepVault({ suggested, onBack, onCreated }: {
 
   return (
     <>
-      <div className="wizard-column">
+      <div className="wizard-scroll">
+        <div className="wizard-column">
         <h1>Où ranger le coffre</h1>
 
         <p className="lead">
@@ -89,8 +94,15 @@ export function StepVault({ suggested, onBack, onCreated }: {
             </div>
 
             <div className="refusal-actions">
-              <button type="button" onClick={() => void useHome()}>
-                Utiliser {homeSuggestion()}
+              <button
+                type="button"
+                onClick={() => {
+                  setDirectory(suggested)
+                  setRefusal(null)
+                  void prepare(suggested)
+                }}
+              >
+                Utiliser {suggested}
               </button>
               <button type="button" className="secondary-button" onClick={() => void browse()}>
                 Choisir un autre dossier
@@ -98,13 +110,14 @@ export function StepVault({ suggested, onBack, onCreated }: {
             </div>
 
             {/* Available, not inviting: quiet, right-aligned, below the two real buttons. */}
-            <button type="button" className="override" onClick={() => void create(true)}>
+            <button type="button" className="override" onClick={() => void prepare(directory, true)}>
               Ce n’est pas un dossier synchronisé — passer outre
             </button>
           </div>
         )}
 
         {error && <p className="danger">{error}</p>}
+        </div>
       </div>
 
       <footer className="wizard-gate">
@@ -112,30 +125,10 @@ export function StepVault({ suggested, onBack, onCreated }: {
         <button type="button" className="secondary-button" onClick={onBack}>
           Retour
         </button>
-        <button type="button" disabled={busy || !directory.trim()} onClick={() => void create()}>
-          {busy ? 'Création…' : 'Continuer'}
+        <button type="button" disabled={busy || !directory.trim()} onClick={() => void prepare()}>
+          {busy ? 'Vérification…' : 'Continuer'}
         </button>
       </footer>
     </>
   )
-
-  function homeSuggestion(): string {
-    // The suggestion the server made, which it has already checked is not itself synced.
-    return suggested
-  }
-
-  async function useHome() {
-    setDirectory(suggested)
-    setRefusal(null)
-    setBusy(true)
-    setError(null)
-
-    try {
-      onCreated(await post<VaultCreated>('/api/vault', { directory: suggested, allowSyncedFolder: false }))
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : String(failure))
-    } finally {
-      setBusy(false)
-    }
-  }
 }

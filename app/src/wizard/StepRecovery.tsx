@@ -70,7 +70,8 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
 
   return (
     <>
-      <div className="wizard-wide">
+      <div className="wizard-scroll">
+        <div className="wizard-wide">
         <div className="wizard-main">
           <h1>Votre clé de récupération</h1>
 
@@ -206,7 +207,8 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
               ils disparaissent avec l’ordinateur, précisément le jour où la clé servirait.
             </p>
           </section>
-        </aside>
+          </aside>
+        </div>
       </div>
 
       <footer className="wizard-gate">

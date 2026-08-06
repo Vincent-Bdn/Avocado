@@ -22,8 +22,11 @@ public sealed record VaultCreateRequest(string Directory, bool AllowSyncedFolder
 
 /// <param name="RecoveryCode">
 /// Returned once and never again. Nine groups of six; the wizard must not let the user continue until
-/// it has been printed or written to removable media.
+/// it has been printed or written to removable media. At this point nothing has been written to disk —
+/// these are keys held in memory, and abandoning the wizard abandons them.
 /// </param>
-public sealed record VaultCreatedResponse(Guid VaultId, string Directory, string RecoveryCode);
+public sealed record VaultPreparedResponse(string RecoveryCode);
+
+public sealed record VaultCreatedResponse(Guid VaultId, string Directory);
 
 public sealed record VaultUnlockRequest(string RecoveryCode);

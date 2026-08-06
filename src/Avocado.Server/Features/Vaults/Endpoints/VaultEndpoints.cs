@@ -11,7 +11,12 @@ public static class VaultEndpoints
         var group = routes.MapGroup("/api/vault").WithTags("Vault");
 
         group.MapGet("/status", GetVaultStatus.Handle);
-        group.MapPost("/", CreateVault.HandleAsync);
+
+        // Prepare validates and generates keys in memory; commit is the first write to disk.
+        group.MapPost("/prepare", CreateVault.Prepare);
+        group.MapPost("/discard", CreateVault.Discard);
+        group.MapPost("/commit", CreateVault.CommitAsync);
+
         group.MapPost("/unlock", UnlockVault.HandleAsync);
 
         return routes;

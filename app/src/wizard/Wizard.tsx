@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import type { VaultCreated, VaultStatus } from '../api.js'
+import { ApiError, post } from '../api.js'
+import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
 import { StepRecovery } from './StepRecovery.js'
 import { StepVault } from './StepVault.js'
 
@@ -11,7 +12,19 @@ const steps = ['Bienvenue', 'Coffre', 'Clé de récupération', 'Terminé'] as c
  */
 export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () => void }) {
   const [step, setStep] = useState(0)
+  const [directory, setDirectory] = useState(status.suggestedDirectory)
+  const [prepared, setPrepared] = useState<VaultPrepared | null>(null)
   const [created, setCreated] = useState<VaultCreated | null>(null)
+
+  /**
+   * Going back from the recovery step throws the generated keys away. Nothing was ever written, so
+   * there is no folder to delete and no half-made vault to trip over on the next attempt.
+   */
+  async function stepBackFromRecovery() {
+    await post('/api/vault/discard', {})
+    setPrepared(null)
+    setStep(1)
+  }
 
   return (
     <div className="wizard">
@@ -37,24 +50,32 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
 
         {step === 1 && (
           <StepVault
-            suggested={status.suggestedDirectory}
+            suggested={directory}
             onBack={() => setStep(0)}
-            onCreated={(vault) => {
-              setCreated(vault)
+            onPrepared={(chosen, vault) => {
+              setDirectory(chosen)
+              setPrepared(vault)
               setStep(2)
             }}
           />
         )}
 
-        {step === 2 && created && (
+        {step === 2 && prepared && (
           <StepRecovery
-            recoveryCode={created.recoveryCode}
-            onBack={() => setStep(1)}
+            recoveryCode={prepared.recoveryCode}
+            onBack={() => void stepBackFromRecovery()}
             onContinue={() => setStep(3)}
           />
         )}
 
-        {step === 3 && created && <StepDone created={created} onFinish={onReady} />}
+        {step === 3 && prepared && (
+          <StepDone
+            directory={directory}
+            created={created}
+            onCommit={async () => setCreated(await post<VaultCreated>('/api/vault/commit', {}))}
+            onFinish={onReady}
+          />
+        )}
       </main>
     </div>
   )
@@ -63,7 +84,8 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
 function StepWelcome({ onContinue }: { onContinue: () => void }) {
   return (
     <>
-      <div className="wizard-column">
+      <div className="wizard-scroll">
+        <div className="wizard-column">
         <h1>Bonjour, et bienvenue dans Avocado.</h1>
 
         <p className="lead">
@@ -99,6 +121,7 @@ function StepWelcome({ onContinue }: { onContinue: () => void }) {
         <p className="footnote muted">
           Version 1.0 · logiciel libre · aucune donnée ne quitte ce poste
         </p>
+        </div>
       </div>
 
       <footer className="wizard-gate">
@@ -118,15 +141,42 @@ function StepWelcome({ onContinue }: { onContinue: () => void }) {
  * synchronisation copie sans risque ». Saying so explicitly is what keeps the step-2 refusal from
  * reading as arbitrary.
  */
-function StepDone({ created, onFinish }: { created: VaultCreated; onFinish: () => void }) {
+function StepDone({ directory, created, onCommit, onFinish }: {
+  directory: string
+  created: VaultCreated | null
+  onCommit: () => Promise<void>
+  onFinish: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function finish() {
+    setBusy(true)
+    setError(null)
+
+    try {
+      // The first and only write. Everything before this was held in memory.
+      if (!created) {
+        await onCommit()
+      }
+
+      onFinish()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
-      <div className="wizard-column">
+      <div className="wizard-scroll">
+        <div className="wizard-column">
         <h1>Tout est prêt.</h1>
 
         <ul className="recap">
           <li>
-            ✓ Coffre créé et chiffré dans <span className="mono">{created.directory}</span>
+            ✓ Le coffre sera créé et chiffré dans <span className="mono">{directory}</span>
           </li>
           <li>✓ Clé de récupération mise à l’abri</li>
         </ul>
@@ -142,12 +192,15 @@ function StepDone({ created, onFinish }: { created: VaultCreated; onFinish: () =
           Cette question n’est pas encore branchée : les sauvegardes automatiques arrivent avec les
           réglages. Rien n’est perdu — le coffre est chiffré et la clé est en sécurité.
         </p>
+
+        {error && <p className="danger">{error}</p>}
+        </div>
       </div>
 
       <footer className="wizard-gate">
         <span className="grow" />
-        <button type="button" onClick={onFinish}>
-          Ouvrir Avocado
+        <button type="button" disabled={busy} onClick={() => void finish()}>
+          {busy ? 'Création du coffre…' : 'Créer le coffre et ouvrir Avocado'}
         </button>
       </footer>
     </>

@@ -16,6 +16,7 @@ public sealed class VaultSession : IVaultStore, IDisposable
 {
     private readonly object _gate = new();
     private OpenVault? _vault;
+    private PendingVault? _pending;
 
     public VaultSession(string directory) => Paths = new VaultPaths(directory);
 
@@ -51,16 +52,47 @@ public sealed class VaultSession : IVaultStore, IDisposable
         }
     }
 
+    /// <summary>True once <see cref="Prepare"/> has run and <see cref="Commit"/> has not.</summary>
+    public bool HasPending => _pending is not null;
+
     /// <summary>
-    /// Creates a vault and opens it. The recovery code comes back exactly once — the caller is
-    /// responsible for not letting the user past it until it has been printed or saved.
+    /// Validates the destination and generates the keys, writing nothing. The recovery code comes back
+    /// exactly once; the wizard must not let the user past it until it has been printed or saved.
     /// </summary>
-    public VaultCreation Create(string directory, bool allowSyncedFolder)
+    public string Prepare(string directory, bool allowSyncedFolder)
     {
         lock (_gate)
         {
-            var creation = VaultManager.Create(directory, allowSyncedFolder: allowSyncedFolder);
+            var pending = VaultManager.Prepare(directory, allowSyncedFolder: allowSyncedFolder);
 
+            _pending?.Dispose();
+            _pending = pending;
+
+            return pending.RecoveryCode;
+        }
+    }
+
+    /// <summary>Drops the generated keys. Nothing was on disk, so going back leaves no trace.</summary>
+    public void DiscardPending()
+    {
+        lock (_gate)
+        {
+            _pending?.Dispose();
+            _pending = null;
+        }
+    }
+
+    /// <summary>Writes the prepared vault and opens it. The first moment anything exists on disk.</summary>
+    public VaultCreation Commit()
+    {
+        lock (_gate)
+        {
+            var pending = _pending
+                ?? throw new VaultException("Aucun coffre en attente de création.");
+
+            var creation = VaultManager.Commit(pending);
+
+            _pending = null;
             _vault?.Dispose();
             _vault = creation.Vault;
             Paths = creation.Vault.Paths;
@@ -96,6 +128,8 @@ public sealed class VaultSession : IVaultStore, IDisposable
 
     public void Dispose()
     {
+        _pending?.Dispose();
+        _pending = null;
         _vault?.Dispose();
         _vault = null;
     }
