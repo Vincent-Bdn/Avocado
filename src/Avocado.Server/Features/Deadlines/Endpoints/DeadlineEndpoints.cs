@@ -9,6 +9,7 @@ public static class DeadlineEndpoints
     public static IEndpointRouteBuilder MapDeadlines(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/api/matters/{matterId:guid}/deadlines", ListAsync).WithTags("Deadlines");
+        routes.MapGet("/api/deadlines", ListAllAsync).WithTags("Deadlines");
         routes.MapPost("/api/matters/{matterId:guid}/deadlines", CreateAsync).WithTags("Deadlines");
 
         var group = routes.MapGroup("/api/deadlines").WithTags("Deadlines");
@@ -52,6 +53,49 @@ public static class DeadlineEndpoints
             .ToListAsync(cancellationToken);
 
         // Urgency is a domain rule, not a SQL expression.
+        return Results.Ok(deadlines.Select(deadline => deadline with
+        {
+            Urgency = DeadlineUrgencyRule.For(deadline.Date, today),
+        }));
+    }
+
+    /// <summary>
+    /// Every open deadline across the practice, for the Échéances section. Closed matters are left
+    /// out: closing hides their deadlines rather than deleting them.
+    /// </summary>
+    private static async Task<IResult> ListAllAsync(
+        AvocadoDbContext database,
+        TimeProvider clock,
+        bool includeDone = false,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
+
+        var query = database.Deadlines
+            .AsNoTracking()
+            .Where(deadline => deadline.Matter!.ClosedOn == null);
+
+        if (!includeDone)
+        {
+            query = query.Where(deadline => !deadline.IsDone);
+        }
+
+        var deadlines = await query
+            .OrderBy(deadline => deadline.Date)
+            .ThenBy(deadline => deadline.Time)
+            .Select(deadline => new MatterDeadlineItem(
+                deadline.Id,
+                deadline.MatterId,
+                deadline.Matter!.Reference,
+                deadline.Matter.Name,
+                deadline.Date,
+                deadline.Time,
+                deadline.Type,
+                deadline.Label,
+                deadline.IsDone,
+                default))
+            .ToListAsync(cancellationToken);
+
         return Results.Ok(deadlines.Select(deadline => deadline with
         {
             Urgency = DeadlineUrgencyRule.For(deadline.Date, today),

@@ -1,43 +1,114 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarClock, FolderClosed, Settings as Gear, Users } from 'lucide-react'
+import { CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Users } from 'lucide-react'
 import { ApiError, api } from './api.js'
+import { CommandPalette } from './CommandPalette.js'
 import { MatterView } from './MatterView.js'
 import { NewMatter } from './NewMatter.js'
 import { Settings } from './Settings.js'
+import { Contacts } from './sections/Contacts.js'
+import { Home } from './sections/Home.js'
+import { UpcomingDeadlines } from './sections/UpcomingDeadlines.js'
 import { formatRelative } from './labels.js'
 import type { MatterListPage } from './types.js'
 
+type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'settings'
+
 /**
- * The four-band shell: rail, dossier list, content. The context panel lives inside the fiche dossier
- * for now rather than as a top-level band, because it is the only screen that has one.
+ * The shell. The rail chooses a section; only Dossiers and Tiers carry a secondary panel, so the
+ * grid drops to two bands for the rest rather than leaving an empty column.
  */
 export function AppShell() {
+  const [section, setSection] = useState<Section>('home')
+  const [selectedMatter, setSelectedMatter] = useState<string | null>(null)
+  const [selectedContact, setSelectedContact] = useState<string | null>(null)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  const openMatter = useCallback((id: string) => {
+    setSelectedMatter(id)
+    setSection('matters')
+  }, [])
+
+  const openContact = useCallback((id: string) => {
+    setSelectedContact(id)
+    setSection('contacts')
+  }, [])
+
+  // ⌘K from anywhere.
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', shortcut)
+    return () => window.removeEventListener('keydown', shortcut)
+  }, [])
+
+  const twoBand = section !== 'matters' && section !== 'contacts'
+
+  return (
+    <div className={`app ${twoBand ? 'app-wide' : ''}`}>
+      <Rail section={section} onSection={setSection} />
+
+      {section === 'home' && <Home onOpenMatter={openMatter} />}
+      {section === 'deadlines' && <UpcomingDeadlines onOpenMatter={openMatter} />}
+      {section === 'settings' && <Settings />}
+
+      {section === 'contacts' && (
+        <Contacts selected={selectedContact} onSelect={setSelectedContact} onOpenMatter={openMatter} />
+      )}
+
+      {section === 'matters' && (
+        <Matters selected={selectedMatter} onSelect={setSelectedMatter} />
+      )}
+
+      {paletteOpen && (
+        <CommandPalette
+          onClose={() => setPaletteOpen(false)}
+          onOpenMatter={openMatter}
+          onOpenContact={openContact}
+        />
+      )}
+    </div>
+  )
+}
+
+function Matters({ selected, onSelect }: {
+  selected: string | null
+  onSelect: (id: string | null) => void
+}) {
   const [page, setPage] = useState<MatterListPage | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [showClosed, setShowClosed] = useState(false)
-  const [section, setSection] = useState<'matters' | 'settings'>('matters')
+  const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
-    api<MatterListPage>(`/api/matters?status=${showClosed ? 'Closed' : 'Open'}&sort=LastActivity&descending=true`)
+    const status = showClosed ? 'Closed' : 'Open'
+
+    api<MatterListPage>(
+      `/api/matters?status=${status}&search=${encodeURIComponent(search)}&sort=LastActivity&descending=true`,
+    )
       .then((result) => {
         setPage(result)
         // Land on something rather than an empty content pane.
-        setSelected((current) =>
-          current && result.items.some((item) => item.id === current)
-            ? current
+        onSelect(
+          selected && result.items.some((item) => item.id === selected)
+            ? selected
             : (result.items[0]?.id ?? null),
         )
       })
       .catch((failure: unknown) =>
         setError(failure instanceof ApiError ? failure.message : String(failure)),
       )
-  }, [showClosed])
+    // `selected` is deliberately excluded: including it would refetch on every selection change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showClosed, search])
 
   useEffect(reload, [reload])
 
-  // ⌘N from anywhere.
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'n') {
@@ -50,24 +121,18 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', shortcut)
   }, [])
 
-  if (section === 'settings') {
-    return (
-      <div className="app app-settings">
-        <Rail section={section} onSection={setSection} />
-        <Settings />
-      </div>
-    )
-  }
-
   return (
-    <div className="app">
-      <Rail section={section} onSection={setSection} />
-
+    <>
       <aside className="secondary-panel">
         <header className="panel-header">
           <span>Dossiers · {page?.total ?? 0}</span>
-          <button type="button" className="icon-button" onClick={() => setCreating(true)} title="Nouveau dossier (⌘N)">
-            ＋
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setCreating(true)}
+            title="Nouveau dossier (Ctrl+N)"
+          >
+            <Plus size={14} strokeWidth={2} />
           </button>
         </header>
 
@@ -88,6 +153,15 @@ export function AppShell() {
           </button>
         </div>
 
+        <div className="filters">
+          <input
+            className="panel-search"
+            value={search}
+            placeholder="Nom, référence, client…"
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+
         <div className="matter-list">
           {error && <p className="danger">{error}</p>}
 
@@ -102,7 +176,7 @@ export function AppShell() {
               key={matter.id}
               type="button"
               className={`matter-row ${matter.id === selected ? 'matter-row-selected' : ''}`}
-              onClick={() => setSelected(matter.id)}
+              onClick={() => onSelect(matter.id)}
             >
               <span className="matter-name">{matter.name}</span>
               <span className="mono matter-meta">
@@ -137,40 +211,40 @@ export function AppShell() {
           onCreated={(id) => {
             setCreating(false)
             setShowClosed(false)
-            setSelected(id)
+            onSelect(id)
             reload()
           }}
         />
       )}
-    </div>
+    </>
   )
 }
 
-type Section = 'matters' | 'settings'
-
-/** The icon rail. Réglages is pinned to the bottom, as in the design system. */
+/** The icon rail. Accueil is a real destination; Réglages is pinned to the bottom. */
 function Rail({ section, onSection }: { section: Section; onSection: (next: Section) => void }) {
+  const items: [Section, string, typeof HomeIcon][] = [
+    ['home', 'Accueil', HomeIcon],
+    ['matters', 'Dossiers', FolderClosed],
+    ['contacts', 'Tiers', Users],
+    ['deadlines', 'Échéances', CalendarClock],
+  ]
+
   return (
     <nav className="rail">
       <img src="./icon.png" alt="Avocado" className="rail-mark" />
 
-      <button
-        type="button"
-        className={`rail-item ${section === 'matters' ? 'rail-active' : ''}`}
-        title="Dossiers"
-        onClick={() => onSection('matters')}
-      >
-        <FolderClosed size={18} strokeWidth={1.75} />
-      </button>
+      {items.map(([id, title, Icon]) => (
+        <button
+          key={id}
+          type="button"
+          className={`rail-item ${section === id ? 'rail-active' : ''}`}
+          title={title}
+          onClick={() => onSection(id)}
+        >
+          <Icon size={18} strokeWidth={1.75} />
+        </button>
+      ))}
 
-      <span className="rail-item rail-todo" title="Tiers, à venir">
-        <Users size={18} strokeWidth={1.75} />
-      </span>
-      <span className="rail-item rail-todo" title="Échéances, à venir">
-        <CalendarClock size={18} strokeWidth={1.75} />
-      </span>
-
-      {/* Pinned to the bottom, as in the design system's rail. */}
       <span className="grow" />
 
       <button

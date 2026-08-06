@@ -31,3 +31,17 @@ public sealed record DeadlineInput(
         _ => null,
     };
 }
+
+/// <summary>A deadline seen from outside its dossier, so the row can name the matter it belongs to.
+/// A deadline without its dossier is unusable.</summary>
+public sealed record MatterDeadlineItem(
+    Guid Id,
+    Guid MatterId,
+    string MatterReference,
+    string MatterName,
+    DateOnly Date,
+    TimeOnly? Time,
+    DeadlineType Type,
+    string Label,
+    bool IsDone,
+    DeadlineUrgency Urgency);
