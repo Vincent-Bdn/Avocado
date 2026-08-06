@@ -51,6 +51,16 @@ public sealed class OpenVault : IDisposable
         return Keyring.RegenerateRecoveryKey(_dataKey);
     }
 
+    /// <summary>
+    /// The current recovery code, so the sheet can be reprinted and the quarterly check can verify
+    /// individual groups. Null on a vault created before the key was retained.
+    /// </summary>
+    public string? RevealRecoveryCode()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return Keyring.RevealRecoveryCode(_dataKey);
+    }
+
     public void EnrollDeviceKey(IDeviceKeyStore deviceKeyStore)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);

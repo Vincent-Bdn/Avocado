@@ -41,6 +41,18 @@ public sealed record VaultKeyEntry
 
     /// <summary>The KEK, protected by the OS. Only for <see cref="VaultKeyKind.Device"/>.</summary>
     public byte[]? ProtectedKeyEncryptionKey { get; init; }
+
+    /// <summary>
+    /// The recovery key itself, sealed under the data encryption key. Only for
+    /// <see cref="VaultKeyKind.Recovery"/>, and absent on vaults created before this existed.
+    /// <para>
+    /// It costs nothing: reading it requires the DEK, and anyone holding the DEK can already read the
+    /// whole practice. What it buys is real, though. The quarterly check can ask for two groups out of
+    /// nine and actually verify them, and a lost sheet can be reprinted without invalidating every
+    /// backup taken so far by issuing a new key.
+    /// </para>
+    /// </summary>
+    public byte[]? SealedRecoveryKey { get; init; }
 }
 
 public sealed record VaultKeyringDocument

@@ -445,6 +445,52 @@
 
 .wizard-gate .confirm { font-size: 13px; }
 
+/* --- Split button --------------------------------------------------------- */
+
+.split-button { position: relative; display: flex; align-self: flex-start; }
+.split-button > button:first-child { border-radius: 4px 0 0 4px; }
+
+.split-toggle {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  padding: 0;
+  border-radius: 0 4px 4px 0;
+  border-left: 1px solid rgb(255 255 255 / 0.22);
+}
+
+.split-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  display: grid;
+  gap: 2px;
+  min-width: 232px;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-2);
+}
+
+.split-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  width: 100%;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 400;
+  text-align: left;
+}
+
+.split-menu button:hover { background: var(--surface-hover); }
+
 /* Ticking it before securing the key would be a claim about something that has not happened. */
 .confirm-waiting { color: var(--text-muted); cursor: not-allowed; }
 
@@ -478,11 +524,13 @@
 
 .sheet-head {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: 10px;
   padding-bottom: 8px;
   border-bottom: 1.5px solid #000;
 }
+
+.sheet-mark { flex: 0 0 auto; }
 
 .sheet-title { font-size: 16px; font-weight: 600; }
 .sheet-date { font-size: 11px; }

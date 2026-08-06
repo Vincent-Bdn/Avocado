@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CalendarClock, FolderClosed, Settings as Gear, Users } from 'lucide-react'
 import { ApiError, api } from './api.js'
 import { MatterView } from './MatterView.js'
 import { NewMatter } from './NewMatter.js'
+import { Settings } from './Settings.js'
 import { formatRelative } from './labels.js'
 import type { MatterListPage } from './types.js'
 
@@ -14,6 +16,7 @@ export function AppShell() {
   const [selected, setSelected] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [showClosed, setShowClosed] = useState(false)
+  const [section, setSection] = useState<'matters' | 'settings'>('matters')
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -47,14 +50,18 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', shortcut)
   }, [])
 
+  if (section === 'settings') {
+    return (
+      <div className="app app-settings">
+        <Rail section={section} onSection={setSection} />
+        <Settings />
+      </div>
+    )
+  }
+
   return (
     <div className="app">
-      <nav className="rail">
-        <img src="./icon.png" alt="Avocado" className="rail-mark" />
-        <span className="rail-item rail-active" title="Dossiers">D</span>
-        <span className="rail-item rail-todo" title="Tiers, à venir">T</span>
-        <span className="rail-item rail-todo" title="Échéances, à venir">É</span>
-      </nav>
+      <Rail section={section} onSection={setSection} />
 
       <aside className="secondary-panel">
         <header className="panel-header">
@@ -136,5 +143,44 @@ export function AppShell() {
         />
       )}
     </div>
+  )
+}
+
+type Section = 'matters' | 'settings'
+
+/** The icon rail. Réglages is pinned to the bottom, as in the design system. */
+function Rail({ section, onSection }: { section: Section; onSection: (next: Section) => void }) {
+  return (
+    <nav className="rail">
+      <img src="./icon.png" alt="Avocado" className="rail-mark" />
+
+      <button
+        type="button"
+        className={`rail-item ${section === 'matters' ? 'rail-active' : ''}`}
+        title="Dossiers"
+        onClick={() => onSection('matters')}
+      >
+        <FolderClosed size={18} strokeWidth={1.75} />
+      </button>
+
+      <span className="rail-item rail-todo" title="Tiers, à venir">
+        <Users size={18} strokeWidth={1.75} />
+      </span>
+      <span className="rail-item rail-todo" title="Échéances, à venir">
+        <CalendarClock size={18} strokeWidth={1.75} />
+      </span>
+
+      {/* Pinned to the bottom, as in the design system's rail. */}
+      <span className="grow" />
+
+      <button
+        type="button"
+        className={`rail-item ${section === 'settings' ? 'rail-active' : ''}`}
+        title="Réglages"
+        onClick={() => onSection('settings')}
+      >
+        <Gear size={18} strokeWidth={1.75} />
+      </button>
+    </nav>
   )
 }

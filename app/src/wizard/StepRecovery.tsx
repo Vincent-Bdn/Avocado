@@ -1,13 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Copy, Printer, Usb, X } from 'lucide-react'
+import { Check, Copy, X } from 'lucide-react'
 import { RecoverySheet, fingerprintOf } from './RecoverySheet.js'
-
-interface Drive {
-  path: string
-  label: string
-  freeBytes: number
-}
+import { SecureKeyOptions, isSecured, type SecuredBy } from './SecureKeyOptions.js'
 
 /**
  * The hardest screen in the application, and the only one that cannot be dismissed.
@@ -25,57 +20,17 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
   onBack: () => void
   onContinue: () => void
 }) {
-  const [drives, setDrives] = useState<Drive[]>([])
   const [fingerprint, setFingerprint] = useState('')
-  const [savedTo, setSavedTo] = useState<string | null>(null)
-  const [printed, setPrinted] = useState(false)
+  const [secured, setSecured] = useState<SecuredBy>({ printed: false, savedTo: null, exportedTo: null })
   const [acknowledged, setAcknowledged] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const groups = recoveryCode.split('-')
   const createdOn = new Date().toLocaleDateString('fr-FR')
 
   useEffect(() => {
     void fingerprintOf(recoveryCode).then(setFingerprint)
   }, [recoveryCode])
 
-  // The list refreshes itself: « branchez une clé USB, elle apparaîtra ici toute seule ».
-  useEffect(() => {
-    const poll = () => void window.avocado.removableDrives().then(setDrives).catch(() => setDrives([]))
-
-    poll()
-    const timer = setInterval(poll, 3000)
-    return () => clearInterval(timer)
-  }, [])
-
-  function copy() {
-    // One group per line, as it reads on screen and on the printed sheet. The parser ignores
-    // whitespace, so pasting it back into the unlock field works either way.
-    void navigator.clipboard.writeText(groups.join('\n'))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2500)
-  }
-
-  async function saveTo(drive: Drive) {
-    setError(null)
-
-    try {
-      const contents =
-        `Avocado, clé de récupération\r\n` +
-        `Coffre créé le ${createdOn}\r\n` +
-        `Empreinte ${fingerprint}\r\n\r\n` +
-        `${groups.join('\r\n')}\r\n\r\n` +
-        `Sans cette clé, les sauvegardes de ce coffre ne peuvent être rouvertes par personne.\r\n`
-
-      setSavedTo(await window.avocado.saveRecoveryKey(drive.path, contents))
-    } catch (failure) {
-      setError(`Écriture impossible sur ${drive.path} : ${String(failure)}`)
-    }
-  }
-
-  // Genuinely disabled until something real happened *and* the box is ticked.
-  const secured = printed || savedTo !== null
+  const done = isSecured(secured)
 
   return (
     <>
@@ -91,122 +46,17 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
               nous, ni votre système, ni un service d’assistance.
             </p>
 
-            <div className="key-card">
-              <div className="key-head">
-                <span className="key-eyebrow mono">Clé du coffre · {createdOn}</span>
-                <span className="grow" />
-                <span className="key-hint">54 caractères, sans I, L, O ni U</span>
-              </div>
-
-              <div className="key-grid">
-                {groups.map((group) => (
-                  <span key={group} className="key-group">{group}</span>
-                ))}
-              </div>
-
-              <div className="key-caption">
-                <span className="muted">
-                  Neuf groupes de six, lisibles à voix haute et recopiables à la main.
-                </span>
-
-                <button type="button" className="ghost-button" onClick={copy}>
-                  {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={1.75} />}
-                  {copied ? 'Copiée' : 'Copier'}
-                </button>
-              </div>
-            </div>
+            <RecoveryKeyCard recoveryCode={recoveryCode} createdOn={createdOn} />
 
             <div className="secure-lead">Choisissez au moins une façon de la mettre à l’abri :</div>
 
-            <div className="secure-options">
-              <section className="option option-recommended">
-                <header>
-                  <Printer size={16} strokeWidth={1.75} />
-                  <h3>L’imprimer</h3>
-                  <span className="badge-recommended">recommandé</span>
-                </header>
-
-                <p>
-                  Une page A4 avec un QR code, la clé en toutes lettres et une ligne pour noter où vous
-                  la rangez. À classer là où vous classez déjà ce qui compte.
-                </p>
-
-                <span className="grow" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPrinted(true)
-                    window.print()
-                  }}
-                >
-                  Imprimer la fiche
-                </button>
-
-                {printed && (
-                  <p className="done">
-                    <Check size={12} strokeWidth={2.5} /> Impression lancée
-                  </p>
-                )}
-              </section>
-
-              <section className="option">
-                <header>
-                  <Usb size={16} strokeWidth={1.75} />
-                  <h3>L’enregistrer sur une clé USB</h3>
-                </header>
-
-                <p>
-                  Un petit fichier texte sur un support amovible, rangé ailleurs que près de
-                  l’ordinateur.
-                </p>
-
-                {drives.length === 0 ? (
-                  <div className="no-drive">
-                    <strong>Aucun support amovible branché</strong>
-                    <span className="muted">
-                      Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
-                    </span>
-                    <span className="mono muted searching">recherche en cours…</span>
-                  </div>
-                ) : (
-                  <ul className="drives">
-                    {drives.map((drive) => (
-                      <li key={drive.path}>
-                        <span className="drive-name">
-                          <span className="mono">{drive.path}</span> {drive.label}
-                          {drive.freeBytes > 0 && (
-                            <span className="muted"> ({formatBytes(drive.freeBytes)} libres)</span>
-                          )}
-                        </span>
-
-                        <button
-                          type="button"
-                          className="secondary-button"
-                          onClick={() => void saveTo(drive)}
-                        >
-                          Enregistrer sur {drive.path}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <span className="grow" />
-
-                <p className="muted micro">
-                  Les disques internes sont exclus volontairement : une clé enregistrée sur le disque
-                  de cet ordinateur disparaîtrait avec lui.
-                </p>
-
-                {savedTo && (
-                  <p className="done">
-                    <Check size={12} strokeWidth={2.5} /> Écrite dans {savedTo}
-                  </p>
-                )}
-                {error && <p className="danger">{error}</p>}
-              </section>
-            </div>
+            <SecureKeyOptions
+              recoveryCode={recoveryCode}
+              fingerprint={fingerprint}
+              createdOn={createdOn}
+              secured={secured}
+              onSecured={setSecured}
+            />
           </div>
 
           <aside className="wizard-aside">
@@ -252,11 +102,11 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
       </div>
 
       <footer className="wizard-gate">
-        <label className={`confirm ${secured ? '' : 'confirm-waiting'}`}>
+        <label className={`confirm ${done ? '' : 'confirm-waiting'}`}>
           <input
             type="checkbox"
             checked={acknowledged}
-            disabled={!secured}
+            disabled={!done}
             onChange={(event) => setAcknowledged(event.target.checked)}
           />
           J’ai mis cette clé à l’abri, hors de cet ordinateur.
@@ -267,7 +117,7 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
         <button type="button" className="secondary-button" onClick={onBack}>
           Retour
         </button>
-        <button type="button" disabled={!secured || !acknowledged} onClick={onContinue}>
+        <button type="button" disabled={!done || !acknowledged} onClick={onContinue}>
           Continuer
         </button>
       </footer>
@@ -284,9 +134,46 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
   )
 }
 
-function formatBytes(bytes: number): string {
-  const giga = bytes / 1_000_000_000
-  return giga >= 1000
-    ? `${(giga / 1000).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} To`
-    : `${giga.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`
+/** The key itself. Shared with Réglages, where the same card shows the current key. */
+export function RecoveryKeyCard({ recoveryCode, createdOn }: {
+  recoveryCode: string
+  createdOn: string
+}) {
+  const [copied, setCopied] = useState(false)
+  const groups = recoveryCode.split('-')
+
+  function copy() {
+    // One group per line, as it reads on screen and on the printed sheet. The parser ignores
+    // whitespace, so pasting it back into the unlock field works either way.
+    void navigator.clipboard.writeText(groups.join('\n'))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  return (
+    <div className="key-card">
+      <div className="key-head">
+        <span className="key-eyebrow mono">Clé du coffre · {createdOn}</span>
+        <span className="grow" />
+        <span className="key-hint">54 caractères, sans I, L, O ni U</span>
+      </div>
+
+      <div className="key-grid">
+        {groups.map((group) => (
+          <span key={group} className="key-group">{group}</span>
+        ))}
+      </div>
+
+      <div className="key-caption">
+        <span className="muted">
+          Neuf groupes de six, lisibles à voix haute et recopiables à la main.
+        </span>
+
+        <button type="button" className="ghost-button" onClick={copy}>
+          {copied ? <Check size={12} strokeWidth={2.5} /> : <Copy size={12} strokeWidth={1.75} />}
+          {copied ? 'Copiée' : 'Copier'}
+        </button>
+      </div>
+    </div>
+  )
 }

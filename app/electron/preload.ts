@@ -29,4 +29,8 @@ contextBridge.exposeInMainWorld('avocado', {
 
   saveRecoveryKey: (drivePath: string, contents: string) =>
     ipcRenderer.invoke('avocado:saveRecoveryKey', drivePath, contents) as Promise<string>,
+
+  /** Renders the current page to a PDF the user picks a location for. Null if they cancel. */
+  exportRecoverySheet: () =>
+    ipcRenderer.invoke('avocado:exportRecoverySheet') as Promise<string | null>,
 })

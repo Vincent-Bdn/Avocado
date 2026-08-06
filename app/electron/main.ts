@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Backend, type BackendHandshake } from './backend.js'
 import { listRemovableDrives, saveRecoveryKey } from './drives.js'
@@ -126,6 +127,32 @@ app.whenReady().then(async () => {
 
     ipcMain.handle('avocado:saveRecoveryKey', (_event, drivePath: string, contents: string) =>
       saveRecoveryKey(drivePath, contents))
+
+    // Electron's print path has no preview, so on a machine without a printer it lands in a
+    // "Microsoft Print to PDF" dialog that says as much. Producing the PDF directly is the honest
+    // second option, and for most people it is the one they actually wanted.
+    ipcMain.handle('avocado:exportRecoverySheet', async (event) => {
+      const target = await dialog.showSaveDialog({
+        title: 'Enregistrer la fiche',
+        defaultPath: path.join(app.getPath('documents'), 'avocado-cle-de-recuperation.pdf'),
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        buttonLabel: 'Enregistrer',
+      })
+
+      if (target.canceled || !target.filePath) {
+        return null
+      }
+
+      const contents = event.sender
+      const pdf = await contents.printToPDF({
+        pageSize: 'A4',
+        printBackground: false,
+        margins: { top: 0.6, bottom: 0.6, left: 0.6, right: 0.6 },
+      })
+
+      await writeFile(target.filePath, pdf)
+      return target.filePath
+    })
 
     applyContentSecurityPolicy()
     await createWindow()

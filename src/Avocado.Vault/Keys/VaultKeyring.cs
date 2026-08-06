@@ -17,6 +17,7 @@ namespace Avocado.Vault.Keys;
 public sealed class VaultKeyring
 {
     private const string DataKeyInfo = "avocado-dek-v1";
+    private const string RecoveryKeyInfo = "avocado-recovery-key-v1";
     private const string RecoveryKekInfo = "avocado-recovery-kek-v1";
     private const int SaltSize = 16;
 
@@ -255,6 +256,30 @@ public sealed class VaultKeyring
         Save();
     }
 
+    /// <summary>
+    /// The current recovery code, for an unlocked vault. Null on a vault created before the key was
+    /// retained, where the only options are to trust the printed sheet or issue a new one.
+    /// </summary>
+    public string? RevealRecoveryCode(SecretKey dataKey)
+    {
+        var entry = _document.Keys.FirstOrDefault(k => k.Kind == VaultKeyKind.Recovery);
+        if (entry?.SealedRecoveryKey is null)
+        {
+            return null;
+        }
+
+        var raw = Aead.Open(dataKey, entry.SealedRecoveryKey, RecoveryAssociatedData(entry.Id));
+        try
+        {
+            using var recoveryKey = new SecretKey(raw);
+            return RecoveryCode.Format(recoveryKey);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(raw);
+        }
+    }
+
     /// <summary>Revokes an unlock path — a retired laptop, a recovery sheet that was left on a train.</summary>
     public void Remove(Guid keyId)
     {
@@ -327,6 +352,7 @@ public sealed class VaultKeyring
             CreatedAt = DateTimeOffset.UtcNow,
             Salt = salt,
             WrappedDataKey = Aead.Seal(kek, dataKey.Span, AssociatedData(_document.VaultId, id)),
+            SealedRecoveryKey = Aead.Seal(dataKey, recoveryKey.Span, RecoveryAssociatedData(id)),
         });
 
         if (save)
@@ -357,6 +383,16 @@ public sealed class VaultKeyring
     /// Binds each wrapping to its vault and its entry, so a wrapped key cannot be lifted from one
     /// keyring and pasted into another to make it decrypt something it was never meant to.
     /// </summary>
+    private byte[] RecoveryAssociatedData(Guid keyId)
+    {
+        var prefix = Encoding.UTF8.GetBytes(RecoveryKeyInfo);
+        var data = new byte[prefix.Length + 32];
+        prefix.CopyTo(data.AsSpan());
+        _document.VaultId.TryWriteBytes(data.AsSpan(prefix.Length, 16));
+        keyId.TryWriteBytes(data.AsSpan(prefix.Length + 16, 16));
+        return data;
+    }
+
     private static byte[] AssociatedData(Guid vaultId, Guid keyId)
     {
         var prefix = Encoding.UTF8.GetBytes(DataKeyInfo);

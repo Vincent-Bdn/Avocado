@@ -127,6 +127,55 @@ public class VaultKeyringTests
     }
 
     [Fact]
+    public void RevealsTheRecoveryCodeToAnUnlockedVault()
+    {
+        // What makes the quarterly check able to verify two groups out of nine, and a lost sheet
+        // reprintable without issuing a new key and stranding every backup taken so far.
+        using var directory = new TempDirectory();
+        var path = directory.Combine("vault.json");
+
+        var creation = VaultKeyring.Create(path, new FakeDeviceKeyStore());
+        using var dataKey = creation.DataKey;
+
+        Assert.Equal(creation.RecoveryCode, VaultKeyring.Load(path).RevealRecoveryCode(dataKey));
+    }
+
+    [Fact]
+    public void RevealingFollowsRegeneration()
+    {
+        using var directory = new TempDirectory();
+        var path = directory.Combine("vault.json");
+
+        var creation = VaultKeyring.Create(path, new FakeDeviceKeyStore());
+        using var dataKey = creation.DataKey;
+
+        var replacement = creation.Keyring.RegenerateRecoveryKey(dataKey);
+
+        Assert.Equal(replacement, VaultKeyring.Load(path).RevealRecoveryCode(dataKey));
+        Assert.NotEqual(creation.RecoveryCode, replacement);
+    }
+
+    [Fact]
+    public void TheRetainedRecoveryKeyIsNotReadableFromTheKeyringAlone()
+    {
+        // Sealed under the DEK: the file on disk gives it up to nobody who cannot already unlock.
+        using var directory = new TempDirectory();
+        var path = directory.Combine("vault.json");
+
+        var creation = VaultKeyring.Create(path, new FakeDeviceKeyStore());
+        using var dataKey = creation.DataKey;
+
+        var onDisk = File.ReadAllText(path);
+        var codeWithoutSeparators = creation.RecoveryCode.Replace("-", "", StringComparison.Ordinal);
+
+        Assert.DoesNotContain(codeWithoutSeparators, onDisk, StringComparison.OrdinalIgnoreCase);
+
+        using var wrongKey = SecretKey.Generate();
+        Assert.ThrowsAny<System.Security.Cryptography.CryptographicException>(
+            () => VaultKeyring.Load(path).RevealRecoveryCode(wrongKey));
+    }
+
+    [Fact]
     public void RefusesToRemoveTheLastRemainingUnlockPath()
     {
         using var directory = new TempDirectory();

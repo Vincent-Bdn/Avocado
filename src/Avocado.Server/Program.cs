@@ -91,6 +91,7 @@ app.MapGet("/health", (VaultSession vaultSession) => Results.Ok(new
 }));
 
 app.MapVault();
+app.MapRecoveryKey();
 app.MapUsers();
 app.MapContacts();
 app.MapMatters();

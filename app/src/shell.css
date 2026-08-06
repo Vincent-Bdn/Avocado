@@ -494,3 +494,70 @@
 }
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* --- Réglages -------------------------------------------------------------- */
+
+.app-settings { grid-template-columns: 48px minmax(480px, 1fr); }
+
+.rail .grow { flex: 1 1 auto; }
+.rail-item { border: 0; background: transparent; padding: 0; cursor: pointer; }
+.rail-item:hover { background: var(--surface-hover); }
+.rail-active:hover { background: var(--brand-subtle); }
+.rail-todo { cursor: default; }
+.rail-todo:hover { background: transparent; }
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  max-width: 940px;
+}
+
+.panel-card {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-panel);
+}
+
+.panel-card h3 { margin: 0; font-size: 15px; line-height: 21px; font-weight: 600; }
+.panel-card p { margin: 0; font-size: 13px; line-height: 20px; }
+.panel-card .micro { font-size: 11px; }
+
+.card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-actions button { display: flex; align-items: center; gap: 6px; }
+
+.check-groups { display: flex; gap: 16px; flex-wrap: wrap; }
+.check-groups label { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+
+.check-groups input {
+  width: 120px;
+  height: 32px;
+  font-size: 15px;
+  letter-spacing: 0.09em;
+  text-align: center;
+}
+
+.check-groups .ok { color: var(--status-success); }
+.check-groups .ko { color: var(--status-danger); }
+
+/* The only ochre in Réglages, and only where a consequence has to be stated. */
+.caution-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--accent-subtle);
+  color: var(--status-warning);
+}
+
+.caution-card strong { font-size: 12.5px; font-weight: 600; }
+.caution-card p { margin: 0; font-size: 12.5px; line-height: 19px; color: inherit; }
+.caution-card strong strong { font-weight: 600; }

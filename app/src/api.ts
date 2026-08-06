@@ -6,6 +6,7 @@ declare global {
       chooseFolder: (startIn?: string) => Promise<string | null>
       removableDrives: () => Promise<{ path: string; label: string; freeBytes: number }[]>
       saveRecoveryKey: (drivePath: string, contents: string) => Promise<string>
+      exportRecoverySheet: () => Promise<string | null>
     }
   }
 }

@@ -30,7 +30,17 @@ export function RecoverySheet({ recoveryCode, fingerprint, createdOn }: {
   return (
     <div className="sheet" aria-hidden="true">
       <header className="sheet-head">
+        {/* The mark in solid black: the sheet has to survive a nearly empty cartridge, so no colour
+            and no greys anywhere on it. */}
+        <svg width="20" height="20" viewBox="0 0 64 64" className="sheet-mark" aria-hidden="true">
+          <rect x="0" y="0" width="64" height="64" rx="16" fill="#000" />
+          <circle cx="32" cy="25" r="10" fill="#fff" />
+          <circle cx="32" cy="37" r="15.5" fill="#fff" />
+          <circle cx="32" cy="37" r="6.4" fill="#000" />
+        </svg>
+
         <div className="sheet-title">Avocado, clé de récupération</div>
+        <span className="grow" />
         <div className="sheet-date">{createdOn}</div>
       </header>
 
