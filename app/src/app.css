@@ -1,0 +1,168 @@
+/* Provisional layout, replaced when Tailwind + shadcn/ui land.
+   Kept out of tokens.css so an updated design-system file can be dropped in verbatim. */
+
+/* --- Reset ---------------------------------------------------------------- */
+
+/* Without border-box, .shell's 100vh + 32px padding overflows the viewport and the window shows a
+   scrollbar with nothing to scroll to. The body margin does the same horizontally. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  /* The application window never scrolls as a whole; individual panels do. */
+  overflow: hidden;
+}
+
+/* --- Provisional first-run layout ----------------------------------------- */
+
+.shell {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 32px;
+  overflow-y: auto;
+}
+
+.pane {
+  width: min(680px, 100%);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+}
+
+.pane h1 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.pane p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 23px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.danger {
+  color: var(--status-danger);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input {
+  flex: 1;
+  min-width: 0;
+}
+
+input[type='text'],
+input:not([type]) {
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+button {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--brand);
+  color: var(--text-on-brand);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  justify-self: start;
+}
+
+button:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+/* The recovery key: three rows of three groups, per the setup handoff. */
+.key {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+}
+
+.key span {
+  padding: 6px 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 17px;
+  letter-spacing: 0.09em;
+  text-align: center;
+}
+
+.confirm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.callout {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--status-danger);
+  border-left-width: 3px;
+  border-radius: 6px;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 12px;
+}
+
+dt {
+  color: var(--text-muted);
+}
+
+dd {
+  margin: 0;
+}

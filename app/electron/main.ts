@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, screen, session } from 'electron'
 import path from 'node:path'
 import { Backend, type BackendHandshake } from './backend.js'
 
@@ -17,14 +17,22 @@ const MIN_WIDTH = 1024
 const MIN_HEIGHT = 700
 
 async function createWindow(): Promise<void> {
+  // 1440x900 is what the screens were designed against, but plenty of laptops are shorter than that
+  // and an oversized window opens with its content off the bottom of the display.
+  const { width: availableWidth, height: availableHeight } = screen.getPrimaryDisplay().workAreaSize
+
   const window = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: Math.min(1440, availableWidth),
+    height: Math.min(900, availableHeight),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
     show: false,
-    backgroundColor: '#101310',
+    // --surface-app in the light theme, so the frame painted before the renderer arrives already
+    // matches what replaces it.
+    backgroundColor: '#F3F5F0',
     title: 'Avocado',
+    // Copied from public/ by Vite, so this one path works in development and when packaged.
+    icon: path.join(directory, '..', 'dist', 'icon.png'),
     webPreferences: {
       preload: path.join(directory, 'preload.cjs'),
       // The renderer is untrusted by construction: it renders content that came off disk. It gets no
@@ -72,6 +80,11 @@ function applyContentSecurityPolicy(): void {
 
 app.whenReady().then(async () => {
   try {
+    // Electron's default menu is English and offers File/Edit/View/Window/Help, none of which this
+    // application has. No design frame shows a menu bar; navigation is the rail and the ⌘K palette.
+    // Chromium still handles the clipboard accelerators in text fields without it.
+    Menu.setApplicationMenu(null)
+
     const vaultDirectory =
       process.env.AVOCADO_VAULT ?? path.join(app.getPath('documents'), 'Avocado')
 

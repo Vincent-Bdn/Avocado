@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "electron:dev": "vite build && electron .",
-    "electron:pack": "vite build && electron-builder --dir"
+    "electron:pack": "vite build && electron-builder --dir",
+    "icons": "powershell -ExecutionPolicy Bypass -File scripts/make-icons.ps1"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
@@ -25,5 +26,36 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
+  },
+  "build": {
+    "appId": "fr.avocado.app",
+    "productName": "Avocado",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../artifacts/backend",
+        "to": "backend"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": "nsis"
+    },
+    "mac": {
+      "icon": "public/icon.png",
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "icon": "public/icon.png",
+      "target": "AppImage",
+      "category": "Office"
+    }
   }
 }
