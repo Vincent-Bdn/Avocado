@@ -755,3 +755,149 @@
 
 .billing-breakdown > div { display: flex; justify-content: space-between; }
 .billing-result { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border-subtle); font-weight: 600; }
+
+/* --- Journal entry actions, attachments, undo ------------------------------ */
+
+/* The fourth column exists always; only its opacity changes, so the row never reflows on hover. */
+.entry { position: relative; }
+.entry-actions {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-fast, 110ms) ease;
+}
+
+.entry:hover { background: var(--surface-app); box-shadow: inset 2px 0 0 var(--border-default); }
+.entry:hover .entry-actions { opacity: 1; }
+.entry-actions:focus-within { opacity: 1; }
+
+.entry-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.entry-actions button:hover { background: var(--surface-hover); }
+.danger-action { color: var(--status-danger); }
+.danger-action:hover { border-color: var(--status-danger); }
+
+.entry .dot { display: grid; place-items: center; }
+.dot-brand { color: var(--brand); }
+.dot-info { color: var(--status-info); }
+.dot-neutral { color: var(--text-secondary); }
+
+.entry-contact { font-size: 11.5px; color: var(--text-secondary); }
+
+.attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+
+.attachment {
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: var(--surface-app);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+}
+
+.entry-edit {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.toast {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--status-info);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  box-shadow: var(--elevation-1);
+  font-size: 12px;
+}
+
+.toast .link-button { padding: 0; }
+
+.journal { position: relative; }
+
+.frozen { display: flex; gap: 11px; align-items: flex-start; }
+.frozen > svg { flex: 0 0 auto; margin-top: 2px; color: var(--text-muted); }
+.frozen p { margin: 0; font-size: 12.5px; line-height: 19px; }
+.frozen p + p { margin-top: 4px; }
+
+/* Duration entry inside the composer chip: two numeric fields, never parsed prose. */
+.duration-entry input.unit {
+  width: 26px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+
+.duration-fields { display: flex; align-items: center; gap: 4px; }
+.unit-field { width: 44px; height: 28px; text-align: center; }
+
+/* --- Context panel --------------------------------------------------------- */
+
+.context section:last-child { border-bottom: 0; }
+.deadline-label { font-size: 11.5px; line-height: 15px; }
+.deadline-when { display: flex; align-items: center; gap: 5px; margin-top: 2px; font-size: 10px; }
+.context-amount { font-size: 19px; line-height: 24px; font-weight: 600; }
+
+/* Four tiers, four shapes: a black and white printout stays readable. */
+.tier { flex: 0 0 auto; width: 7px; height: 7px; }
+.tier-overdue { background: var(--status-danger); transform: rotate(45deg); }
+.tier-today { background: var(--accent); border-radius: 999px; }
+.tier-thisweek { border: 1.5px solid var(--status-info); border-radius: 999px; }
+.tier-later { background: #c0c6bb; border-radius: 999px; }
+
+.party-text { min-width: 0; display: grid; }
+.party-name { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.party-role {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-client { color: var(--brand-on-subtle); }
+.add-party { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; }
+.bullet-filled { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+
+.row-actions { display: flex; gap: 2px; }
+.row-actions button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+}
+
+.row-actions button:hover { background: var(--surface-hover); border-color: var(--border-subtle); }
+.inline-form.editing { border-color: var(--focus-ring); }

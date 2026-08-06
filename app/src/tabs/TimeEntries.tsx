@@ -39,7 +39,8 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
   const [page, setPage] = useState<TimeEntryPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [duration, setDuration] = useState('')
+  const [hours, setHours] = useState('')
+  const [minutes, setMinutes] = useState('')
   const [task, setTask] = useState('')
   const [billable, setBillable] = useState(true)
 
@@ -53,24 +54,21 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
 
   useEffect(reload, [reload])
 
-  async function add() {
-    const minutes = parseDuration(duration)
-    if (minutes === null) {
-      setError('Durée non comprise. Essayez « 1h30 », « 90 » ou « 1,5 ».')
-      return
-    }
+  const durationMinutes = Number(hours || 0) * 60 + Number(minutes || 0)
 
+  async function add() {
     setError(null)
 
     try {
       await post(`/api/matters/${matterId}/time-entries`, {
         date,
         task,
-        durationMinutes: minutes,
+        durationMinutes,
         isBillable: billable,
       })
 
-      setDuration('')
+      setHours('')
+      setMinutes('')
       setTask('')
       reload()
       onChanged()
@@ -85,13 +83,28 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
         <div className="inline-form">
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
 
-          <input
-            className="narrow"
-            value={duration}
-            placeholder="1h30"
-            aria-label="Durée"
-            onChange={(event) => setDuration(event.target.value)}
-          />
+          {/* Two fields rather than parsed prose: « 30 minutes » is a sentence, and guessing at
+              sentences is how a duration silently lands wrong. */}
+          <span className="duration-fields">
+            <input
+              className="mono unit-field"
+              inputMode="numeric"
+              placeholder="0"
+              value={hours}
+              aria-label="Heures"
+              onChange={(event) => setHours(event.target.value.replace(/\D/g, ''))}
+            />
+            <span className="muted">h</span>
+            <input
+              className="mono unit-field"
+              inputMode="numeric"
+              placeholder="00"
+              value={minutes}
+              aria-label="Minutes"
+              onChange={(event) => setMinutes(event.target.value.replace(/\D/g, ''))}
+            />
+            <span className="muted">min</span>
+          </span>
 
           <input
             className="flex"
@@ -109,7 +122,7 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
             Facturable
           </label>
 
-          <button type="button" disabled={!duration || !task.trim()} onClick={() => void add()}>
+          <button type="button" disabled={durationMinutes <= 0 || !task.trim()} onClick={() => void add()}>
             Ajouter
           </button>
         </div>
@@ -170,23 +183,4 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
       </div>
     </div>
   )
-}
-
-/** Accepts « 1h30 », « 90 » and « 1,5 ». Formatting is a UI concern, so it stays here. */
-export function parseDuration(input: string): number | null {
-  const value = input.trim().toLowerCase().replace(',', '.')
-  if (!value) return null
-
-  const hoursAndMinutes = /^(\d+)\s*h\s*(\d+)?$/.exec(value)
-  if (hoursAndMinutes) {
-    return Number(hoursAndMinutes[1]) * 60 + Number(hoursAndMinutes[2] ?? 0)
-  }
-
-  const decimalHours = /^(\d+\.\d+)\s*h?$/.exec(value)
-  if (decimalHours) {
-    return Math.round(Number(decimalHours[1]) * 60)
-  }
-
-  const minutes = /^(\d+)$/.exec(value)
-  return minutes ? Number(minutes[1]) : null
 }

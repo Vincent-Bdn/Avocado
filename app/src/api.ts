@@ -78,7 +78,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: {
       Authorization: `Bearer ${token}`,
-      ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      // Only for JSON. FormData must set its own header so the browser can add the multipart
+      // boundary; forcing application/json on an upload is what produced a 415.
+      ...(typeof init.body === 'string' ? { 'Content-Type': 'application/json' } : {}),
       ...init.headers,
     },
   })

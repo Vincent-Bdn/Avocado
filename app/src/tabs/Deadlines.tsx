@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { urgencyLabels } from '../labels.js'
 import type { DeadlineUrgency } from '../types.js'
@@ -31,6 +31,7 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
   onChanged: () => void
 }) {
   const [items, setItems] = useState<DeadlineItem[]>([])
+  const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [date, setDate] = useState('')
   const [label, setLabel] = useState('')
@@ -60,12 +61,19 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
     }
   }
 
-  async function markDone(item: DeadlineItem) {
+  async function save(item: DeadlineItem, changes: Partial<DeadlineItem>) {
     await api(`/api/deadlines/${item.id}`, {
       method: 'PUT',
-      body: JSON.stringify({ ...item, isDone: !item.isDone }),
+      body: JSON.stringify({ ...item, ...changes }),
     })
 
+    setEditing(null)
+    reload()
+    onChanged()
+  }
+
+  async function remove(item: DeadlineItem) {
+    await api(`/api/deadlines/${item.id}`, { method: 'DELETE' })
     reload()
     onChanged()
   }
@@ -113,33 +121,88 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
       )}
 
       <div className="rows">
-        {items.map((item) => (
-          <div key={item.id} className={`deadline-row urgency-${item.urgency.toLowerCase()} ${item.isDone ? 'row-done' : ''}`}>
-            <span className="mono row-date">
-              {new Date(item.date).toLocaleDateString('fr-FR')}
-              {item.time && ` · ${item.time.slice(0, 5)}`}
-            </span>
+        {items.map((item) =>
+          editing === item.id ? (
+            <EditRow
+              key={item.id}
+              item={item}
+              onCancel={() => setEditing(null)}
+              onSave={(changes) => void save(item, changes)}
+            />
+          ) : (
+            <div
+              key={item.id}
+              className={`deadline-row urgency-${item.urgency.toLowerCase()} ${item.isDone ? 'row-done' : ''}`}
+            >
+              <span className="mono row-date">
+                {new Date(item.date).toLocaleDateString('fr-FR')}
+                {item.time && ` · ${item.time.slice(0, 5)}`}
+              </span>
 
-            <span className="row-main">
-              <span>{item.label}</span>
-              <span className="muted micro">{typeLabels[item.type]}</span>
-            </span>
+              <span className="row-main">
+                <span>{item.label}</span>
+                <span className="muted micro">{typeLabels[item.type]}</span>
+              </span>
 
-            <span className="muted micro">{item.isDone ? 'Faite' : urgencyLabels[item.urgency]}</span>
+              <span className="muted micro">{item.isDone ? 'Faite' : urgencyLabels[item.urgency]}</span>
 
-            {isOpen && (
-              <button
-                type="button"
-                className="ghost-button"
-                title={item.isDone ? 'Rouvrir' : 'Marquer comme faite'}
-                onClick={() => void markDone(item)}
-              >
-                <Check size={13} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-        ))}
+              {isOpen && (
+                <span className="row-actions">
+                  <button
+                    type="button"
+                    title={item.isDone ? 'Rouvrir' : 'Marquer comme faite'}
+                    onClick={() => void save(item, { isDone: !item.isDone })}
+                  >
+                    <Check size={13} strokeWidth={2} />
+                  </button>
+                  <button type="button" title="Modifier" onClick={() => setEditing(item.id)}>
+                    <Pencil size={13} strokeWidth={1.75} />
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-action"
+                    title="Supprimer"
+                    onClick={() => void remove(item)}
+                  >
+                    <Trash2 size={13} strokeWidth={1.75} />
+                  </button>
+                </span>
+              )}
+            </div>
+          ),
+        )}
       </div>
+    </div>
+  )
+}
+
+function EditRow({ item, onCancel, onSave }: {
+  item: DeadlineItem
+  onCancel: () => void
+  onSave: (changes: Partial<DeadlineItem>) => void
+}) {
+  const [date, setDate] = useState(item.date)
+  const [label, setLabel] = useState(item.label)
+  const [type, setType] = useState<DeadlineType>(item.type)
+
+  return (
+    <div className="inline-form editing">
+      <input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
+
+      <select value={type} onChange={(event) => setType(event.target.value as DeadlineType)}>
+        {Object.entries(typeLabels).map(([value, text]) => (
+          <option key={value} value={value}>{text}</option>
+        ))}
+      </select>
+
+      <input className="flex" value={label} onChange={(event) => setLabel(event.target.value)} />
+
+      <button type="button" disabled={!label.trim()} onClick={() => onSave({ date, label, type })}>
+        Enregistrer
+      </button>
+      <button type="button" className="secondary-button" onClick={onCancel}>
+        <X size={13} strokeWidth={2} />
+      </button>
     </div>
   )
 }
