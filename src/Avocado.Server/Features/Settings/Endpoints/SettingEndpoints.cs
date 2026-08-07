@@ -1,5 +1,7 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Settings.Endpoints.Dtos;
+using Avocado.Server.Features.Documents.Workspace;
+using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Settings.Endpoints;
@@ -19,14 +21,19 @@ public static class GetSettings
 {
     public static async Task<IResult> HandleAsync(
         AvocadoDbContext database,
+        IVaultStore vaultStore,
+        TenantContext tenant,
+        WorkingDirectory workingDirectory,
         CancellationToken cancellationToken)
     {
         var stored = await database.PracticeSettings
             .AsNoTracking()
             .ToDictionaryAsync(setting => setting.Key, setting => setting.Value, cancellationToken);
 
-        return Results.Ok(new PracticeSettings(
-            ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents)));
+        return Results.Ok(new PracticeInfo(
+            ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents),
+            vaultStore.Get(tenant.VaultId).Paths.Root,
+            workingDirectory.For(tenant.VaultId)));
     }
 
     private static long ReadLong(IReadOnlyDictionary<string, string> stored, string key, long fallback) =>

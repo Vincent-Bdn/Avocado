@@ -9,13 +9,14 @@ import { Documents } from './tabs/Documents.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
 import { Avatar } from './components/ui/avatar.js'
 import { Badge, NumberPill } from './components/ui/badge.js'
-import { Button, Kbd } from './components/ui/button.js'
+import { Button } from './components/ui/button.js'
 import { Dialog, DialogActions, Field } from './components/ui/dialog.js'
 import { Input } from './components/ui/input.js'
 import { Panel } from './components/ui/panel.js'
 import { Select } from './components/ui/select.js'
 import { NewContact } from './sections/NewContact.js'
 import { RowAction } from './tabs/shared.js'
+import { billingTone, readBilling } from './lib/billing.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
@@ -158,13 +159,6 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           >
             {matter.isOpen ? 'Clôturer' : 'Rouvrir le dossier'}
           </Button>
-
-          {matter.isOpen && (
-            <Button onClick={() => { setTab('journal'); focusComposer() }}>
-              Entrée
-              <Kbd>⌘J</Kbd>
-            </Button>
-          )}
         </div>
       </header>
 
@@ -223,20 +217,11 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
 const Divider = () => <span className="h-2.5 w-px shrink-0 bg-line" />
 
-/**
- * The header button and ⌘J have to land in the same place. Rather than thread a ref through the tab
- * switch, the button replays the shortcut the composer already listens for.
- */
-function focusComposer() {
-  requestAnimationFrame(() =>
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', ctrlKey: true })),
-  )
-}
-
 /** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
 function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: () => void }) {
   const [addingParty, setAddingParty] = useState(false)
   const [editingParty, setEditingParty] = useState<string | null>(null)
+  const reading = readBilling(matter.billing)
 
   async function removeParty(id: string) {
     await api(`/api/parties/${id}`, { method: 'DELETE' }).then(onChanged).catch(() => onChanged())
@@ -268,42 +253,56 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
         ))}
       </section>
 
-      <section className="rounded-sm border border-[#E8D5AE] bg-[#FDF8ED] px-2.5 py-2 text-[#6E4A0E]">
-        <ContextTitle className="text-[#6E4A0E]">À facturer</ContextTitle>
+      <section className={cn('rounded-sm border px-2.5 py-2', billingTone[reading.tone])}>
+        <ContextTitle className="text-current opacity-80">{reading.caption}</ContextTitle>
 
         <div className="font-mono text-[19px] leading-6 font-semibold tnum">
-          {formatEuros(matter.billing.leftToBillCents)}
+          {reading.headline < 0 && reading.settled ? '− ' : ''}
+          {formatEuros(Math.abs(reading.headline))}
         </div>
 
-        <div className="font-mono text-[10px] tnum">
-          {formatDuration(matter.billing.billableMinutes)} facturables ·{' '}
-          {formatEuros(matter.hourlyRateCents)}/h
-        </div>
+        {reading.settled ? (
+          <>
+            {matter.billing.varianceCents !== 0 && (
+              <div className="font-mono text-[10px] tnum">
+                {matter.billing.varianceCents > 0 ? 'boni ' : 'mali '}
+                {formatEuros(Math.abs(matter.billing.varianceCents))} sur{' '}
+                {formatEuros(matter.billing.invoicedCents - matter.billing.varianceCents)} d’heures
+              </div>
+            )}
 
-        {matter.billing.ledgerCents !== 0 && (
-          <div className="font-mono text-[10px] tnum">
-            {matter.billing.ledgerCents > 0 ? '− ' : '+ '}
-            {formatEuros(Math.abs(matter.billing.ledgerCents))}{' '}
-            {matter.billing.ledgerCents > 0 ? 'déjà reçu' : 'avancé'}
-          </div>
-        )}
+            <div className="font-mono text-[10px] tnum opacity-80">tout le temps saisi est facturé</div>
+          </>
+        ) : (
+          <>
+            <div className="font-mono text-[10px] tnum">
+              {formatDuration(matter.billing.billableMinutes)} facturables ·{' '}
+              {formatEuros(matter.hourlyRateCents)}/h
+            </div>
 
-        {/*
-          Already invoiced is the other half of the answer and belongs on the same card, not in a
-          footnote: what she is actually watching is the trésorerie, and « reste à facturer » alone
-          says nothing about what has already gone out the door.
-        */}
-        {matter.billing.invoicedCents > 0 && (
-          <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
-            <div className="type-group text-[#6E4A0E] opacity-80">Déjà facturé</div>
-            <div className="font-mono text-[15px] leading-5 font-semibold tnum">
-              {formatEuros(matter.billing.invoicedCents)}
-            </div>
-            <div className="font-mono text-[10px] tnum opacity-80">
-              soit {formatEuros(matter.billing.invoicedCents + matter.billing.leftToBillCents)} au total
-              sur ce dossier
-            </div>
-          </div>
+            {matter.billing.ledgerCents !== 0 && (
+              <div className="font-mono text-[10px] tnum">
+                {matter.billing.ledgerCents > 0 ? '− ' : '+ '}
+                {formatEuros(Math.abs(matter.billing.ledgerCents))}{' '}
+                {matter.billing.ledgerCents > 0 ? 'déjà reçu' : 'avancé'}
+              </div>
+            )}
+
+            {matter.billing.invoicedCents > 0 && (
+              <div className="mt-1.5 border-t border-current/20 pt-1.5">
+                <div className="type-group opacity-80">Déjà facturé</div>
+                <div className="font-mono text-[13px] leading-4 font-semibold tnum">
+                  {formatEuros(matter.billing.invoicedCents)}
+                </div>
+                {matter.billing.varianceCents !== 0 && (
+                  <div className="font-mono text-[10px] tnum opacity-80">
+                    dont {matter.billing.varianceCents > 0 ? 'boni' : 'mali'}{' '}
+                    {formatEuros(Math.abs(matter.billing.varianceCents))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </section>
 

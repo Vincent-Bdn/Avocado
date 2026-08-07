@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, FileSpreadsheet, ListChecks, PenLine, Pencil, Trash2, X } from 'lucide-react'
+import {
+  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, ListChecks, PenLine, Pencil,
+  Trash2, X,
+} from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
@@ -9,6 +12,7 @@ import { SplitButton, SplitButtonItem } from '../components/ui/split-button.js'
 import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
+import { readBilling } from '../lib/billing.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
 
@@ -83,6 +87,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null)
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
   const [billing, setBilling] = useState<'time' | 'manual' | null>(null)
+  const [movement, setMovement] = useState<MovementKind | null>(null)
   const toasts = useToasts()
 
   const reload = useCallback(() => {
@@ -131,9 +136,8 @@ export function Billing({ matterId, isOpen, onChanged }: {
 
   const { summary, statement } = data
 
-  // Nothing left to bill and something already billed. « Reste à facturer : −150 € » is a provision
-  // showing through, not an answer to a question anyone asked.
-  const settled = summary.billableMinutes === 0 && summary.invoicedCents > 0
+  // Same reading as the fiche's context panel, from the same place, so the two cannot disagree.
+  const { settled } = readBilling(summary)
 
   return (
     <TabPanel className="relative">
@@ -338,8 +342,40 @@ export function Billing({ matterId, isOpen, onChanged }: {
 
       <section className="grid gap-2">
         <h3 className="type-title m-0">Mouvements</h3>
+        <Micro>
+          Les provisions reçues et les frais avancés pour le compte du client : ils viennent en
+          déduction de ce qui reste à facturer.
+        </Micro>
 
-        {isOpen && <MovementForm matterId={matterId} onSaved={refresh} />}
+        {isOpen && (
+          <SplitButton label="Enregistrer un mouvement…" icon={<ArrowLeftRight size={14} strokeWidth={1.75} />}>
+            {(close) => (
+              <>
+                <SplitButtonItem
+                  icon={<ArrowDownLeft size={14} strokeWidth={1.75} />}
+                  title="Un encaissement"
+                  detail="Provision sur honoraires, acompte reçu"
+                  onClick={() => { close(); setMovement('Receipt') }}
+                />
+                <SplitButtonItem
+                  icon={<ArrowUpRight size={14} strokeWidth={1.75} />}
+                  title="Un débours"
+                  detail="Frais de greffe, huissier, expertise avancés pour le client"
+                  onClick={() => { close(); setMovement('Disbursement') }}
+                />
+              </>
+            )}
+          </SplitButton>
+        )}
+
+        {movement && (
+          <MovementDialog
+            matterId={matterId}
+            kind={movement}
+            onCancel={() => setMovement(null)}
+            onSaved={() => { setMovement(null); refresh() }}
+          />
+        )}
 
         <div className="grid">
           {data.ledger.map((entry) =>
@@ -736,18 +772,44 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
   )
 }
 
+/** Recording a mouvement. The nature is already chosen by the menu item that opened this. */
+function MovementDialog({ matterId, kind, onCancel, onSaved }: {
+  matterId: string
+  kind: MovementKind
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  return (
+    <Dialog
+      title={kind === 'Receipt' ? 'Enregistrer un encaissement' : 'Enregistrer un débours'}
+      onClose={onCancel}
+    >
+      <p className="m-0 text-[12.5px] leading-[19px] text-muted">
+        {kind === 'Receipt'
+          ? 'Une somme reçue du client avant facturation. Elle réduit ce qui reste à facturer.'
+          : 'Une somme avancée pour le compte du client. Elle augmente ce qui reste à facturer.'}
+      </p>
+
+      <MovementForm matterId={matterId} initialKind={kind} onSaved={onSaved} onCancel={onCancel} bare />
+    </Dialog>
+  )
+}
+
 /**
  * Nature first, amount second, and the amount is always positive. A débours typed as a positive
  * number would silently corrupt every balance on the dossier, so the sign is never exposed here and
  * the server applies it on both create and update.
  */
-function MovementForm({ matterId, movement, onSaved, onCancel }: {
+function MovementForm({ matterId, movement, initialKind, onSaved, onCancel, bare }: {
   matterId: string
   movement?: BillingMovement
+  initialKind?: MovementKind
   onSaved: () => void
   onCancel?: () => void
+  /** Inside a dialog the bordered strip would be a box in a box. */
+  bare?: boolean
 }) {
-  const [kind, setKind] = useState<MovementKind>(movement?.kind ?? 'Receipt')
+  const [kind, setKind] = useState<MovementKind>(movement?.kind ?? initialKind ?? 'Receipt')
   const [date, setDate] = useState(movement?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10))
   const [amount, setAmount] = useState(movement ? centsToAmount(movement.amountCents) : '')
   const [label, setLabel] = useState(movement?.label ?? '')
@@ -789,9 +851,8 @@ function MovementForm({ matterId, movement, onSaved, onCancel }: {
     }
   }
 
-  return (
-    <div className="grid gap-1">
-      <InlineForm editing={Boolean(movement)}>
+  const fields = (
+    <>
         <div className="flex gap-0.5">
           <KindButton active={kind === 'Receipt'} tone="brand" onClick={() => setKind('Receipt')}>
             Encaissement
@@ -826,13 +887,26 @@ function MovementForm({ matterId, movement, onSaved, onCancel }: {
               : 'Enregistrer le débours'}
         </Button>
 
-        {onCancel && (
+        {onCancel && !bare && (
           <Button variant="secondary" size="icon" aria-label="Annuler" onClick={onCancel}>
             <X size={13} strokeWidth={2} />
           </Button>
         )}
-      </InlineForm>
+    </>
+  )
 
+  if (bare) {
+    return (
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-2">{fields}</div>
+        {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-1">
+      <InlineForm editing={Boolean(movement)}>{fields}</InlineForm>
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
     </div>
   )

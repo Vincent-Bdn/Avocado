@@ -104,7 +104,18 @@ app.whenReady().then(async () => {
     const vaultDirectory =
       process.env.AVOCADO_VAULT ?? path.join(app.getPath('documents'), 'Avocado')
 
-    handshake = await backend.start(vaultDirectory)
+    // Working copies never go in the coffre, and never anywhere that synchronises. On Windows that
+    // rules out `userData` as well: Electron points it at Roaming, which a domain profile copies
+    // between machines. LOCALAPPDATA is the machine-local half of the same idea. On macOS and Linux
+    // `userData` already is local (~/Library/Application Support, ~/.config).
+    const localState =
+      process.platform === 'win32' && process.env.LOCALAPPDATA
+        ? path.join(process.env.LOCALAPPDATA, 'Avocado')
+        : app.getPath('userData')
+
+    const workingDirectory = path.join(localState, 'working')
+
+    handshake = await backend.start(vaultDirectory, workingDirectory)
 
     // Resolved before the window exists, so the renderer never has to ask twice or poll.
     ipcMain.handle('avocado:connection', () => handshake)
@@ -131,7 +142,7 @@ app.whenReady().then(async () => {
      * cannot turn this into « open any file on this machine ».
      */
     ipcMain.handle('avocado:openWorkingCopy', async (_event, target: string) => {
-      const working = path.join(vaultDirectory, '.working-dir')
+      const working = workingDirectory
       const resolved = path.resolve(target)
 
       if (!resolved.startsWith(path.resolve(working) + path.sep)) {

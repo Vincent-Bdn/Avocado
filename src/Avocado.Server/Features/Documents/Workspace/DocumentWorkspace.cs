@@ -23,15 +23,17 @@ namespace Avocado.Server.Features.Documents.Workspace;
 /// hash) has none of those failure modes and costs nothing for the handful of files that are ever
 /// open at once. Correctness here is worth far more than latency.</para>
 ///
-/// <para><b>What is on disk in clear.</b> Exactly the files currently open, inside the coffre folder,
-/// for as long as they are open. That is the honest cost of letting Word edit them at all: no
-/// application can hand a file to Word without the file existing. The working folder is emptied on
-/// check-in and on a clean shutdown, and anything found there at startup is reported rather than
-/// deleted — a crash must never silently discard an afternoon's drafting.</para>
+/// <para><b>What is on disk in clear.</b> Exactly the files currently open, for as long as they are
+/// open. That is the honest cost of letting Word edit them at all: no application can hand a file to
+/// Word without the file existing. They live outside the coffre — see <see cref="WorkingDirectory"/>
+/// for why — and the folder is emptied on check-in and on a clean shutdown. Anything found there at
+/// startup is reconciled rather than deleted: a crash must never silently discard an afternoon's
+/// drafting.</para>
 /// </summary>
 public sealed class DocumentWorkspace(
     IVaultStore vaultStore,
     VaultDbContextFactory contextFactory,
+    WorkingDirectory workingDirectory,
     ILogger<DocumentWorkspace> logger) : BackgroundService
 {
     /// <summary>Long enough that Word's rename dance has finished, short enough to feel immediate.</summary>
@@ -40,10 +42,11 @@ public sealed class DocumentWorkspace(
     /// <summary>Word holds an exclusive lock while it saves. This is how long we wait it out.</summary>
     private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(8);
 
-    private const string WorkingFolderName = ".working-dir";
-
-    /// <summary>The folder's first name. Swept away at startup so an upgrade leaves nothing behind.</summary>
-    private const string FormerWorkingFolderName = ".travail";
+    /// <summary>
+    /// Where working copies used to live, inside the coffre. Emptied at startup so an upgrade leaves
+    /// no plaintext behind in a folder nothing looks at any more.
+    /// </summary>
+    private static readonly string[] FormerFolderNames = [".working-dir", ".travail"];
 
     /// <summary>
     /// How long a file has to sit untouched, unlocked and with no Office sidecar before it is put
@@ -61,8 +64,7 @@ public sealed class DocumentWorkspace(
     /// </summary>
     private readonly ConcurrentDictionary<string, byte> _pendingRemoval = new();
 
-    public static string WorkingRoot(OpenVault vault) =>
-        Path.Combine(vault.Paths.Root, WorkingFolderName);
+    public string WorkingRoot(Guid vaultId) => workingDirectory.For(vaultId);
 
     /// <summary>
     /// Decrypts the document into the working folder and starts watching it. Checking out a document
@@ -80,13 +82,13 @@ public sealed class DocumentWorkspace(
             return already.Path;
         }
 
-        var vault = vaultStore.Get(vaultId);
-        var directory = Path.Combine(WorkingRoot(vault), document.Id.ToString());
+        var directory = Path.Combine(WorkingRoot(vaultId), document.Id.ToString());
         Directory.CreateDirectory(directory);
 
         // The document id, not the file name, is the folder: two dossiers both holding
         // « conclusions.docx » must not land on the same working path.
         var path = Path.Combine(directory, SafeName(document.FileName));
+        var vault = vaultStore.Get(vaultId);
         var reference = new BlobReference(document.BlobSha256, document.SizeBytes);
 
         // A leftover copy of the same document, still held by the reader that opened it last time,
@@ -190,9 +192,7 @@ public sealed class DocumentWorkspace(
         Guid vaultId,
         CancellationToken cancellationToken)
     {
-        var root = WorkingRoot(vaultStore.Get(vaultId));
-
-        return await ReconcileAsync(vaultId, root, cancellationToken);
+        return await ReconcileAsync(vaultId, WorkingRoot(vaultId), cancellationToken);
     }
 
     private async Task<IReadOnlyList<AbandonedFile>> ReconcileAsync(
@@ -274,8 +274,7 @@ public sealed class DocumentWorkspace(
         bool keep,
         CancellationToken cancellationToken)
     {
-        var root = WorkingRoot(vaultStore.Get(vaultId));
-        var directory = Path.Combine(root, documentId.ToString());
+        var directory = Path.Combine(WorkingRoot(vaultId), documentId.ToString());
 
         if (!Directory.Exists(directory))
         {
@@ -355,45 +354,53 @@ public sealed class DocumentWorkspace(
         }
     }
 
-    private async Task AdoptFormerFolderAsync(OpenVault vault, CancellationToken cancellationToken)
+    /// <summary>
+    /// Earlier builds kept working copies inside the coffre. Whatever is left there is reconciled the
+    /// same way, and anything genuinely modified is <em>moved</em> to the new location rather than
+    /// deleted: an upgrade must not be the thing that loses an afternoon's work.
+    /// </summary>
+    private async Task AdoptFormerFoldersAsync(OpenVault vault, CancellationToken cancellationToken)
     {
-        var former = Path.Combine(vault.Paths.Root, FormerWorkingFolderName);
-
-        if (!Directory.Exists(former))
+        foreach (var name in FormerFolderNames)
         {
-            return;
-        }
+            var former = Path.Combine(vault.Paths.Root, name);
 
-        // Reconciling first deletes everything already safe in the coffre, which is most of it.
-        var survivors = await ReconcileAsync(vault.Id, former, cancellationToken);
-        var root = WorkingRoot(vault);
-
-        foreach (var survivor in survivors)
-        {
-            var source = Path.Combine(former, survivor.DocumentId.ToString());
-            var target = Path.Combine(root, survivor.DocumentId.ToString());
-
-            try
+            if (!Directory.Exists(former))
             {
-                if (Directory.Exists(source) && !Directory.Exists(target))
+                continue;
+            }
+
+            // Reconciling first deletes everything already safe in the coffre, which is most of it.
+            var survivors = await ReconcileAsync(vault.Id, former, cancellationToken);
+            var root = WorkingRoot(vault.Id);
+
+            foreach (var survivor in survivors)
+            {
+                var source = Path.Combine(former, survivor.DocumentId.ToString());
+                var target = Path.Combine(root, survivor.DocumentId.ToString());
+
+                try
                 {
-                    Directory.CreateDirectory(root);
-                    Directory.Move(source, target);
+                    if (Directory.Exists(source) && !Directory.Exists(target))
+                    {
+                        Directory.CreateDirectory(root);
+                        Directory.Move(source, target);
+                    }
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    logger.LogWarning(exception, "Could not move {Source} out of the coffre.", source);
                 }
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+
+            await DiscardAsync(former, cancellationToken);
+
+            if (survivors.Count > 0)
             {
-                logger.LogWarning(exception, "Could not move {Source} into the renamed working folder.", source);
+                logger.LogInformation(
+                    "Moved {Count} modified working file(s) out of the coffre's '{Former}' folder.",
+                    survivors.Count, name);
             }
-        }
-
-        await DiscardAsync(former, cancellationToken);
-
-        if (survivors.Count > 0)
-        {
-            logger.LogInformation(
-                "Carried {Count} modified file(s) over from the former '{Former}' folder.",
-                survivors.Count, FormerWorkingFolderName);
         }
     }
 
@@ -489,12 +496,9 @@ public sealed class DocumentWorkspace(
                 return "No vault open; working folder not swept.";
             }
 
-            // An older build wrote to `.travail`. Anything it left that still matches the coffre is
-            // swept; anything genuinely modified is *moved* into the new folder rather than deleted,
-            // so an upgrade cannot be the thing that loses an afternoon's work.
-            await AdoptFormerFolderAsync(vault, cancellationToken);
+            await AdoptFormerFoldersAsync(vault, cancellationToken);
 
-            var root = WorkingRoot(vault);
+            var root = WorkingRoot(vault.Id);
             var before = Directory.Exists(root) ? Directory.GetDirectories(root).Length : 0;
             var left = await AbandonedAsync(vault.Id, cancellationToken);
 

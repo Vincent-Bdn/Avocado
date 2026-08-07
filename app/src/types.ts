@@ -53,10 +53,15 @@ export interface MatterParty {
 }
 
 export interface BillingSummary {
+  /** Billable time not yet attached to a facture. */
   billableTimeCents: number
   billableMinutes: number
   ledgerCents: number
   invoicedCents: number
+  /** The part of `invoicedCents` recorded by hand rather than built from selected hours. */
+  manualInvoicedCents: number
+  /** Positive = boni, negative = mali. */
+  varianceCents: number
   leftToBillCents: number
 }
 
@@ -87,6 +92,8 @@ export interface MatterDetail {
 
 export interface PracticeSettings {
   hourlyRateCents: number
+  vaultDirectory: string
+  workingDirectory: string
 }
 
 export interface ActivityListItem {

@@ -28,6 +28,7 @@ public static class UploadDocument
         // so without this the fields sent alongside the files are silently dropped.
         [FromForm] Guid? activityId,
         [FromForm] string? type,
+        [FromForm] string? folder,
         CancellationToken cancellationToken)
     {
         if (!await database.Matters.AnyAsync(matter => matter.Id == matterId, cancellationToken))
@@ -67,6 +68,9 @@ public static class UploadDocument
             {
                 MatterId = matterId,
                 ActivityId = activityId,
+                // Filed on the way in. Uploading and then classifying is two steps for one intention,
+                // and the second one is the one people skip.
+                Folder = DocumentFolder.Normalise(folder),
                 BlobSha256 = blob.Sha256,
                 FileName = Path.GetFileName(file.FileName),
                 SizeBytes = blob.SizeBytes,

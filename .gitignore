@@ -51,5 +51,3 @@ blobs/
 backups/
 *.blob
 
-# Working copies of documents open in Word. Inside the vault folder, never in the repo.
-.working-dir/

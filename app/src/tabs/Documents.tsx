@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Check, Download, FilePlus2, FileText, Folder, Paperclip, Pencil, SquareArrowOutUpRight, Trash2, Undo2, X,
+  Check, Download, FilePlus2, FileText, Folder, FolderInput, Paperclip, Pencil,
+  SquareArrowOutUpRight, Trash2, Undo2, X,
 } from 'lucide-react'
 import { ApiError, api, download, post } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
@@ -71,6 +72,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [workspace, setWorkspace] = useState<WorkspaceState>({ open: [], abandoned: [] })
   const [templates, setTemplates] = useState<TemplateItem[]>([])
   const [generating, setGenerating] = useState(false)
+  const [uploadFolder, setUploadFolder] = useState('')
   const toasts = useToasts()
   const input = useRef<HTMLInputElement>(null)
 
@@ -117,6 +119,10 @@ export function Documents({ matterId, isOpen, onChanged }: {
     try {
       const form = new FormData()
       for (const file of files) form.append('files', file)
+
+      // Filed on the way in, from the field beside the drop zone. Uploading and then classifying is
+      // two steps for one intention, and the second is the one that gets skipped.
+      if (uploadFolder.trim()) form.append('folder', uploadFolder.trim())
 
       // A drop always creates plain documents. Numbering evidence is a legal act, never a side
       // effect of dragging a file.
@@ -282,19 +288,36 @@ export function Documents({ matterId, isOpen, onChanged }: {
         >
           <Paperclip size={18} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
 
-          <div className="grid flex-1 gap-0.5">
+          <div className="grid min-w-0 flex-1 gap-0.5">
             <strong className="text-[12.5px] font-medium">
               {busy
                 ? 'Chiffrement en cours…'
                 : dragging
-                  ? 'Déposer pour classer dans ce dossier'
+                  ? uploadFolder.trim()
+                    ? `Déposer pour classer dans « ${uploadFolder.trim()} »`
+                    : 'Déposer pour classer dans ce dossier'
                   : 'Glisser des fichiers ici'}
             </strong>
             <Micro>
-              ou parcourir · PDF, DOCX, EML, JPG, XLSX · 50 Mo par fichier. Ils arrivent comme
-              documents ; vous leur donnerez un n° de pièce si besoin.
+              PDF, DOCX, EML, JPG, XLSX · 50 Mo par fichier. Ils arrivent comme documents ; vous leur
+              donnerez un n° de pièce si besoin.
             </Micro>
           </div>
+
+          {/* Chosen before the drop, not after it. */}
+          <span className="flex shrink-0 items-center gap-1.5">
+            <Folder size={13} strokeWidth={1.75} className="text-muted" />
+            <Input
+              list="upload-folders"
+              className="w-[170px]"
+              value={uploadFolder}
+              placeholder="Classer dans…"
+              onChange={(event) => setUploadFolder(event.target.value)}
+            />
+            <datalist id="upload-folders">
+              {(page?.folders ?? []).map((name) => <option key={name} value={name} />)}
+            </datalist>
+          </span>
 
           <Button variant="secondary" onClick={() => input.current?.click()}>Parcourir…</Button>
 
@@ -643,6 +666,23 @@ function DocumentRow({
 
         {isOpen && (
           <>
+            {/* Refiling is one field, so it is offered on its own rather than only inside the
+                pièce form: most documents are filed and never become pièces. */}
+            <span className="relative">
+              <RowAction label="Classer dans un dossier" onClick={() => undefined}>
+                <FolderInput size={13} strokeWidth={1.75} />
+              </RowAction>
+              <select
+                aria-label="Classer dans"
+                value={item.folder ?? ''}
+                onChange={(event) => onFile(event.target.value || null)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+              >
+                <option value="">Sans dossier</option>
+                {folders.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+            </span>
+
             <RowAction
               label={isExhibit ? 'Modifier le libellé de la pièce' : `Verser comme pièce n° ${nextNumber}`}
               onClick={onEdit}

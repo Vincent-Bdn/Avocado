@@ -56,6 +56,7 @@ session.TryResume();
 builder.Services.AddSingleton(session);
 builder.Services.AddSingleton<IVaultStore>(session);
 builder.Services.AddSingleton<VaultDbContextFactory>();
+builder.Services.AddSingleton(WorkingDirectory.Resolve(builder.Configuration));
 builder.Services.AddSingleton<DocumentWorkspace>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DocumentWorkspace>());
 builder.Services.AddScoped(services =>

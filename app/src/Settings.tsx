@@ -59,6 +59,16 @@ export function Settings() {
         {error && <p className="px-4 py-3 text-danger">{error}</p>}
 
         <Section
+          id="storage"
+          title="Emplacements"
+          summary="Coffre et dossier de travail"
+          open={open === 'storage'}
+          onToggle={toggle}
+        >
+          <Storage />
+        </Section>
+
+        <Section
           id="templates"
           title="Modèles de documents"
           summary="Lettre de mission, courrier type…"
@@ -127,6 +137,52 @@ export function Settings() {
         )}
       </div>
     </Panel>
+  )
+}
+
+/**
+ * Where the two folders are, and why they are two.
+ *
+ * The distinction matters and is not obvious, so it is stated rather than left to be discovered:
+ * losing the coffre is what the recovery key exists for, and losing the working folder costs at most
+ * the last few seconds of typing.
+ */
+function Storage() {
+  const [settings, setSettings] = useState<PracticeSettings | null>(null)
+
+  useEffect(() => {
+    api<PracticeSettings>('/api/settings').then(setSettings).catch(() => setSettings(null))
+  }, [])
+
+  if (!settings) return null
+
+  return (
+    <>
+      <div className="grid gap-1">
+        <span className="type-label text-ink-secondary">Le coffre</span>
+        <code className="rounded-sm bg-sunken px-2 py-1.5 font-mono text-[11.5px] break-all">
+          {settings.vaultDirectory}
+        </code>
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          Tout y est chiffré : la base, les documents, les modèles. C’est ce dossier qu’il faut
+          sauvegarder, et c’est votre clé de récupération qui le rouvrira ailleurs.
+        </p>
+      </div>
+
+      <div className="grid gap-1">
+        <span className="type-label text-ink-secondary">Le dossier de travail</span>
+        <code className="rounded-sm bg-sunken px-2 py-1.5 font-mono text-[11.5px] break-all">
+          {settings.workingDirectory}
+        </code>
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          Quand vous ouvrez un document, il y est déchiffré le temps que vous y travailliez, puis
+          remis au coffre et effacé. Il est propre à cet ordinateur et n’est jamais sauvegardé : le
+          supprimer ne coûte, au pire, que les dernières secondes de frappe. Il est en dehors du
+          coffre pour cette raison, et parce qu’un brouillon à moitié enregistré n’a rien à faire
+          dans une sauvegarde.
+        </p>
+      </div>
+    </>
   )
 }
 
