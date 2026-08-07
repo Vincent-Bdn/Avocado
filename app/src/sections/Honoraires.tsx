@@ -104,17 +104,20 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
 }) {
   const [hovered, setHovered] = useState<number | null>(null)
   const current = data.months.length - 1
-  const active = hovered ?? current
+
+  // The current month keeps the highlight at rest, because it is the one being lived in. The tooltip
+  // is a different thing: it answers a question that was asked, so it appears on hover and not before.
+  const highlighted = hovered ?? current
 
   const percent = (cents: number) =>
     data.scaleCents === 0 ? 0 : Math.min(100, (cents / data.scaleCents) * 100)
 
   return (
     <div className={cn('relative', labels === 'full' ? 'py-0' : 'px-3 pt-2.5 pb-1.5')}>
-      {data.months[active] && (
+      {hovered !== null && data.months[hovered] && (
         <Tooltip
-          month={data.months[active]}
-          index={active}
+          month={data.months[hovered]}
+          index={hovered}
           count={data.months.length}
           width={tooltipWidth}
           large={labels === 'full'}
@@ -133,7 +136,7 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
               className={cn(
                 'flex min-w-0 flex-1 flex-col items-center rounded-[3px]',
                 labels === 'full' ? 'gap-1.5' : 'gap-1 pt-0.5',
-                index === active && 'bg-[#F8F9F6]',
+                index === highlighted && 'bg-[#F8F9F6]',
               )}
             >
               <div
@@ -346,7 +349,7 @@ function HonorairesDialog({ data, onClose }: { data: Honoraires; onClose: () => 
         </div>
 
         <p className="m-0 px-[18px] pt-1 pb-3.5 text-[11px] leading-4 text-muted">
-          {last && `${capitalise(longMonth(last.month))} est un mois en cours : son écart n’a rien d’anormal.`}
+          {last && `Mois en cours : ${longMonth(last.month)}`}
         </p>
 
         <div className="grid shrink-0 grid-cols-4 border-t border-line-subtle bg-[#F8F9F6]">
