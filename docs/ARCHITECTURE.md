@@ -4,7 +4,7 @@ Avocado is a desktop application that behaves like a local web application, beca
 cheapest way to keep it honest. A shell owns the window, a service owns the domain, and a library
 owns the encryption. Nothing crosses those lines except over an HTTP API and one file format.
 
-Read this first; [backend.md](backend.md), [frontend.md](frontend.md) and [security.md](security.md)
+Read this first; [BACKEND.md](BACKEND.md), [FRONTEND.md](FRONTEND.md) and [SECURITY.md](SECURITY.md)
 go one level down each.
 
 ---
@@ -124,7 +124,7 @@ configuration by assembly scan.
 ```
 
 Working copies — files currently open in Word — deliberately live **outside** the vault, in the
-platform's machine-local application-state folder. See [security.md](security.md#working-copies).
+platform's machine-local application-state folder. See [SECURITY.md](SECURITY.md#working-copies).
 
 ```mermaid
 flowchart LR

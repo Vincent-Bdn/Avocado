@@ -1,6 +1,6 @@
 # Avocado
 
-**Le suivi de dossiers pour les avocats qui travaillent seuls.** Tout reste sur votre ordinateur,
+**Le suivi de dossiers pour les avocats.** Tout reste sur votre ordinateur,
 chiffré. Aucun serveur, aucun compte, aucun abonnement.
 
 Avocado remplace les logiciels de gestion de cabinet dont on hérite en s'installant : ceux qui
@@ -152,10 +152,10 @@ votre clé de récupération à l'abri. Trois minutes, puis vous n'en entendez p
 
 | Document | Ce qu'il couvre |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | La forme générale : les trois projets, comment ils s'assemblent, pourquoi |
-| [docs/backend.md](docs/backend.md) | Le service C# : compilation, cycle de vie, API, permissions |
-| [docs/frontend.md](docs/frontend.md) | La coque Electron et l'interface React |
-| [docs/security.md](docs/security.md) | Le modèle de menace et tout ce qui en découle |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | La forme générale : les trois projets, comment ils s'assemblent, pourquoi |
+| [docs/BACKEND.md](docs/BACKEND.md) | Le service C# : compilation, cycle de vie, API, permissions |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | La coque Electron et l'interface React |
+| [docs/SECURITY.md](docs/SECURITY.md) | Le modèle de menace et tout ce qui en découle |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Le vocabulaire français du métier et son équivalent dans le code |
 
 Démarrage rapide :
