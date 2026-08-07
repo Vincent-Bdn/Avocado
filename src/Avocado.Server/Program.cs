@@ -49,7 +49,7 @@ builder.WebHost.ConfigureKestrel(kestrel => kestrel.Listen(
 
 // Resolved before the host is built and never throws: on a new machine there is no vault yet, and
 // the setup wizard is served over this same API. Refusing to boot would make the first run
-// unreachable — which is exactly the dead end this replaced.
+// unreachable, which is exactly the dead end this replaced.
 var session = new VaultSession(vaultDirectory);
 session.TryResume();
 

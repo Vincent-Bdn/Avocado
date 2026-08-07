@@ -14,7 +14,7 @@ public sealed record GenerateInput(string? FileName, string? Folder);
 /// Fills a modèle with this dossier's own wording and files the result as a document.
 /// <para>
 /// It lands in the coffre rather than in a download, because the point is that she then opens it,
-/// finishes the sentences Word cannot write for her, and the edits go straight back — a generated
+/// finishes the sentences Word cannot write for her, and the edits go straight back, a generated
 /// letter is a draft, not an export.
 /// </para>
 /// </summary>

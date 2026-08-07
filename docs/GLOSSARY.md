@@ -1,4 +1,4 @@
-# Glossaire — français ↔ code
+# Glossaire, français ↔ code
 
 Le code est en anglais, l'interface en français. Aucun terme français ne traverse l'API : le backend renvoie
 des clés d'énumération (`IncomingLetter`), le front possède une table de libellés `fr.ts`.
@@ -18,14 +18,14 @@ correspondant dans le code.
 | Pièce | `Document.ExhibitNumber` / `.ExhibitLabel` | Un document promu au rang de preuve, numéroté. |
 | Échéance | `Deadline` | Audience ou délai. |
 | Temps passé | `TimeEntry` | |
-| Facture | `Invoice` | Suivi seulement — Avocado ne génère aucune facture. |
+| Facture | `Invoice` | Suivi seulement, Avocado ne génère aucune facture. |
 | Provision, débours, régularisation | `LedgerEntry` | Mouvement d'argent signé, hors facture. |
 
 ## Vocabulaire métier
 
 | Terme | Anglais | Explication |
 |---|---|---|
-| **Pièce** | exhibit | Élément de preuve **communiqué à la partie adverse**, numéroté et cité dans les conclusions (« la pièce n°7 »). Son libellé est écrit pour le juge — « Contrat de travail de M. Dupont du 12 mars 2019 », pas `scan_003.pdf`. Les conclusions et la correspondance avec son propre client ne sont **jamais** des pièces. |
+| **Pièce** | exhibit | Élément de preuve **communiqué à la partie adverse**, numéroté et cité dans les conclusions (« la pièce n°7 »). Son libellé est écrit pour le juge, « Contrat de travail de M. Dupont du 12 mars 2019 », pas `scan_003.pdf`. Les conclusions et la correspondance avec son propre client ne sont **jamais** des pièces. |
 | **Bordereau de communication de pièces** | schedule of exhibits | Liste datée et numérotée des pièces communiquées, qui prouve *quoi* et *quand*. Hors périmètre v1. |
 | **Conclusions** | pleadings / submissions | L'argumentaire écrit déposé au tribunal. Un `Document`, jamais une pièce. |
 | **N° RG** (Répertoire Général) | docket number | Le numéro que le tribunal attribue à l'affaire. Il figure sur toute la correspondance : quand le greffe appelle, il donne le RG, pas le nom du client. D'où `CourtCaseNumber`, et son indexation dans la recherche. |

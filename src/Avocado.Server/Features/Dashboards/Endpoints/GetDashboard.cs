@@ -10,7 +10,7 @@ namespace Avocado.Server.Features.Dashboards.Endpoints;
 /// <summary>
 /// The accueil: what falls due, what has been earned and not billed, and where she left off.
 /// <para>
-/// Nothing about backups. The design's status bar and stale-backup banner are out of v1 — the vault
+/// Nothing about backups. The design's status bar and stale-backup banner are out of v1, the vault
 /// knows its own backup history and that surface can be added later without touching this.
 /// </para>
 /// </summary>
@@ -56,7 +56,7 @@ public static class GetDashboard
 
         // « Touché » is every kind of work, not only the journal: an afternoon spent entering time
         // and recording a provision has to bring its dossier to the top. The five timestamps come
-        // back as separate columns and are combined in memory — see MatterTouch.
+        // back as separate columns and are combined in memory, see MatterTouch.
         var touched = await database.Matters
             .AsNoTracking()
             .Where(matter => matter.ClosedOn == null)
@@ -139,7 +139,7 @@ public static class GetDashboard
     }
 
     /// <summary>
-    /// « Temps saisi non facturé » — the only large number in the application, and the most forgotten
+    /// « Temps saisi non facturé », the only large number in the application, and the most forgotten
     /// thing in a solo practice. Per matter it is <c>billable time − ledger − invoiced</c>; matters
     /// already square, or in credit, are left out so the rows sum exactly to the headline.
     /// </summary>
@@ -215,7 +215,7 @@ public static class GetDashboard
                 matter.MatterId, matter.MatterName, matter.Minutes, matter.LeftToBillCents))]);
     }
 
-    /// <summary>One client, deliberately — the first by creation order.</summary>
+    /// <summary>One client, deliberately, the first by creation order.</summary>
     private static string? ClientNameOf(Matters.Matter matter) => matter.Parties
         .Where(party => party.IsClient)
         .OrderBy(party => party.Id)

@@ -73,7 +73,7 @@ public static class ListDocuments
                 .ToListAsync(cancellationToken)));
     }
 
-    /// <summary>Gaps below the highest number in use — « n° 10 libre ».</summary>
+    /// <summary>Gaps below the highest number in use, « n° 10 libre ».</summary>
     internal static IReadOnlyList<int> FreeNumbers(IReadOnlyList<int> used)
     {
         if (used.Count == 0)

@@ -7,9 +7,9 @@ namespace Avocado.Server.Features.Billings.Enums;
 /// </summary>
 public enum BillingMovementKind
 {
-    /// <summary>Encaissement — argent reçu du client (provision, acompte, règlement). Stored positive.</summary>
+    /// <summary>Encaissement, argent reçu du client (provision, acompte, règlement). Stored positive.</summary>
     Receipt,
 
-    /// <summary>Débours — argent avancé pour le client (greffe, expert, huissier). Stored negative.</summary>
+    /// <summary>Débours, argent avancé pour le client (greffe, expert, huissier). Stored negative.</summary>
     Disbursement,
 }

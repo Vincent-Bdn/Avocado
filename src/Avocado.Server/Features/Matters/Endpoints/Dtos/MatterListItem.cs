@@ -9,11 +9,11 @@ namespace Avocado.Server.Features.Matters.Endpoints.Dtos;
 /// A dossier can have several clients; the list shows one, deliberately. The first by creation order.
 /// </param>
 /// <param name="NextDeadlineDate">
-/// Null renders as a muted dash. Always null on a closed matter — closing hides future échéances
+/// Null renders as a muted dash. Always null on a closed matter, closing hides future échéances
 /// rather than deleting them, so reopening brings them back.
 /// </param>
 /// <param name="LastActivityAt">
-/// The last time anything happened on the dossier — see <see cref="Matters.MatterTouch"/>. The client
+/// The last time anything happened on the dossier, see <see cref="Matters.MatterTouch"/>. The client
 /// formats the relative wording ("il y a 2 h", "hier").
 /// </param>
 /// <param name="IsFavourite">Pinned above the divider at the top of the list.</param>

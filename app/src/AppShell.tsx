@@ -157,7 +157,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
   /**
    * Read through a ref, never through the closure.
    *
-   * `selected` cannot be a dependency of `reload` — the list would refetch every time she clicked a
+   * `selected` cannot be a dependency of `reload`, the list would refetch every time she clicked a
    * different dossier. But leaving it out of the deps and reading it directly captured the value from
    * the render that created the callback, which is `null` on mount. Every later reload therefore took
    * the « nothing selected » branch and jumped to the first row: since favourites sort to the top,
@@ -178,7 +178,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
 
         const current = selectedRef.current
 
-        // Land on something rather than an empty content pane — but only when what she was reading
+        // Land on something rather than an empty content pane, but only when what she was reading
         // has genuinely gone, never merely because the list was refreshed underneath her.
         onSelect(
           current && result.items.some((item) => item.id === current)
@@ -239,7 +239,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
               {/*
                 Flex, not grid. A two-column grid auto-places three children as (1,1) (1,2) (2,1),
                 so the relative time landed on its own second row under the name and the two text
-                lines shared the first — which is what put « il y a 1 h » in a box of its own.
+                lines shared the first, which is what put « il y a 1 h » in a box of its own.
                 Nesting the two text lines makes the placement unambiguous.
               */}
               <button

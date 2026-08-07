@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Avocado.Server.Features.Activities.Endpoints;
 
 /// <summary>
-/// Deleting asks nothing — the design offers 8 seconds of undo in a toast instead of a confirmation
+/// Deleting asks nothing, the design offers 8 seconds of undo in a toast instead of a confirmation
 /// dialog. Attached documents and time entries survive: their foreign keys are <c>SetNull</c>, so an
 /// undo that recreates the entry loses the link but never the billable time or the file.
 /// </summary>

@@ -21,7 +21,7 @@ public class MatterParty
 
     /// <summary>
     /// « Partie adverse », « Avocat de la partie adverse au barreau de Villefranche », « Expert
-    /// judiciaire désigné par ordonnance du 12/01/2026 ». Long by nature — the UI truncates and shows
+    /// judiciaire désigné par ordonnance du 12/01/2026 ». Long by nature, the UI truncates and shows
     /// the full text on hover, so do not constrain it to a short list.
     /// </summary>
     public string? Role { get; set; }

@@ -17,7 +17,7 @@ namespace Avocado.Vault.Blobs;
 /// <para>
 /// Each chunk's nonce is <c>noncePrefix ‖ counter</c>, unique by construction, and the counter and the
 /// final-chunk flag are both authenticated. Dropping a chunk, reordering two, or truncating the file
-/// early therefore fails to decrypt — a plain per-chunk AEAD without that binding would not notice.
+/// early therefore fails to decrypt, a plain per-chunk AEAD without that binding would not notice.
 /// </para>
 /// </summary>
 internal static class BlobFormat

@@ -7,7 +7,7 @@
  * off there is no network request at all and the word « annuaire » leaves the interface. The vault is
  * covered by secret professionnel, so « offline-first » is a promise, not a default.
  *
- * https://recherche-entreprises.api.gouv.fr — open data, no key, no account.
+ * https://recherche-entreprises.api.gouv.fr, open data, no key, no account.
  */
 
 const ENDPOINT = 'https://recherche-entreprises.api.gouv.fr/search'

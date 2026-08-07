@@ -7,6 +7,6 @@ public enum MatterDeadlineFilter
     WithinSevenDays,
     WithinThirtyDays,
 
-    /// <summary>Sans échéance — no open deadline at all.</summary>
+    /// <summary>Sans échéance, no open deadline at all.</summary>
     None,
 }

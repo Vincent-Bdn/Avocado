@@ -7,7 +7,7 @@ namespace Avocado.Server.Features.Activities.Endpoints.Dtos;
 /// </param>
 /// <param name="DurationMinutes">
 /// The composer's ochre `＋ temps passé` chip. Supplied, it creates the journal entry and its time
-/// entry in one call — logging a call and its billable time in one keystroke is the highest-value
+/// entry in one call, logging a call and its billable time in one keystroke is the highest-value
 /// interaction in the product, and splitting it across two requests would let one half fail alone.
 /// </param>
 /// <param name="TrackingNumber">Numéro de suivi. Only meaningful on the two letter types.</param>

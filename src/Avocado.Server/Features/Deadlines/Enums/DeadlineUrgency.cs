@@ -13,7 +13,7 @@ public enum DeadlineUrgency
     /// <summary>Aujourd'hui.</summary>
     Today,
 
-    /// <summary>Cette semaine — within the next 7 days.</summary>
+    /// <summary>Cette semaine, within the next 7 days.</summary>
     ThisWeek,
 
     /// <summary>Plus tard.</summary>

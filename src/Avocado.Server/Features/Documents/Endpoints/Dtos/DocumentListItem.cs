@@ -1,7 +1,7 @@
 namespace Avocado.Server.Features.Documents.Endpoints.Dtos;
 
 /// <param name="ExhibitLabel">
-/// Line 1 on a pièce row. When null the row shows the file name in mono instead — that is the tell
+/// Line 1 on a pièce row. When null the row shows the file name in mono instead, that is the tell
 /// that no libellé has been written yet.
 /// </param>
 /// <param name="OriginActivityId">

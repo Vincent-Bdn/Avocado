@@ -6,7 +6,7 @@ namespace Avocado.Vault;
 /// same migration loop.
 /// <para>
 /// One SQLite file per lawyer, one key per lawyer. Physical isolation means the entire class of
-/// "forgot the tenant filter" bugs cannot occur — which for data under legal privilege is the failure
+/// "forgot the tenant filter" bugs cannot occur, which for data under legal privilege is the failure
 /// that would end the project.
 /// </para>
 /// </summary>

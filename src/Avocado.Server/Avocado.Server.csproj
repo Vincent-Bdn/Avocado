@@ -9,7 +9,7 @@
 
   <ItemGroup>
     <!--
-      Sqlite.Core, NOT Sqlite. The full package drags in SQLitePCLRaw.bundle_e_sqlite3 — plain SQLite,
+      Sqlite.Core, NOT Sqlite. The full package drags in SQLitePCLRaw.bundle_e_sqlite3, plain SQLite,
       the exact bundle the vault must never be linked against. Two bundles in one process means
       whichever registers first wins, and if that is e_sqlite3 then `PRAGMA key` is a no-op and the
       whole practice is written in plaintext with no error. Avocado.Vault brings

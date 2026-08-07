@@ -38,7 +38,7 @@ async function createWindow(): Promise<void> {
     webPreferences: {
       preload: path.join(directory, 'preload.cjs'),
       // The renderer is untrusted by construction: it renders content that came off disk. It gets no
-      // Node, no remote module, and its own context — the preload exposes exactly one function.
+      // Node, no remote module, and its own context, the preload exposes exactly one function.
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -53,7 +53,7 @@ async function createWindow(): Promise<void> {
   // Electron changed this signature: older builds pass (event, level, message), newer ones a single
   // details object. Accept both rather than silently logging `undefined`.
   window.webContents.on('console-message', (...args: unknown[]) => {
-    const [first, , third] = args
+    const [first, third] = args
     const message =
       typeof third === 'string'
         ? third
@@ -70,7 +70,7 @@ async function createWindow(): Promise<void> {
  * "no telemetry, no CDN" claim checkable rather than promised.
  *
  * The one deliberate exception is the French company registry, and only when the user leaves that
- * lookup enabled — it is an open, unauthenticated API and the renderer calls it directly.
+ * lookup enabled, it is an open, unauthenticated API and the renderer calls it directly.
  */
 function applyContentSecurityPolicy(): void {
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

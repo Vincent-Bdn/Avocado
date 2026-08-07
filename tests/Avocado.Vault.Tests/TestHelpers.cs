@@ -34,7 +34,7 @@ public sealed class TempDirectory : IDisposable
 
 /// <summary>
 /// Stands in for DPAPI so the tests run identically on Linux and macOS CI. A new instance models a
-/// different machine or user account — which is exactly the scenario the recovery key exists for.
+/// different machine or user account, which is exactly the scenario the recovery key exists for.
 /// </summary>
 public sealed class FakeDeviceKeyStore : IDeviceKeyStore
 {

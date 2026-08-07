@@ -8,7 +8,7 @@ namespace Avocado.Server.Features.Documents.Endpoints;
 /// <summary>
 /// Streams an uploaded file into the encrypted blob store, then records it.
 /// <para>
-/// A drop always creates plain documents, never pièces — « ils arrivent comme documents. Vous leur
+/// A drop always creates plain documents, never pièces, « ils arrivent comme documents. Vous leur
 /// donnerez un n° de pièce si besoin. » Numbering evidence is a legal act and is never a side effect
 /// of dragging a file.
 /// </para>

@@ -1,7 +1,7 @@
-# Avocado — application shell
+# Avocado, application shell
 
 Electron + React + TypeScript. The shell holds **no business logic**: it opens a window, starts and
-stops the backend, and hands the renderer one thing — where the API is and this launch's token.
+stops the backend, and hands the renderer one thing, where the API is and this launch's token.
 Everything else goes over the same HTTP API a hosted Avocado would expose, which is what keeps this
 folder replaceable in a weekend.
 
@@ -36,7 +36,7 @@ By default the vault is `~/Documents/Avocado`. Point somewhere else with `AVOCAD
 
 **`ELECTRON_RUN_AS_NODE=1` is set in your environment.** VS Code sets it for the processes it spawns,
 so any terminal inside VS Code inherits it. It makes Electron run as plain Node, where
-`require('electron')` returns the *path to the binary* rather than the API — hence the undefined
+`require('electron')` returns the *path to the binary* rather than the API, hence the undefined
 `app`. Unset it, or launch from a terminal outside the editor:
 
 ```bash
@@ -54,7 +54,7 @@ env -u ELECTRON_RUN_AS_NODE npm run electron:dev
 - **Debug is preferred over Release** when resolving that binary, because `dotnet build` without a
   configuration produces Debug and a stale Release build would otherwise silently shadow it.
 - **`contextIsolation`, `sandbox`, no `nodeIntegration`.** The renderer gets one function. Anything
-  that genuinely needs the OS — printing the recovery sheet, listing removable drives — gets its own
+  that genuinely needs the OS, printing the recovery sheet, listing removable drives, gets its own
   named IPC channel, reviewed on its own merits.
 - **CSP allows exactly one external origin**: `recherche-entreprises.api.gouv.fr`, for the company
   autofill, which the renderer calls directly. Nothing else leaves the machine.

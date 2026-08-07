@@ -11,7 +11,7 @@ namespace Avocado.Server.Features.Dashboards;
 /// month valued at the dossier's rate, against the factures actually issued that month. A practice
 /// that works more than it invoices sees it here before it shows up in the bank.</para>
 ///
-/// <para>The window ends on the current month, which is in progress — its gap is expected, and the
+/// <para>The window ends on the current month, which is in progress, its gap is expected, and the
 /// expanded view says so rather than letting it read as a miss.</para>
 /// </summary>
 public static class HonorairesQuery
@@ -39,6 +39,12 @@ public static class HonorairesQuery
             })
             .ToListAsync(cancellationToken);
 
+        var costs = await database.Costs
+            .AsNoTracking()
+            .Where(cost => cost.Date >= firstMonth && cost.Date < end)
+            .Select(cost => new { cost.Date, cost.AmountExclVatCents })
+            .ToListAsync(cancellationToken);
+
         var invoices = await database.Invoices
             .AsNoTracking()
             .Where(invoice => invoice.Date >= firstMonth && invoice.Date < end)
@@ -62,7 +68,9 @@ public static class HonorairesQuery
                 month,
                 billable,
                 issued.Sum(invoice => invoice.AmountExclVatCents),
-                issued.Where(invoice => invoice.IsPaid).Sum(invoice => invoice.AmountExclVatCents)));
+                issued.Where(invoice => invoice.IsPaid).Sum(invoice => invoice.AmountExclVatCents),
+                costs.Where(cost => cost.Date >= month && cost.Date < next)
+                    .Sum(cost => cost.AmountExclVatCents)));
         }
 
         return new DashboardHonoraires(
@@ -70,19 +78,20 @@ public static class HonorairesQuery
             months.Sum(month => month.BillableCents),
             months.Sum(month => month.InvoicedCents),
             months.Sum(month => month.PaidCents),
+            months.Sum(month => month.SubcontractedCents),
             Scale(months));
     }
 
     /// <summary>
     /// The top of the axis: the tallest bar rounded up to a round figure, so the gridlines land on
-    /// whole thousands rather than on whatever the tallest month happened to be. Never zero — an
+    /// whole thousands rather than on whatever the tallest month happened to be. Never zero, an
     /// empty practice would otherwise divide by it.
     /// </summary>
     private static long Scale(IReadOnlyList<HonoraireMonth> months)
     {
         var tallest = months.Count == 0
             ? 0
-            : months.Max(month => Math.Max(month.BillableCents, month.InvoicedCents));
+            : months.Max(month => Math.Max(month.BillableCents, month.NetCents));
 
         if (tallest <= 0)
         {

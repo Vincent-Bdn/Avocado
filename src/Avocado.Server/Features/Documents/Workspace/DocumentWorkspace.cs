@@ -18,15 +18,15 @@ namespace Avocado.Server.Features.Documents.Workspace;
 ///
 /// <para><b>Why polling rather than a FileSystemWatcher.</b> Word does not write documents in place.
 /// It creates <c>~$name.docx</c> lock files and a scratch file, then renames over the original, so a
-/// watcher sees a delete-and-create dance and has to be taught to read through it — and on Windows it
+/// watcher sees a delete-and-create dance and has to be taught to read through it, and on Windows it
 /// silently drops events when its buffer overflows. A 1.5-second comparison of (length, last write,
 /// hash) has none of those failure modes and costs nothing for the handful of files that are ever
 /// open at once. Correctness here is worth far more than latency.</para>
 ///
 /// <para><b>What is on disk in clear.</b> Exactly the files currently open, for as long as they are
 /// open. That is the honest cost of letting Word edit them at all: no application can hand a file to
-/// Word without the file existing. They live outside the coffre — see <see cref="WorkingDirectory"/>
-/// for why — and the folder is emptied on check-in and on a clean shutdown. Anything found there at
+/// Word without the file existing. They live outside the coffre, see <see cref="WorkingDirectory"/>
+/// for why, and the folder is emptied on check-in and on a clean shutdown. Anything found there at
 /// startup is reconciled rather than deleted: a crash must never silently discard an afternoon's
 /// drafting.</para>
 /// </summary>
@@ -68,7 +68,7 @@ public sealed class DocumentWorkspace(
 
     /// <summary>
     /// Decrypts the document into the working folder and starts watching it. Checking out a document
-    /// that is already out is not an error — it returns the same path, so a second double-click just
+    /// that is already out is not an error, it returns the same path, so a second double-click just
     /// brings the window forward.
     /// </summary>
     public async Task<string> CheckOutAsync(
@@ -185,7 +185,7 @@ public sealed class DocumentWorkspace(
     /// hash identically to what the coffre holds and are deleted here, silently, which is what makes
     /// the folder clean itself up.</para>
     ///
-    /// <para>What remains — bytes the coffre has never seen — is reported and never deleted on sight.
+    /// <para>What remains, bytes the coffre has never seen, is reported and never deleted on sight.
     /// A crash must not silently discard an afternoon's drafting.</para>
     /// </summary>
     public async Task<IReadOnlyList<AbandonedFile>> AbandonedAsync(
@@ -408,7 +408,7 @@ public sealed class DocumentWorkspace(
     /// Puts a file away once nothing has touched it for a while.
     ///
     /// <para>A reader closing its window is not an event: no application can be notified of it. So
-    /// the three signals that together mean « nobody is working on this » are used instead — the file
+    /// the three signals that together mean « nobody is working on this » are used instead, the file
     /// is not locked, Word has left no <c>~$</c> sidecar beside it, and its bytes have not changed
     /// since the last time they were put away. All three, held for three minutes.</para>
     ///
@@ -521,7 +521,7 @@ public sealed class DocumentWorkspace(
 
     /// <summary>
     /// Puts the working copy away if, and only if, its bytes differ from what the coffre holds. The
-    /// cheap checks come first so the common case — an open file nobody is typing in — costs a stat.
+    /// cheap checks come first so the common case, an open file nobody is typing in, costs a stat.
     /// </summary>
     private async Task SyncAsync(CheckedOut entry, CancellationToken cancellationToken)
     {

@@ -271,6 +271,13 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
               </div>
             )}
 
+            {matter.billing.subcontractedCents > 0 && (
+              <div className="font-mono text-[10px] tnum">
+                net {formatEuros(matter.billing.netCents)} après{' '}
+                {formatEuros(matter.billing.subcontractedCents)} rétrocédés
+              </div>
+            )}
+
             <div className="font-mono text-[10px] tnum opacity-80">tout le temps saisi est facturé</div>
           </>
         ) : (
@@ -298,6 +305,14 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
                   <div className="font-mono text-[10px] tnum opacity-80">
                     dont {matter.billing.varianceCents > 0 ? 'boni' : 'mali'}{' '}
                     {formatEuros(Math.abs(matter.billing.varianceCents))}
+                  </div>
+                )}
+
+                {/* Sous-traitance never touches « reste à facturer », so it is stated here rather
+                    than folded into a figure it has no business changing. */}
+                {matter.billing.subcontractedCents > 0 && (
+                  <div className="font-mono text-[10px] tnum opacity-80">
+                    net {formatEuros(matter.billing.netCents)}
                   </div>
                 )}
               </div>

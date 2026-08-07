@@ -15,21 +15,32 @@ namespace Avocado.Server.Features.Dashboards.ValueObjects;
 /// payment. « Encaissé » here means « facturé ce mois-là, et rentré depuis », which is the question a
 /// practice asks about a month it has closed.
 /// </param>
+/// <param name="SubcontractedCents">
+/// Rétrocessions and other sous-traitance recorded that month. Subtracted from the invoiced figure
+/// on the chart, because the two bars would otherwise not be comparable: the facturable bar is her
+/// own time and contains none of the confrère's hours, while the invoiced bar contains what she
+/// charged for them. Netting it off is what makes the gap mean « ai-je facturé ce que j'ai
+/// travaillé » rather than « ai-je facturé plus que je n'ai travaillé moi-même ».
+/// </param>
 public sealed record HonoraireMonth(
     DateOnly Month,
     long BillableCents,
     long InvoicedCents,
-    long PaidCents)
+    long PaidCents,
+    long SubcontractedCents)
 {
     public long UnpaidCents => InvoicedCents - PaidCents;
 
+    /// <summary>What the month actually brought in, once the confrères are paid. Never below zero.</summary>
+    public long NetCents => Math.Max(0, InvoicedCents - SubcontractedCents);
+
     /// <summary>The gap the two bars draw. Negative means that month billed more than it worked.</summary>
-    public long LeftToBillCents => BillableCents - InvoicedCents;
+    public long LeftToBillCents => BillableCents - NetCents;
 }
 
 /// <param name="ScaleCents">
 /// The top of the shared scale, rounded up to a round figure so the axis reads in whole thousands.
-/// Both bars share it — comparing them is the entire point — and the client needs no second pass over
+/// Both bars share it, comparing them is the entire point, and the client needs no second pass over
 /// the data to find it.
 /// </param>
 public sealed record DashboardHonoraires(
@@ -37,7 +48,10 @@ public sealed record DashboardHonoraires(
     long BillableCents,
     long InvoicedCents,
     long PaidCents,
+    long SubcontractedCents,
     long ScaleCents)
 {
     public long UnpaidCents => InvoicedCents - PaidCents;
+
+    public long NetCents => InvoicedCents - SubcontractedCents;
 }

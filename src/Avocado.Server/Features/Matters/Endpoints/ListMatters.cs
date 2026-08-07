@@ -115,7 +115,7 @@ public static class ListMatters
 
         var rows = await projected.ToListAsync(cancellationToken);
 
-        // Urgency and the combined recency are domain rules, not SQL expressions — both applied once
+        // Urgency and the combined recency are domain rules, not SQL expressions, both applied once
         // the rows are in memory.
         var items = rows
             .Select(row => row.Item with
@@ -220,7 +220,7 @@ public static class ListMatters
         // Default. The subqueries are repeated inline rather than factored into a helper: EF cannot
         // see through a method call and fails to translate the ORDER BY.
         //
-        // Matters with no deadline sort last either way — a blank cell is not urgent, and SQLite
+        // Matters with no deadline sort last either way, a blank cell is not urgent, and SQLite
         // orders NULLs first, which would otherwise bury the overdue rows underneath them.
         (_, false) => query
             .OrderBy(matter => !database.Deadlines

@@ -6,7 +6,7 @@ namespace Avocado.Server.Features.Documents.Endpoints;
 
 /// <summary>
 /// The metadata around a file: its name, the folder it is filed under, its type and its own date. The
-/// bytes are never touched — the blob is content-addressed, so renaming a document cannot invalidate
+/// bytes are never touched, the blob is content-addressed, so renaming a document cannot invalidate
 /// what it points at.
 /// </summary>
 public static class UpdateDocument

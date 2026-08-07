@@ -7,7 +7,7 @@ namespace Avocado.Server.Data;
 /// Brings a vault's schema up to date, taking a snapshot first.
 /// <para>
 /// SQLite DDL is transactional, so a migration that <em>fails</em> rolls itself back. The dangerous
-/// case is a migration that succeeds and is wrong — dropping a column, mangling a conversion — which
+/// case is a migration that succeeds and is wrong, dropping a column, mangling a conversion, which
 /// nothing can undo. This is the user's only copy of their practice, so the snapshot is mandatory,
 /// not a nicety.
 /// </para>

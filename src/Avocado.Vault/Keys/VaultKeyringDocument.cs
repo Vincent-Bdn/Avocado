@@ -16,7 +16,7 @@ public enum VaultKeyKind
 
 /// <summary>
 /// One way to get at the data encryption key. Each entry holds the same DEK wrapped by a different key
-/// encryption key, so adding or removing an unlock path never re-encrypts a single byte of vault data —
+/// encryption key, so adding or removing an unlock path never re-encrypts a single byte of vault data,
 /// and neither does changing a passphrase.
 /// </summary>
 public sealed record VaultKeyEntry

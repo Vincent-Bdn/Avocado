@@ -13,7 +13,7 @@ namespace Avocado.Server.Data;
 
 /// <summary>
 /// One context for the whole vault. A DbContext cannot be sliced, and pretending otherwise only
-/// produces ceremony — so it stays central while each entity's
+/// produces ceremony, so it stays central while each entity's
 /// <see cref="Microsoft.EntityFrameworkCore.IEntityTypeConfiguration{T}"/> lives beside the entity in
 /// its own feature folder, collected here by assembly scan.
 /// </summary>
@@ -29,6 +29,7 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
     public DbSet<BillingInvoice> Invoices => Set<BillingInvoice>();
     public DbSet<BillingLedgerEntry> LedgerEntries => Set<BillingLedgerEntry>();
+    public DbSet<BillingCost> Costs => Set<BillingCost>();
     public DbSet<PracticeSetting> PracticeSettings => Set<PracticeSetting>();
     public DbSet<DocumentTemplate> Templates => Set<DocumentTemplate>();
 

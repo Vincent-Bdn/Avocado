@@ -282,7 +282,7 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
               </>
             )}
 
-            {/* The paragraph keeps its measure — 65 characters or so is where prose stays readable —
+            {/* The paragraph keeps its measure, 65 characters or so is where prose stays readable,
                 and the box is sized to it, so it stops where the text stops instead of running on
                 across empty space. */}
             <div className="mt-3 flex max-w-[68ch] items-start gap-2 rounded-md border border-line-subtle px-3 py-2.5">
@@ -428,7 +428,7 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
 
 /**
  * Rattacher une personne. It offers the people already in the address book first, because the gérant
- * of a société is very often a tiers in his own right already — he was the opposing party's contact
+ * of a société is very often a tiers in his own right already, he was the opposing party's contact
  * on another dossier, or he signed something. Creating a second fiche for him would split his
  * history in two.
  */

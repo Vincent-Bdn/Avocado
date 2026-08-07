@@ -15,7 +15,7 @@ namespace Avocado.Server.Hosting;
 public sealed class VaultReadyMiddleware(RequestDelegate next)
 {
     /// <summary>
-    /// Reachable with the vault shut. Must stay in step with <c>VaultEndpoints</c> — a route added
+    /// Reachable with the vault shut. Must stay in step with <c>VaultEndpoints</c>, a route added
     /// there and forgotten here is unreachable exactly when it is needed.
     /// </summary>
     private static readonly string[] AlwaysAllowed = ["/api/vault", "/health"];

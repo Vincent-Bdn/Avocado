@@ -5,7 +5,7 @@ namespace Avocado.Vault.Keys;
 /// the vault opens on a double-click without a passphrase.
 /// <para>
 /// This is what makes the app usable daily. It protects against a stolen drive, a stolen backup, or a
-/// stolen NAS — not against anyone already logged into the user's session. That session already has a
+/// stolen NAS, not against anyone already logged into the user's session. That session already has a
 /// password; see the threat model in TODO.md.
 /// </para>
 /// </summary>

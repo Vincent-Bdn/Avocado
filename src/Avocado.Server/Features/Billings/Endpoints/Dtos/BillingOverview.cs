@@ -26,7 +26,7 @@ public sealed record BillingLedgerItem(
     BillingMovementKind Kind);
 
 /// <summary>
-/// « Détail à facturer » — the diligences since the last invoice, which is what gets pasted into the
+/// « Détail à facturer », the diligences since the last invoice, which is what gets pasted into the
 /// accounting software.
 /// </summary>
 /// <param name="Since">
@@ -40,7 +40,27 @@ public sealed record BillingStatement(
     long DisbursementsToRebillCents,
     long ReceiptsToOffsetCents);
 
-/// <param name="InvoicedOutstandingCents">Billed but not yet paid — what the factures footer states.</param>
+/// <param name="InvoicedOutstandingCents">Billed but not yet paid, what the factures footer states.</param>
+/// <param name="ContactName">Who was paid, when they are in the carnet.</param>
+/// <param name="InvoiceReference">
+/// The facture this cost was incurred against, when she attached it to one.
+/// </param>
+public sealed record BillingCostItem(
+    Guid Id,
+    DateOnly Date,
+    string? Kind,
+    string Label,
+    long AmountExclVatCents,
+    Guid? ContactId,
+    string? ContactName,
+    string? ExternalReference,
+    bool IsPaid,
+    DateOnly? PaidOn,
+    Guid? InvoiceId,
+    string? InvoiceReference);
+
+/// <param name="Costs">Rétrocessions et sous-traitance. Never part of « reste à facturer ».</param>
+/// <param name="CostsOutstandingCents">What she still owes her confrères on this dossier.</param>
 public sealed record BillingOverview(
     BillingSummary Summary,
     IReadOnlyList<BillingInvoiceItem> Invoices,
@@ -48,4 +68,6 @@ public sealed record BillingOverview(
     IReadOnlyList<BillingLedgerItem> Ledger,
     long ReceiptsCents,
     long DisbursementsCents,
+    IReadOnlyList<BillingCostItem> Costs,
+    long CostsOutstandingCents,
     BillingStatement Statement);

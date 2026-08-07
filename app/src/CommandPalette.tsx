@@ -85,7 +85,7 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
   }, [term, scope])
 
   /**
-   * Every row the arrows can reach, in the order they are drawn — the starting points as well as the
+   * Every row the arrows can reach, in the order they are drawn, the starting points as well as the
    * results.
    *
    * It used to be built from `results` alone, which is null until something is typed, so the footer

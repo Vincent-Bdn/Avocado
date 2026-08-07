@@ -23,7 +23,7 @@ Run on its own it reads three environment variables:
 | `AVOCADO_VAULT` | `~/Documents/Avocado` | The vault folder |
 | `AVOCADO_WORKING_DIR` | `%LOCALAPPDATA%/Avocado/working` | Where documents are decrypted while open |
 | `AVOCADO_API_TOKEN` | random per launch | The bearer token every request must carry |
-| `AVOCADO_PORT` | `0` — the OS picks | Useful when you want a stable port to `curl` |
+| `AVOCADO_PORT` | `0`, the OS picks | Useful when you want a stable port to `curl` |
 
 ```bash
 AVOCADO_API_TOKEN=diag AVOCADO_PORT=45999 dotnet run --project src/Avocado.Server
@@ -83,14 +83,14 @@ on both.
 
 **Logging goes to stdout and the shell forwards all of it.** The handshake is matched by marker
 (`AVOCADO_READY `) rather than by reading the first line, and the reader stays open for the life of the
-process. Closing it after the handshake — which it once did — silently discarded every log line from
+process. Closing it after the handshake, which it once did, silently discarded every log line from
 then on, which makes anything that happens after startup impossible to diagnose from the window.
 
 ### Shutdown
 
 `before-quit` kills the child. On Windows that is a hard terminate, so `IHostedService.StopAsync` may
 not run. Everything that must survive that is written to be idempotent and reconciled at the next
-launch — see `DocumentWorkspace`.
+launch, see `DocumentWorkspace`.
 
 ---
 
@@ -117,11 +117,11 @@ GET    /api/dashboard · /api/search · /api/deadlines · /api/settings
 minimal APIs fall back to binding the value from the query string, find nothing, and answer `400` with
 an empty body that says nothing at all. This cost an afternoon once.
 
-Enums cross the wire as **names**, never integers — the front end owns the French labels and maps from
+Enums cross the wire as **names**, never integers, the front end owns the French labels and maps from
 keys like `IncomingLetter`, so a renumbering here would silently relabel history.
 
 Failures answer `ProblemDetails` in French, through `Hosting/FailureDetails.cs`. The framework's
-default — *An error occurred while processing your request.* — is in English on a screen that is
+default, *An error occurred while processing your request.*, is in English on a screen that is
 otherwise entirely French, and says nothing about what to do. The case that actually happens, a file
 held open by Word, is a `409` that says exactly that.
 
@@ -137,7 +137,7 @@ through `IVaultStore` and hands EF an already-keyed connection.
   for one vault must never be reachable from another.
 - **`contextOwnsConnection: true`**, since every context holds a real file handle.
 - The package is **`Microsoft.EntityFrameworkCore.Sqlite.Core`**, never `…Sqlite`. The full package
-  drags in `SQLitePCLRaw.bundle_e_sqlite3` — plain SQLite. Two bundles in one process means whichever
+  drags in `SQLitePCLRaw.bundle_e_sqlite3`, plain SQLite. Two bundles in one process means whichever
   registers first wins, and if that is `e_sqlite3` then `PRAGMA key` is a **no-op** and the whole
   practice is written in plaintext with no error at all. `VaultDatabase` asserts
   `PRAGMA cipher_version` at every open so a regression fails loudly.
@@ -177,8 +177,8 @@ that succeeds and is wrong, which nothing can undo. This is the user's only copy
 into the machine-local working directory, hands the path to the shell, and re-encrypts every save back
 into the vault.
 
-**It polls; it does not watch.** Word does not write documents in place — it creates `~$name.docx` and
-a scratch file, then renames over the original — so a `FileSystemWatcher` sees a delete-and-create
+**It polls; it does not watch.** Word does not write documents in place, it creates `~$name.docx` and
+a scratch file, then renames over the original, so a `FileSystemWatcher` sees a delete-and-create
 dance it has to be taught to read through, and on Windows it silently drops events when its buffer
 overflows. A 1.5-second comparison of *(length, last write, then hash)* has none of those failure
 modes. The hash is what stops a version being created every time Word rewrites an untouched file.
@@ -198,7 +198,7 @@ stateDiagram-v2
 The idle rule is the interesting one. Closing a reader is not an event any application can observe, so
 three signals stand in for it, all three held for three minutes: the file is not locked, Word has left
 no `~$` sidecar beside it, and the bytes have not changed since they were last stored. **The sidecar is
-what makes this safe with Word** — Word does not hold the document itself exclusively between saves,
+what makes this safe with Word**, Word does not hold the document itself exclusively between saves,
 so a lock check alone would declare an open document idle and delete the file out from under it.
 
 A hard kill cannot run the shutdown path, which is why the startup sweep exists. Anything hashing
@@ -232,5 +232,5 @@ The service needs **no elevation, no admin rights and no installed service**. It
   the thing it unlocks is not a second factor.
 
 It binds one **loopback** port. It opens no listening socket on any other interface and makes no
-outbound connection whatsoever — the one external request in the product, the *annuaire des
+outbound connection whatsoever, the one external request in the product, the *annuaire des
 entreprises* lookup, is made by the renderer, not by the service.

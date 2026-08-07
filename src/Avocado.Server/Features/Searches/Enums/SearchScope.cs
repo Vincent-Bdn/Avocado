@@ -5,10 +5,10 @@ public enum SearchScope
 {
     All,
 
-    /// <summary>`@` — tiers only.</summary>
+    /// <summary>`@`, tiers only.</summary>
     Contacts,
 
-    /// <summary>`#` — documents and pièces only.</summary>
+    /// <summary>`#`, documents and pièces only.</summary>
     Documents,
 
     Matters,

@@ -19,7 +19,7 @@ que vous y consacrez et ce qu'il vous reste à facturer. Le reste en découle.
 
 Un dossier porte une référence, un intitulé, un client, une date d'ouverture et un taux horaire.
 Il est **en cours** tant qu'il n'a pas de date de clôture, et **clôturé** ensuite : il n'y a pas de
-statut à tenir à jour. Vous le classez en *conseil* ou en *contentieux* — ou avec vos propres mots —
+statut à tenir à jour. Vous le classez en *conseil* ou en *contentieux*, ou avec vos propres mots,
 et un dossier contentieux porte en plus sa juridiction et son n° RG.
 
 Les quelques dossiers du mois se mettent en favori et remontent en tête de liste.
@@ -27,7 +27,7 @@ Les quelques dossiers du mois se mettent en favori et remontent en tête de list
 ### Le journal
 
 Le geste central de l'application, et le plus rapide : `⌘J` depuis n'importe où, deux lignes, `⌘⏎`.
-Un appel, un courrier, un rendez-vous, une audience — avec, dans le même geste, **le temps passé**.
+Un appel, un courrier, un rendez-vous, une audience. Et, dans le même geste, **le temps passé**.
 
 C'est là que se joue l'essentiel : ce qui n'est pas noté au moment où l'on raccroche ne se facturera
 jamais. Le temps saisi depuis le journal remonte automatiquement dans l'onglet *Temps passé* et dans
@@ -54,7 +54,7 @@ terminez.
 ### Les échéances
 
 Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas être manqué.
-Elles se regroupent par urgence — dépassées, aujourd'hui, cette semaine, plus tard — et chacune porte
+Elles se regroupent par urgence (dépassées, aujourd'hui, cette semaine, plus tard) et chacune porte
 la distance en toutes lettres, de sorte qu'une impression en noir et blanc reste lisible.
 
 ### Le temps et la facturation
@@ -68,13 +68,16 @@ Il note ce qui est parti, pour que ce qui reste soit connu.
   décidez du montant. L'écart entre les deux est enregistré comme **boni** ou **mali** : c'est là que
   se lit où le cabinet a gagné de l'argent et où il en a laissé.
 - Les provisions reçues et les frais avancés se notent comme *mouvements* et viennent en déduction.
+- Quand une partie du travail est **sous-traitée** à un confrère, la rétrocession d'honoraires
+  s'enregistre à part. Elle ne change rien à ce que le client doit : elle change ce qui vous reste,
+  et le dossier affiche son montant net.
 - Un bouton produit le **détail de facturation** en Excel, à joindre à la facture envoyée au client.
 
 ### Les tiers
 
 Clients, parties adverses, confrères, experts. Le même tiers est client sur un dossier et partie
 adverse sur un autre : le rôle est du texte libre, propre à chaque dossier, et *client* est le seul
-que l'application interprète — c'est lui qui alimente la facturation.
+que l'application interprète, c'est lui qui alimente la facturation.
 
 Pour une société, tapez trois lettres de sa raison sociale ou son SIREN : Avocado interroge
 l'**annuaire des entreprises** et remplit le SIREN, la forme juridique et l'adresse. Cette recherche
@@ -83,7 +86,7 @@ se coupe d'un interrupteur, et c'est la seule requête que l'application envoie 
 ### L'accueil
 
 Ce que vous voyez en ouvrant le matin : ce qui tombe, ce qui a été gagné et pas encore demandé, où
-vous en étiez — et un graphique sur douze mois qui répond à une seule question, **est-ce que je
+vous en étiez, et un graphique sur douze mois qui répond à une seule question, **est-ce que je
 facture ce que je travaille ?**
 
 ### La recherche
@@ -115,8 +118,8 @@ qui rouvrira vos dossiers sur un ordinateur neuf, après un vol ou une panne. **
 autre copie** : ce n'est pas un mot de passe qu'on réinitialise. L'assistant de démarrage refuse de
 vous laisser passer avant que vous l'ayez mise à l'abri.
 
-Vous pouvez la contrôler à tout moment depuis les réglages — recopier deux groupes de votre feuille
-suffit — et en éditer une nouvelle si la feuille est perdue.
+Vous pouvez la contrôler à tout moment depuis les réglages, recopier deux groupes de votre feuille
+suffit, et en éditer une nouvelle si la feuille est perdue.
 
 ### Ce qui ne quitte pas votre ordinateur
 
@@ -166,7 +169,7 @@ cd app && npm install
 npm run electron:dev            # compile le rendu, puis lance l'application
 ```
 
-Les tests du coffre — chiffrement, clé de récupération, sauvegardes — sont dans
+Les tests du coffre, chiffrement, clé de récupération, sauvegardes, sont dans
 `tests/Avocado.Vault.Tests` :
 
 ```bash

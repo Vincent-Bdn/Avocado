@@ -11,7 +11,7 @@ public readonly record struct BlobReference(string Sha256, long SizeBytes);
 public interface IBlobStore
 {
     /// <summary>
-    /// Encrypts and stores <paramref name="content"/>. Identical content stores once — the second call
+    /// Encrypts and stores <paramref name="content"/>. Identical content stores once, the second call
     /// returns the existing reference without rewriting.
     /// </summary>
     Task<BlobReference> PutAsync(Stream content, CancellationToken cancellationToken = default);

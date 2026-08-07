@@ -10,7 +10,7 @@ public sealed record Argon2Parameters
 {
     /// <summary>
     /// 64 MiB / t=3 / p=4. Comfortably above the OWASP floor, and Konscious is a pure-C#
-    /// implementation — pushing memory much higher makes unlock take seconds on a modest laptop.
+    /// implementation, pushing memory much higher makes unlock take seconds on a modest laptop.
     /// </summary>
     public static Argon2Parameters Default { get; } = new();
 
@@ -22,7 +22,7 @@ public sealed record Argon2Parameters
 public static class KeyDerivation
 {
     /// <summary>
-    /// Derives a subkey from full-entropy input material. Cheap by design — only valid when the input
+    /// Derives a subkey from full-entropy input material. Cheap by design, only valid when the input
     /// is already a random 256-bit secret (a DEK, a recovery key). Never for a passphrase.
     /// </summary>
     public static SecretKey Hkdf(ReadOnlySpan<byte> inputKeyMaterial, ReadOnlySpan<byte> salt, string info)

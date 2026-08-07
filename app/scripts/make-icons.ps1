@@ -2,7 +2,7 @@
 #
 # The mark is « Jeton » from the design system: a brand-green rounded square with an avocado
 # cross-section knocked out of it, built from one rounded rect and three circles so it survives 16px.
-# Source of truth is ds/README.md — this script is the raster derivation, not a second design.
+# Source of truth is ds/README.md; this script is the raster derivation, not a second design.
 #
 #   pwsh app/scripts/make-icons.ps1
 #

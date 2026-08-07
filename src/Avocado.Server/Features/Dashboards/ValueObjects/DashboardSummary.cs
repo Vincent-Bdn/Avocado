@@ -24,7 +24,7 @@ public sealed record DashboardUnbilledMatter(
 
 /// <param name="AgedOverSixtyDaysCents">
 /// Billable time recorded more than 60 days ago on matters that still have something left to bill.
-/// A triage signal — « dont X de plus de 60 jours » — not an accounting figure.
+/// A triage signal, « dont X de plus de 60 jours », not an accounting figure.
 /// </param>
 /// <param name="Matters">Ordered by amount. The client shows four and aggregates the rest.</param>
 public sealed record DashboardUnbilled(

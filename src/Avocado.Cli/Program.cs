@@ -110,7 +110,7 @@ static int VerifyRecovery(string folder)
     return 1;
 }
 
-/// <summary>Device key first, falling back to a typed recovery key — the same order the app uses.</summary>
+/// <summary>Device key first, falling back to a typed recovery key, the same order the app uses.</summary>
 static OpenVault Open(string folder)
 {
     try

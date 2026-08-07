@@ -97,7 +97,7 @@ public sealed class OpenVault : IDisposable
     /// Snapshots the database into <c>backups/</c> and returns the path.
     /// <para>
     /// Call this before every EF Core migration. SQLite DDL is transactional so a <em>failed</em>
-    /// migration rolls back on its own — but a migration that succeeds and is wrong is unrecoverable,
+    /// migration rolls back on its own, but a migration that succeeds and is wrong is unrecoverable,
     /// and this is the user's only copy of their practice.
     /// </para>
     /// </summary>

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, ListChecks, PenLine, Pencil,
-  Trash2, X,
+  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, HandCoins, ListChecks, PenLine,
+  Pencil, Trash2, X,
 } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
+import { Select } from '../components/ui/select.js'
 import { SplitButton, SplitButtonItem } from '../components/ui/split-button.js'
 import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
@@ -15,6 +16,7 @@ import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
 import { readBilling } from '../lib/billing.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
+import type { ContactSummary } from '../types.js'
 
 type MovementKind = 'Receipt' | 'Disbursement'
 
@@ -40,6 +42,21 @@ interface UnbilledEntry {
   invoiceId: string | null
 }
 
+interface BillingCost {
+  id: string
+  date: string
+  kind: string | null
+  label: string
+  amountExclVatCents: number
+  contactId: string | null
+  contactName: string | null
+  externalReference: string | null
+  isPaid: boolean
+  paidOn: string | null
+  invoiceId: string | null
+  invoiceReference: string | null
+}
+
 interface BillingMovement {
   id: string
   date: string
@@ -56,6 +73,8 @@ interface BillingOverview {
     invoicedCents: number
     manualInvoicedCents: number
     varianceCents: number
+    subcontractedCents: number
+    netCents: number
     leftToBillCents: number
   }
   invoices: BillingInvoice[]
@@ -63,6 +82,8 @@ interface BillingOverview {
   ledger: BillingMovement[]
   receiptsCents: number
   disbursementsCents: number
+  costs: BillingCost[]
+  costsOutstandingCents: number
   statement: {
     since: string | null
     billableMinutes: number
@@ -88,6 +109,8 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
   const [billing, setBilling] = useState<'time' | 'manual' | null>(null)
   const [movement, setMovement] = useState<MovementKind | null>(null)
+  const [addingCost, setAddingCost] = useState(false)
+  const [editingCost, setEditingCost] = useState<string | null>(null)
   const toasts = useToasts()
 
   const reload = useCallback(() => {
@@ -101,6 +124,8 @@ export function Billing({ matterId, isOpen, onChanged }: {
   const refresh = () => {
     setEditingInvoice(null)
     setEditingMovement(null)
+    setAddingCost(false)
+    setEditingCost(null)
     reload()
     onChanged()
   }
@@ -146,8 +171,8 @@ export function Billing({ matterId, isOpen, onChanged }: {
       {/*
         Two different questions, and only one of them is ever the live one. While there are hours to
         bill, the answer is « combien » and the subtraction has to be checkable by eye. Once
-        everything is billed, « reste à facturer : −150 € » is not an answer at all — it is a
-        provision showing through — so the card switches to what she actually wants then: what the
+        everything is billed, « reste à facturer : −150 € » is not an answer at all, it is a
+        provision showing through, so the card switches to what she actually wants then: what the
         dossier earned against what its hours were worth.
       */}
       {settled ? (
@@ -180,6 +205,18 @@ export function Billing({ matterId, isOpen, onChanged }: {
                   {summary.varianceCents > 0 ? '+ ' : '− '}
                   {formatEuros(Math.abs(summary.varianceCents))}
                 </span>
+              </div>
+            </div>
+          )}
+
+          {summary.subcontractedCents > 0 && (
+            <div className="mt-2 border-t border-[#BFD3C5] pt-1.5">
+              <div className="type-group opacity-80">Net de sous-traitance</div>
+              <div className="font-mono text-[15px] leading-5 font-semibold tnum">
+                {formatEuros(summary.netCents)}
+              </div>
+              <div className="font-mono text-[10px] tnum opacity-80">
+                après {formatEuros(summary.subcontractedCents)} rétrocédés
               </div>
             </div>
           )}
@@ -418,6 +455,90 @@ export function Billing({ matterId, isOpen, onChanged }: {
           </Micro>
         )}
       </section>
+
+      <section className="grid gap-2">
+        <h3 className="type-title m-0">Sous-traitance</h3>
+        <Micro>
+          Ce que le dossier a coûté au cabinet : rétrocessions d’honoraires à un confrère, traductions,
+          expertises privées. Cela ne change pas ce que le client doit, cela change ce qui vous reste.
+        </Micro>
+
+        {isOpen && (
+          <Button
+            variant="secondary"
+            className="justify-self-start"
+            onClick={() => setAddingCost(true)}
+          >
+            <HandCoins size={14} strokeWidth={1.75} />
+            Enregistrer une rétrocession
+          </Button>
+        )}
+
+        {addingCost && (
+          <CostDialog
+            matterId={matterId}
+            invoices={data.invoices}
+            onCancel={() => setAddingCost(false)}
+            onSaved={refresh}
+          />
+        )}
+
+        {editingCost && (
+          <CostDialog
+            matterId={matterId}
+            invoices={data.invoices}
+            cost={data.costs.find((candidate) => candidate.id === editingCost)}
+            onCancel={() => setEditingCost(null)}
+            onSaved={refresh}
+          />
+        )}
+
+        <div className="grid">
+          {data.costs.map((cost) => (
+            <Row key={cost.id} className="group">
+              <RowDate>{new Date(cost.date).toLocaleDateString('fr-FR')}</RowDate>
+
+              {cost.kind && <Badge>{cost.kind}</Badge>}
+
+              <RowMain>
+                <span>{cost.label}</span>
+                {(cost.contactName || cost.invoiceReference) && (
+                  <Micro>
+                    {cost.contactName}
+                    {cost.contactName && cost.invoiceReference && ' · '}
+                    {cost.invoiceReference && `sur ${cost.invoiceReference}`}
+                  </Micro>
+                )}
+              </RowMain>
+
+              {/* Rendered as what leaves, because that is what it is. */}
+              <RowAmount className="text-warning">
+                − {formatEuros(cost.amountExclVatCents)}
+              </RowAmount>
+
+              <Badge tone={cost.isPaid ? 'brand' : 'accent'}>
+                {cost.isPaid ? 'Réglée' : 'À régler'}
+              </Badge>
+
+              {isOpen && (
+                <Actions
+                  onEdit={() => setEditingCost(cost.id)}
+                  onDelete={() => void remove(`/api/costs/${cost.id}`)}
+                />
+              )}
+            </Row>
+          ))}
+        </div>
+
+        {data.costs.length > 0 && (
+          <Micro>
+            {formatEuros(summary.subcontractedCents)} rétrocédés sur ce dossier
+            {data.costsOutstandingCents > 0 &&
+              `, dont ${formatEuros(data.costsOutstandingCents)} restant à régler`}
+            .
+          </Micro>
+        )}
+      </section>
     </TabPanel>
   )
 }
@@ -449,7 +570,7 @@ const Actions = ({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
  *
  * Lawyers rarely bill everything at once, so this is the normal path: pick the lines, see what they
  * are worth, then decide what to bill. The two figures are shown side by side because the difference
- * between them is the interesting one — billing below the recorded time is a mali, above it a boni,
+ * between them is the interesting one, billing below the recorded time is a mali, above it a boni,
  * and both are deliberate acts a practice benefits from watching.
  *
  * The selected lines are hard-linked to the facture, so they stop counting towards « reste à
@@ -769,6 +890,188 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
       <InlineForm editing={Boolean(invoice)}>{fields}</InlineForm>
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
     </div>
+  )
+}
+
+/**
+ * Suggestions, not a list to choose from. The field is free text and may be left empty; these are
+ * only what a datalist offers so the four usual answers are one keystroke away, and a practice that
+ * meets a fifth never waits for a release.
+ */
+const costKinds = [
+  'Rétrocession d’honoraires',
+  'Sous-traitance',
+  'Traduction',
+  'Expertise privée',
+]
+
+/**
+ * Recording what the dossier cost the cabinet.
+ *
+ * Deliberately not a facture with a minus sign: this one was issued *to* her, « réglée » means she
+ * paid rather than the client did, and it must never reach the détail de facturation the client
+ * receives. It is also not a débours, a débours is advanced for the client and re-billed at cost, so
+ * it raises what remains to invoice, where a rétrocession comes out of the margin and leaves what the
+ * client owes exactly as it was.
+ */
+function CostDialog({ matterId, invoices, cost, onCancel, onSaved }: {
+  matterId: string
+  invoices: BillingInvoice[]
+  cost?: BillingCost
+  onCancel: () => void
+  onSaved: () => void
+}) {
+  const [date, setDate] = useState(cost?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10))
+  const [kind, setKind] = useState(cost?.kind ?? '')
+  const [label, setLabel] = useState(cost?.label ?? '')
+  const [amount, setAmount] = useState(cost ? centsToAmount(cost.amountExclVatCents) : '')
+  const [contactId, setContactId] = useState(cost?.contactId ?? '')
+  const [reference, setReference] = useState(cost?.externalReference ?? '')
+  const [invoiceId, setInvoiceId] = useState(cost?.invoiceId ?? '')
+  const [paid, setPaid] = useState(cost?.isPaid ?? false)
+  const [contacts, setContacts] = useState<ContactSummary[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<ContactSummary[]>('/api/contacts').then(setContacts).catch(() => setContacts([]))
+  }, [])
+
+  async function save() {
+    const cents = parseAmountToCents(amount)
+
+    if (cents === null) {
+      setError('Indiquez un montant positif, par exemple 3 000,00.')
+      return
+    }
+
+    if (!label.trim()) {
+      setError('Indiquez à quoi correspond cette rétrocession.')
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      const body = {
+        date,
+        kind: kind.trim(),
+        label: label.trim(),
+        amountExclVatCents: cents,
+        contactId: contactId || null,
+        externalReference: reference.trim() || null,
+        invoiceId: invoiceId || null,
+        isPaid: paid,
+        paidOn: paid ? date : null,
+      }
+
+      if (cost) {
+        await api(`/api/costs/${cost.id}`, { method: 'PUT', body: JSON.stringify(body) })
+      } else {
+        await post(`/api/matters/${matterId}/costs`, body)
+      }
+
+      onSaved()
+    } catch (failure) {
+      setError(messageOf(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog
+      title={cost ? 'Modifier la rétrocession' : 'Enregistrer une rétrocession'}
+      width={480}
+      onClose={onCancel}
+    >
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Date">
+          <Input inputSize="lg" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        </Field>
+
+        <Field label="Nature (facultatif)">
+          <Input
+            inputSize="lg"
+            list="cost-kinds"
+            value={kind}
+            placeholder="Rétrocession d’honoraires"
+            onChange={(event) => setKind(event.target.value)}
+          />
+          <datalist id="cost-kinds">
+            {costKinds.map((candidate) => <option key={candidate} value={candidate} />)}
+          </datalist>
+        </Field>
+      </div>
+
+      <Field label="Objet">
+        <Input
+          inputSize="lg"
+          autoFocus
+          value={label}
+          placeholder="Audience de plaidoirie du 14 mars, cour d’appel de Lyon"
+          onChange={(event) => { setLabel(event.target.value); setError(null) }}
+        />
+      </Field>
+
+      <Field label="Confrère ou prestataire">
+        <Select className="h-8" value={contactId} onChange={(event) => setContactId(event.target.value)}>
+          <option value="">Non renseigné</option>
+          {contacts.map((contact) => (
+            <option key={contact.id} value={contact.id}>{contact.displayName}</option>
+          ))}
+        </Select>
+      </Field>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Montant HT">
+          <Input
+            inputSize="lg"
+            className="font-mono tnum"
+            invalid={Boolean(error)}
+            value={amount}
+            onChange={(event) => { setAmount(event.target.value); setError(null) }}
+          />
+        </Field>
+
+        <Field label="Sa référence de facture">
+          <Input
+            inputSize="lg"
+            value={reference}
+            onChange={(event) => setReference(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      {invoices.length > 0 && (
+        <Field label="Sur quelle facture">
+          <Select className="h-8" value={invoiceId} onChange={(event) => setInvoiceId(event.target.value)}>
+            <option value="">Pas rattachée à une facture</option>
+            {invoices.map((invoice) => (
+              <option key={invoice.id} value={invoice.id}>
+                {invoice.externalReference ?? new Date(invoice.date).toLocaleDateString('fr-FR')} ·{' '}
+                {formatEuros(invoice.amountExclVatCents)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
+
+      <label className="flex items-center gap-2 text-[13px]">
+        <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
+        Déjà réglée au confrère
+      </label>
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy} onClick={() => void save()}>
+          {cost ? 'Enregistrer' : 'Enregistrer la rétrocession'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 

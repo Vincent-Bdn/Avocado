@@ -6,14 +6,14 @@ namespace Avocado.Vault.Keys;
 
 /// <summary>
 /// DPAPI, scoped to the current Windows user. The protected blob is worthless on another machine or
-/// under another account — which is exactly the property we want, and exactly why the recovery file
+/// under another account, which is exactly the property we want, and exactly why the recovery file
 /// is not optional.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed class WindowsDeviceKeyStore : IDeviceKeyStore
 {
     /// <summary>
-    /// Extra entropy mixed into DPAPI. Not a secret — it only stops an unrelated application's
+    /// Extra entropy mixed into DPAPI. Not a secret, it only stops an unrelated application's
     /// protected blob from being decryptable as one of ours, and vice versa.
     /// </summary>
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("avocado-vault-device-kek-v1");

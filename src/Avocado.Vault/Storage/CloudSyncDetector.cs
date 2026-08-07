@@ -3,7 +3,7 @@ namespace Avocado.Vault.Storage;
 /// <summary>
 /// A live SQLite database inside Dropbox, OneDrive or Google Drive will eventually be corrupted: the
 /// sync client uploads the file mid-write, or restores a stale copy over a newer WAL. The rule is
-/// backups go to the cloud, the vault never does — so this check exists to refuse the folder up front
+/// backups go to the cloud, the vault never does, so this check exists to refuse the folder up front
 /// rather than explain the corruption six months later.
 /// </summary>
 public static class CloudSyncDetector
@@ -34,8 +34,8 @@ public static class CloudSyncDetector
 
     /// <summary>
     /// Best effort. It walks up from the folder looking for a sync root by name or by the marker files
-    /// those clients leave behind. False negatives are possible — a user can point OneDrive at any
-    /// folder — so this reduces the failure rate, it does not eliminate it.
+    /// those clients leave behind. False negatives are possible, a user can point OneDrive at any
+    /// folder, so this reduces the failure rate, it does not eliminate it.
     /// </summary>
     public static bool IsInsideSyncedFolder(string directory, out string? detectedRoot)
     {

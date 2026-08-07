@@ -10,8 +10,8 @@ namespace Avocado.Server.Features.Matters;
 /// </para>
 /// <para>
 /// The five are read as separate scalar subqueries and combined here rather than in SQL. SQLite has
-/// no clean way to take the max of five correlated subqueries, and the alternative — a UNION inside a
-/// projection — is exactly the shape EF gives up on. The comparison itself is trivial; doing it in
+/// no clean way to take the max of five correlated subqueries, and the alternative, a UNION inside a
+/// projection, is exactly the shape EF gives up on. The comparison itself is trivial; doing it in
 /// memory costs one pass over a page of rows.
 /// </para>
 /// </summary>

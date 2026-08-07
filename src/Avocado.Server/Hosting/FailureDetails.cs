@@ -6,7 +6,7 @@ namespace Avocado.Server.Hosting;
 /// <summary>
 /// Turns an unhandled exception into something the user can act on.
 /// <para>
-/// The framework's default is « An error occurred while processing your request. » — in English, with
+/// The framework's default is « An error occurred while processing your request. », in English, with
 /// no indication of what failed, on a screen that is otherwise entirely in French. Every message here
 /// says what could not be done and, where it is knowable, what to do about it. The exception itself
 /// still goes to the log; what changes is what reaches the window.

@@ -4,12 +4,12 @@ using Avocado.Server.Features.Contacts.Enums;
 namespace Avocado.Server.Features.Contacts.Endpoints.Dtos;
 
 /// <param name="Role">
-/// Free text, per dossier, and often long. The full wording goes in the row's <c>title</c> — shortening
+/// Free text, per dossier, and often long. The full wording goes in the row's <c>title</c>, shortening
 /// it automatically destroys its meaning.
 /// </param>
 /// <param name="IsClient">
 /// The one role the application interprets: only client relations feed billing. The screen groups on
-/// exactly this — « Relations client — facturables » against « Autres rôles — non facturables ».
+/// exactly this, « Relations client, facturables » against « Autres rôles, non facturables ».
 /// </param>
 public sealed record ContactRole(
     Guid MatterId,
@@ -30,7 +30,7 @@ public sealed record ContactExchange(
     string? Summary);
 
 /// <param name="ClientSince">
-/// « client depuis 11/2025 » — the opening date of their earliest client matter. Null when they have
+/// « client depuis 11/2025 », the opening date of their earliest client matter. Null when they have
 /// never been a client, which the screen states plainly rather than rendering an empty group.
 /// </param>
 /// <param name="Function">« Gérant et associé majoritaire », « DAF ». Free text, like every role.</param>

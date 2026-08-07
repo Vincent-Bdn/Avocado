@@ -5,7 +5,7 @@ using Avocado.Server.Features.Matters;
 namespace Avocado.Server.Features.Activities;
 
 /// <summary>
-/// One event in a matter's chronology — « le suivi ». Adding one must be the fastest interaction in
+/// One event in a matter's chronology, « le suivi ». Adding one must be the fastest interaction in
 /// the application.
 /// </summary>
 public class Activity
@@ -16,7 +16,7 @@ public class Activity
     public Matter? Matter { get; set; }
 
     /// <summary>
-    /// When it happened, not when it was typed — the composer's timestamp is editable and pre-filled
+    /// When it happened, not when it was typed, the composer's timestamp is editable and pre-filled
     /// with now, because the 11:00 call is usually logged at 17:00.
     /// </summary>
     public DateTimeOffset OccurredAt { get; set; } = DateTimeOffset.UtcNow;

@@ -37,7 +37,7 @@ export interface VaultCreated {
 
 /**
  * Thrown for a non-2xx response, carrying the backend's own French message where it sent one.
- * The API answers with ProblemDetails, so `detail` and validation errors are worth surfacing —
+ * The API answers with ProblemDetails, so `detail` and validation errors are worth surfacing,
  * « Ce dossier est inclus dans un dossier synchronisé » beats « Erreur 400 ».
  */
 export class ApiError extends Error {
@@ -67,7 +67,7 @@ async function connect(): Promise<{ url: string; token: string }> {
 }
 
 /**
- * Every call carries this launch's bearer token. Without it the backend answers 401 — which is what
+ * Every call carries this launch's bearer token. Without it the backend answers 401, which is what
  * stops another local process, or a page open in a browser, from reading the vault over loopback.
  *
  * While the vault is shut, everything except `/api/vault` and `/health` answers 503; the renderer

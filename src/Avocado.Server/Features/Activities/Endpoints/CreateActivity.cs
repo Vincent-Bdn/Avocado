@@ -31,7 +31,7 @@ public static class CreateActivity
         }
 
         // The Clôturé screen replaces the composer rather than disabling it, so this is a state the UI
-        // does not offer — but the API is also reachable from ⌘K, and a frozen journal must stay frozen.
+        // does not offer, but the API is also reachable from ⌘K, and a frozen journal must stay frozen.
         if (matter.ClosedOn is not null)
         {
             return Results.Problem(

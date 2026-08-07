@@ -3,7 +3,7 @@ using Avocado.Server.Features.Matters;
 namespace Avocado.Server.Features.Billings;
 
 /// <summary>
-/// A facture that was issued <em>elsewhere</em>. Avocado never generates an invoice — she has an
+/// A facture that was issued <em>elsewhere</em>. Avocado never generates an invoice, she has an
 /// invoicing platform for that. This records what was billed so « reste à facturer » can be right.
 /// </summary>
 public class BillingInvoice

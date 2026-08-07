@@ -9,9 +9,9 @@ namespace Avocado.Server.Features.Matters.Endpoints;
 /// Closing sets the closing date and writes a journal line. It deletes nothing.
 /// <para>
 /// The liste-des-dossiers handoff says closing "clears" the échéances. It must not: the fiche dossier
-/// promises « rien n'a été supprimé », and reopening would then be unable to restore them — silent,
-/// irreversible loss on an action that reads as reversible. The behaviour the screens actually show —
-/// no deadline on a closed dossier, and *Clôturés + dépassée* returning nothing — comes from the read
+/// promises « rien n'a été supprimé », and reopening would then be unable to restore them, silent,
+/// irreversible loss on an action that reads as reversible. The behaviour the screens actually show,
+/// no deadline on a closed dossier, and *Clôturés + dépassée* returning nothing, comes from the read
 /// queries excluding closed matters, not from deleting rows.
 /// </para>
 /// </summary>

@@ -10,7 +10,7 @@ namespace Avocado.Server.Data.Migrations
     /// <para>Adding a non-nullable column to a table that already has rows makes SQLite fill them with
     /// the column's default, and EF's default for a string column is the empty string. Timestamps are
     /// stored as ISO-8601 text, so every document that existed before that migration came back with
-    /// <c>updated_at = ''</c> — and reading one threw <c>String '' was not recognized as a valid
+    /// <c>updated_at = ''</c>, and reading one threw <c>String '' was not recognized as a valid
     /// DateTime</c> before the row ever reached a handler. Deleting a document was enough to hit it.</para>
     ///
     /// <para>The lesson for the next one: a non-nullable column added to a populated table needs a

@@ -9,7 +9,7 @@ public sealed record FavouriteInput(bool IsFavourite);
 /// Pinning a dossier, on its own endpoint.
 /// <para>
 /// It could go through <see cref="UpdateMatter"/>, but that takes the whole dossier and would make a
-/// one-click star a read-modify-write of every field — including the two litigation fields it
+/// one-click star a read-modify-write of every field, including the two litigation fields it
 /// validates. A toggle should not be able to fail because the n° RG is elsewhere.
 /// </para>
 /// </summary>

@@ -41,7 +41,7 @@ Thumbs.db
 desktop.ini
 
 # A real vault must never reach the repository. These are the exact on-disk names from
-# VaultPaths — losing this rule means publishing a lawyer's practice to a public repo.
+# VaultPaths. Losing this rule means publishing a lawyer's practice to a public repo.
 # Tests build their vaults under the system temp folder, so nothing here hides a fixture.
 vault.json
 avocado.db

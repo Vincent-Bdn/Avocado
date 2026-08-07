@@ -32,7 +32,7 @@ public static class Aead
     /// <summary>
     /// Seals with a caller-supplied nonce. Only for the chunked blob format, where nonces are derived
     /// from a random per-blob prefix plus a chunk counter. Reusing a (key, nonce) pair with GCM is
-    /// catastrophic — never call this unless uniqueness is structurally guaranteed.
+    /// catastrophic, never call this unless uniqueness is structurally guaranteed.
     /// </summary>
     public static byte[] SealWithNonce(
         SecretKey key,

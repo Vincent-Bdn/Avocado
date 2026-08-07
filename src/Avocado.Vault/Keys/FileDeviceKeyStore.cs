@@ -10,7 +10,7 @@ namespace Avocado.Vault.Keys;
 /// <b>Why not the Keychain / libsecret.</b> The proper macOS answer is Security.framework
 /// (<c>SecItemAdd</c> / <c>SecItemCopyMatching</c>), which adds per-application ACLs on top of the
 /// login password. That is ~250 lines of CoreFoundation interop guarding the key to every document in
-/// the practice, and it cannot be exercised from the machine this was written on — a bug there is
+/// the practice, and it cannot be exercised from the machine this was written on, a bug there is
 /// either silent data loss or a silent hole. This store is small enough to be read in one sitting and
 /// is covered by tests on all three platforms. See TODO.md; the interface is unchanged when the
 /// Keychain version lands, and existing vaults keep working through their recovery key.
@@ -18,7 +18,7 @@ namespace Avocado.Vault.Keys;
 /// <para>
 /// <b>What it protects.</b> Same as DPAPI for the threats that matter here: the key is not in the
 /// vault folder, so a stolen vault copy, a stolen backup, or a synced folder yields nothing. What
-/// Keychain would add is protection from another process running as the same user — which the stated
+/// Keychain would add is protection from another process running as the same user, which the stated
 /// threat model already excludes. On a machine with FileVault or LUKS enabled, a stolen disk is
 /// covered too; without full-disk encryption, this key is readable from the raw disk, and so, for
 /// practical purposes, is a DPAPI master key.

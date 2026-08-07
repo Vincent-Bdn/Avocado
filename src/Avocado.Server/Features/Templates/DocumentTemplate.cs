@@ -4,7 +4,7 @@ namespace Avocado.Server.Features.Templates;
 /// A .docx she wrote herself, with <c>{{placeholders}}</c> where the dossier's own wording belongs.
 /// <para>
 /// The file is stored in the encrypted blob store like any other document, because a lettre de
-/// mission template contains the cabinet's letterhead, its bank details and its wording — none of
+/// mission template contains the cabinet's letterhead, its bank details and its wording, none of
 /// which belongs in clear on disk any more than a client file does.
 /// </para>
 /// </summary>
@@ -20,7 +20,7 @@ public class DocumentTemplate
     /// </summary>
     public string? Kind { get; set; }
 
-    /// <summary>Hex SHA-256 of the plaintext .docx — its <c>BlobReference</c>.</summary>
+    /// <summary>Hex SHA-256 of the plaintext .docx, its <c>BlobReference</c>.</summary>
     public string BlobSha256 { get; set; } = string.Empty;
 
     public long SizeBytes { get; set; }

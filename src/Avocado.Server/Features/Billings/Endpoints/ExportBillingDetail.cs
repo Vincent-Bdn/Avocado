@@ -10,8 +10,8 @@ namespace Avocado.Server.Features.Billings.Endpoints;
 /// <para>
 /// A client who receives « honoraires : 6 000 € » and nothing else asks what it covers, and the
 /// answer arrives three weeks later by email. Sending the detail with the invoice is what stops that
-/// conversation happening at all, so this is a real .xlsx — column widths, a total row, dates as
-/// dates — rather than a CSV an accountant has to reformat.
+/// conversation happening at all, so this is a real .xlsx, column widths, a total row, dates as
+/// dates, rather than a CSV an accountant has to reformat.
 /// </para>
 /// </summary>
 public static class ExportBillingDetail

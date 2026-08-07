@@ -20,7 +20,7 @@ public static class VaultDatabase
     /// Opens and keys a connection. The caller owns it and must dispose it.
     /// <para>
     /// Pooling is disabled deliberately. Microsoft.Data.Sqlite pools by connection string, and a
-    /// pooled handle comes back already keyed — re-issuing <c>PRAGMA key</c> on it misbehaves, and in
+    /// pooled handle comes back already keyed, re-issuing <c>PRAGMA key</c> on it misbehaves, and in
     /// the multi-tenant case a handle keyed for one vault must never be reachable from another.
     /// </para>
     /// </summary>
@@ -89,7 +89,7 @@ public static class VaultDatabase
 
     /// <summary>
     /// Cheap check that a file on disk is genuinely encrypted, by looking for the plaintext SQLite
-    /// header. Used by the tests and by the startup self-check — the failure mode being guarded
+    /// header. Used by the tests and by the startup self-check, the failure mode being guarded
     /// against is silent, so it has to be asserted rather than assumed.
     /// </summary>
     public static bool LooksEncrypted(string databasePath)

@@ -8,7 +8,7 @@ namespace Avocado.Server.Features.Templates.Infrastructure;
 /// Replaces <c>{{placeholders}}</c> in a .docx with the dossier's own wording.
 ///
 /// <para><b>The hard part is not the substitution.</b> Word splits a paragraph into runs whenever
-/// anything changes — a spell-check mark, a language tag, an edit made on a different day — so
+/// anything changes (a spell-check mark, a language tag, an edit made on a different day), so
 /// « {{client.nom}} » typed in one go is very often stored as « {{clie », « nt.no », « m}} » across
 /// three runs. Searching run by run finds nothing and silently leaves the placeholder in the letter.
 /// So the text of each paragraph is flattened, substituted, and written back into its first run with

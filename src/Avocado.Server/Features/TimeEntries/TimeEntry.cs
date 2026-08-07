@@ -14,7 +14,7 @@ public class TimeEntry
     public DateOnly Date { get; set; }
 
     /// <summary>
-    /// When the work started, where that is known — the entry list renders « 13/03 · 16:42 » and the
+    /// When the work started, where that is known, the entry list renders « 13/03 · 16:42 » and the
     /// chronometer « démarré à 16:24 ». Nullable and separate from <see cref="Date"/>, like
     /// <c>Deadline</c>: a manually recorded « 1 h 30 le 13/03 » genuinely has no time of day, and a
     /// midnight placeholder would be a lie the UI would then have to render.
@@ -29,7 +29,7 @@ public class TimeEntry
     public bool IsBillable { get; set; } = true;
 
     /// <summary>
-    /// « Je ne facture que la moitié ». Null falls back to the matter's rate — safely, because that
+    /// « Je ne facture que la moitié ». Null falls back to the matter's rate, safely, because that
     /// rate was itself frozen at creation and cannot drift.
     /// </summary>
     public long? HourlyRateCentsOverride { get; set; }
@@ -37,7 +37,7 @@ public class TimeEntry
     /// <summary>
     /// The journal entry this time was spent on.
     /// <para>
-    /// Logging « appel client, 20 min » creates the activity and the time entry in one keystroke —
+    /// Logging « appel client, 20 min » creates the activity and the time entry in one keystroke,
     /// the composer's ochre duration chip writes this link. In Gestisoft those are two separate
     /// screens, which is precisely why solo lawyers under-record their billable time.
     /// </para>

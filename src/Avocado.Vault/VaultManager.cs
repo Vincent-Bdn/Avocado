@@ -7,7 +7,7 @@ namespace Avocado.Vault;
 
 /// <param name="RecoveryCode">
 /// Displayed once, then unobtainable. The setup wizard must not let the user past this without
-/// printing it or writing it to a USB key — it is what makes their backups restorable.
+/// printing it or writing it to a USB key, it is what makes their backups restorable.
 /// </param>
 public sealed record VaultCreation(OpenVault Vault, string RecoveryCode);
 
@@ -16,7 +16,7 @@ public sealed record VaultCreation(OpenVault Vault, string RecoveryCode);
 /// <para>
 /// The wizard shows the recovery code from this, and only calls <see cref="VaultManager.Commit"/>
 /// once the whole flow has been seen through. Going back therefore leaves nothing on disk to clean
-/// up — and no Back button ever has to delete a folder, which is not a thing a Back button should do.
+/// up, and no Back button ever has to delete a folder, which is not a thing a Back button should do.
 /// </para>
 /// </summary>
 public sealed class PendingVault(VaultPaths paths, VaultKeyringCreation keys) : IDisposable
@@ -66,7 +66,7 @@ public static class VaultManager
 
     /// <summary>
     /// Validates the destination and generates the keys, writing nothing. Every refusal the wizard has
-    /// to show — synced folder, existing vault, orphaned database — happens here, before any state.
+    /// to show, synced folder, existing vault, orphaned database, happens here, before any state.
     /// </summary>
     public static PendingVault Prepare(
         string directory,

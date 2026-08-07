@@ -11,6 +11,9 @@ export interface HonoraireMonth {
   invoicedCents: number
   paidCents: number
   unpaidCents: number
+  subcontractedCents: number
+  /** `invoiced − subcontracted`, floored at zero. What the month actually brought in. */
+  netCents: number
   leftToBillCents: number
 }
 
@@ -20,6 +23,8 @@ export interface Honoraires {
   invoicedCents: number
   paidCents: number
   unpaidCents: number
+  subcontractedCents: number
+  netCents: number
   scaleCents: number
 }
 
@@ -36,7 +41,7 @@ const UNPAID =
   'bg-[repeating-linear-gradient(135deg,#8FB79E_0_2px,#FFFFFF_2px_4px)] border-b border-[#2C4A38]'
 
 /**
- * « Honoraires facturables et facturés » — twelve months of one question: am I invoicing what I
+ * « Honoraires facturables et facturés », twelve months of one question: am I invoicing what I
  * actually work?
  *
  * Two bars, not a line. The question is not how turnover is trending but whether a given month was
@@ -74,8 +79,9 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
 
         <div className="flex items-center gap-2.5 border-t border-line-subtle bg-[#F8F9F6] px-3 py-[7px]">
           <span className="min-w-0 flex-1 text-[11px] leading-[15px] text-ink-secondary">
-            Facturable <Strong>{formatEurosRounded(data.billableCents)}</Strong> · facturé{' '}
-            <Strong>{formatEurosRounded(data.invoicedCents)}</Strong>
+            Facturable <Strong>{formatEurosRounded(data.billableCents)}</Strong> ·{' '}
+            {data.subcontractedCents > 0 ? 'net facturé ' : 'facturé '}
+            <Strong>{formatEurosRounded(data.netCents)}</Strong>
           </span>
 
           {data.unpaidCents > 0 && (
@@ -126,7 +132,12 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
 
       <div className={cn('flex items-end', labels === 'full' ? 'gap-1' : 'gap-0.5')}>
         {data.months.map((month, index) => {
-          const invoiced = percent(month.invoicedCents)
+          const net = percent(month.netCents)
+
+          // The confrères are paid out of what came in, so what is left is settled money first. The
+          // split is a cap, never a pro rata: a proportion invented here would look like a figure.
+          const paid = Math.min(month.paidCents, month.netCents)
+          const unpaid = month.netCents - paid
 
           return (
             <div
@@ -153,21 +164,17 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
 
                 {/* One column, filled from the bottom: paid, then unpaid hatched above it. */}
                 <div
-                  style={{ width: barWidth, height: `${invoiced}%` }}
+                  style={{ width: barWidth, height: `${net}%` }}
                   className="flex flex-col justify-end overflow-hidden rounded-t-[2px]"
                 >
-                  {month.unpaidCents > 0 && (
+                  {unpaid > 0 && (
                     <div
-                      style={{
-                        height: `${month.invoicedCents === 0 ? 0 : (month.unpaidCents / month.invoicedCents) * 100}%`,
-                      }}
+                      style={{ height: `${month.netCents === 0 ? 0 : (unpaid / month.netCents) * 100}%` }}
                       className={UNPAID}
                     />
                   )}
                   <div
-                    style={{
-                      height: `${month.invoicedCents === 0 ? 0 : (month.paidCents / month.invoicedCents) * 100}%`,
-                    }}
+                    style={{ height: `${month.netCents === 0 ? 0 : (paid / month.netCents) * 100}%` }}
                     className={PAID}
                   />
                 </div>
@@ -194,8 +201,8 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
 /**
  * Five figures, label left and value right in tabular mono so they compare vertically.
  *
- * It follows the hovered month and clamps against the edges — flush left at the start, flush right at
- * the end, centred in between — rather than overflowing the card it sits in.
+ * It follows the hovered month and clamps against the edges, flush left at the start, flush right at
+ * the end, centred in between, rather than overflowing the card it sits in.
  */
 function Tooltip({ month, index, count, width, large }: {
   month: HonoraireMonth
@@ -231,6 +238,19 @@ function Tooltip({ month, index, count, width, large }: {
         <Line large={large} swatch={PAID} label="Facturé" value={month.invoicedCents} />
         <Line large={large} indented label="· payé" value={month.paidCents} tone="text-brand-on-subtle" />
         <Line large={large} indented label="· non payé" value={month.unpaidCents} tone="text-warning" />
+
+        {month.subcontractedCents > 0 && (
+          <>
+            <Line
+              large={large}
+              indented
+              label="· sous-traitance"
+              value={-month.subcontractedCents}
+              tone="text-warning"
+            />
+            <Line large={large} label="Net" value={month.netCents} />
+          </>
+        )}
 
         <div
           className={cn(
@@ -311,8 +331,8 @@ function HonorairesDialog({ data, onClose }: { data: Honoraires; onClose: () => 
         </header>
 
         <div className="flex flex-wrap items-center gap-3.5 border-b border-[#F1F3EE] px-[18px] py-2.5">
-          <Legend swatch={BILLABLE} large>Facturable — temps saisi × taux horaire</Legend>
-          <Legend swatch={PAID} large>Facturé et payé</Legend>
+          <Legend swatch={BILLABLE} large>Facturable, temps saisi × taux horaire</Legend>
+          <Legend swatch={PAID} large>Facturé et payé, net de sous-traitance</Legend>
           <Legend swatch={cn(UNPAID, 'border border-[#2C4A38]')} large>Facturé, non encore payé</Legend>
         </div>
 
@@ -355,8 +375,17 @@ function HonorairesDialog({ data, onClose }: { data: Honoraires; onClose: () => 
         <div className="grid shrink-0 grid-cols-4 border-t border-line-subtle bg-[#F8F9F6]">
           <Total label="Facturable" value={data.billableCents} />
           <Total label="Facturé" value={data.invoicedCents} />
-          <Total label="Encaissé" value={data.paidCents} tone="text-brand-on-subtle" />
-          <Total label="En attente de règlement" value={data.unpaidCents} tone="text-warning" last />
+          {data.subcontractedCents > 0 ? (
+            <Total label="Sous-traitance" value={-data.subcontractedCents} tone="text-warning" />
+          ) : (
+            <Total label="Encaissé" value={data.paidCents} tone="text-brand-on-subtle" />
+          )}
+          <Total
+            label={data.subcontractedCents > 0 ? 'Net' : 'En attente de règlement'}
+            value={data.subcontractedCents > 0 ? data.netCents : data.unpaidCents}
+            tone={data.subcontractedCents > 0 ? 'text-brand-on-subtle' : 'text-warning'}
+            last
+          />
         </div>
       </div>
     </div>

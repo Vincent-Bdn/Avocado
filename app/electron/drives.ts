@@ -8,7 +8,7 @@ const run = promisify(execFile)
 export interface RemovableDrive {
   /** Root path to write to, e.g. `E:\` or `/Volumes/SANDISK`. */
   path: string
-  /** « Clé USB SanDisk », « SAUVEGARDE CABINET » — what is printed on the thing itself. */
+  /** « Clé USB SanDisk », « SAUVEGARDE CABINET », what is printed on the thing itself. */
   label: string
   freeBytes: number
 }

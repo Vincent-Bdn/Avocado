@@ -23,7 +23,7 @@ public static class BillingSummaryQuery
 
         // Materialised rather than aggregated in SQL: the per-entry rate override makes the value a
         // row-level expression, and a matter has tens of entries, not thousands.
-        // Hours already attached to a facture are excluded — that link is what makes the figure mean
+        // Hours already attached to a facture are excluded, that link is what makes the figure mean
         // « depuis la dernière facture » instead of « depuis l'ouverture ».
         var billable = await database.TimeEntries
             .Where(entry => entry.MatterId == matterId && entry.IsBillable && entry.InvoiceId == null)
@@ -55,7 +55,12 @@ public static class BillingSummaryQuery
             .Where(invoice => invoice.BilledTimeCents != 0)
             .Sum(invoice => invoice.AmountExclVatCents - invoice.BilledTimeCents);
 
+        var subcontractedCents = await database.Costs
+            .Where(cost => cost.MatterId == matterId)
+            .SumAsync(cost => (long?)cost.AmountExclVatCents, cancellationToken) ?? 0;
+
         return BillingSummary.Compute(
-            billableTimeCents, billableMinutes, ledgerCents, invoicedCents, manualInvoicedCents, varianceCents);
+            billableTimeCents, billableMinutes, ledgerCents, invoicedCents, manualInvoicedCents,
+            varianceCents, subcontractedCents);
     }
 }

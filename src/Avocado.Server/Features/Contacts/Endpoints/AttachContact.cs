@@ -55,7 +55,7 @@ public static class AttachContact
             }
 
             // Only ever a person inside an organisation. Two sociétés related to each other is a
-            // different idea — a groupe — and pretending this models it would be a lie the fiche
+            // different idea, a groupe, and pretending this models it would be a lie the fiche
             // would then have to render.
             if (parent.Type != ContactType.Organisation || contact.Type != ContactType.Individual)
             {

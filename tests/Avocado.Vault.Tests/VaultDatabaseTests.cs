@@ -11,7 +11,7 @@ public class VaultDatabaseTests
     public void TheFileOnDiskIsActuallyEncrypted()
     {
         // The headline test. Referencing the wrong SQLitePCLRaw bundle writes plaintext with no error
-        // and no exception — the only way to know is to look at the bytes.
+        // and no exception, the only way to know is to look at the bytes.
         using var directory = new TempDirectory();
         var path = directory.Combine("avocado.db");
         using var key = SecretKey.Generate();

@@ -38,7 +38,7 @@ public static class UpdateActivity
             activity.OccurredAt = occurredAt;
         }
 
-        // Time attached to the entry is edited from the Temps passé tab, not from the composer —
+        // Time attached to the entry is edited from the Temps passé tab, not from the composer,
         // silently rewriting a billable record while correcting a typo in a note would be worse than
         // making her go and change it.
         await database.SaveChangesAsync(cancellationToken);

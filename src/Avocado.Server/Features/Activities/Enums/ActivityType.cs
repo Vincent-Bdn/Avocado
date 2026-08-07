@@ -3,7 +3,7 @@ namespace Avocado.Server.Features.Activities.Enums;
 /// <summary>
 /// Direction is folded in rather than carried as a separate field. It is meaningless for a call or a
 /// note, but for letters « envoyé le 12/03 » versus « reçu le 15/03 » starts délais and evidences
-/// diligence — so it lives where it actually matters. The composer shows these nine as chips.
+/// diligence, so it lives where it actually matters. The composer shows these nine as chips.
 /// </summary>
 public enum ActivityType
 {

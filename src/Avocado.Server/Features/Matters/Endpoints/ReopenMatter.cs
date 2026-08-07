@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Avocado.Server.Features.Matters.Endpoints;
 
 /// <summary>
-/// Clears the closing date, and — as the Clôturé screen promises — « le journal note la réouverture ».
+/// Clears the closing date, and, as the Clôturé screen promises, « le journal note la réouverture ».
 /// Every deadline hidden by the closure comes back, because none of them were deleted.
 /// </summary>
 public static class ReopenMatter

@@ -1,7 +1,7 @@
 namespace Avocado.Server.Features.TimeEntries.Endpoints.Dtos;
 
 /// <param name="FromActivityId">
-/// Set when the entry came from a journal entry's `＋ temps passé` chip — the row appends
+/// Set when the entry came from a journal entry's `＋ temps passé` chip, the row appends
 /// « · depuis le journal ».
 /// </param>
 /// <param name="AppliedRateCents">

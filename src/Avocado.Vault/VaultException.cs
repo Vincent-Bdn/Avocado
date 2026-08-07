@@ -22,7 +22,7 @@ public sealed class VaultCorruptedException : VaultException
 
 /// <summary>
 /// The chosen folder is inside a cloud-sync root. Its own type, not just a message, because the UI
-/// branches on it to offer the override — and matching on the text of an English exception from a
+/// branches on it to offer the override, and matching on the text of an English exception from a
 /// French interface is a bug waiting to happen.
 /// </summary>
 public sealed class SyncedFolderException : VaultException

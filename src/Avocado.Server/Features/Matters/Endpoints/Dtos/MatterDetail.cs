@@ -29,8 +29,8 @@ public sealed record MatterLastActivity(ActivityType Type, DateTimeOffset Occurr
 
 /// <summary>
 /// Everything the fiche dossier header, tab bar and context panel need, plus exactly what the ⌘K
-/// preview pane shows for a dossier — Statut, N° RG, Prochaine échéance, Reste à facturer and the last
-/// entry — so the palette needs no endpoint of its own.
+/// preview pane shows for a dossier, Statut, N° RG, Prochaine échéance, Reste à facturer and the last
+/// entry, so the palette needs no endpoint of its own.
 /// </summary>
 public sealed record MatterDetail(
     Guid Id,

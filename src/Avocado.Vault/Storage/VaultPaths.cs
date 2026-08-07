@@ -1,7 +1,7 @@
 namespace Avocado.Vault.Storage;
 
 /// <summary>
-/// A vault is a folder. Configure a folder and that is the whole install — backup is copying it,
+/// A vault is a folder. Configure a folder and that is the whole install, backup is copying it,
 /// moving machines is moving it.
 /// </summary>
 public sealed class VaultPaths

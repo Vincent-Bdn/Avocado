@@ -26,7 +26,7 @@ public static class GetVaultStatus
 
     /// <summary>
     /// Documents\Avocado unless that sits inside a synced folder, in which case the user profile
-    /// root — suggesting a location the next step would reject is worse than not suggesting one.
+    /// root, suggesting a location the next step would reject is worse than not suggesting one.
     /// </summary>
     private static string Suggest()
     {

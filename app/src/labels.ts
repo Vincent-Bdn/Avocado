@@ -2,7 +2,7 @@ import type { ActivityType, DeadlineUrgency } from './types.js'
 
 /**
  * The French side of the contract. The API speaks enum keys, so every label the user reads is
- * decided here — one place to correct wording, and a renumbering on the server can never silently
+ * decided here, one place to correct wording, and a renumbering on the server can never silently
  * relabel history.
  */
 export const activityLabels: Record<ActivityType, string> = {
@@ -54,7 +54,7 @@ const roundEuros = new Intl.NumberFormat('fr-FR', {
  */
 export const formatEurosRounded = (cents: number): string => roundEuros.format(cents / 100)
 
-/** « 4 h 20 », « 45 min » — never « 4.33 h ». */
+/** « 4 h 20 », « 45 min », never « 4.33 h ». */
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60

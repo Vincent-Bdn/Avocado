@@ -7,12 +7,12 @@ namespace Avocado.Server.Features.Documents.Workspace;
 /// thing that gets backed up, and a half-saved draft has no business in a backup. The coffre may one
 /// day be a network share or a remote store, and a file being edited has to be on the machine doing
 /// the editing. And deleting the coffre folder is a catastrophe you recover from with the recovery
-/// key, while deleting this one costs at most the last few seconds of typing — two things with
+/// key, while deleting this one costs at most the last few seconds of typing, two things with
 /// completely different consequences should not share a parent.</para>
 ///
 /// <para><b>Where instead.</b> The shell passes the platform's own per-user application-state folder:
 /// <c>%LOCALAPPDATA%</c> on Windows, <c>~/Library/Application Support</c> on macOS,
-/// <c>~/.config</c> on Linux. Deliberately not Documents — Documents is exactly the folder OneDrive
+/// <c>~/.config</c> on Linux. Deliberately not Documents, Documents is exactly the folder OneDrive
 /// and Dropbox synchronise, and putting plaintext drafts there would undo the refusal the setup
 /// wizard makes such a point of.</para>
 ///
@@ -34,7 +34,7 @@ public sealed class WorkingDirectory(string root)
             return new WorkingDirectory(Path.GetFullPath(configured));
         }
 
-        // Only reached when the backend is run on its own, without the shell — a test, or a
+        // Only reached when the backend is run on its own, without the shell, a test, or a
         // developer with a terminal. ApplicationData is the same idea as what the shell passes.
         var fallback = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

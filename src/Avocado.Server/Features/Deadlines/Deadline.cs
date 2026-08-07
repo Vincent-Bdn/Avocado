@@ -5,7 +5,7 @@ namespace Avocado.Server.Features.Deadlines;
 
 /// <summary>
 /// An échéance. Date and time are separate because a délai has no time of day while an audience is at
-/// 9 h — storing a midnight placeholder would make « aujourd'hui · 17:00 » impossible to render
+/// 9 h, storing a midnight placeholder would make « aujourd'hui · 17:00 » impossible to render
 /// honestly, and the urgency tiers depend on telling those apart.
 /// </summary>
 public class Deadline

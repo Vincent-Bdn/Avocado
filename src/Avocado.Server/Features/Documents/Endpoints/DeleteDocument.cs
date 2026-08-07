@@ -25,7 +25,7 @@ public static class DeleteDocument
         database.Documents.Remove(document);
         await database.SaveChangesAsync(cancellationToken);
 
-        // Blobs are content-addressed and deduplicated, so the same bytes may back another document —
+        // Blobs are content-addressed and deduplicated, so the same bytes may back another document,
         // the same attachment forwarded twice, or the same scan filed on two matters. Only drop the
         // blob once nothing references it.
         var stillReferenced = await database.Documents

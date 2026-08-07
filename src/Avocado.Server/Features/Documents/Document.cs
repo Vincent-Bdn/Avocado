@@ -24,7 +24,7 @@ public class Document
     public Guid? ActivityId { get; set; }
     public Activity? Activity { get; set; }
 
-    /// <summary>Hex SHA-256 of the plaintext — the <c>BlobReference</c> the vault stores under.</summary>
+    /// <summary>Hex SHA-256 of the plaintext, the <c>BlobReference</c> the vault stores under.</summary>
     public string BlobSha256 { get; set; } = string.Empty;
 
     public string FileName { get; set; } = string.Empty;
@@ -36,13 +36,13 @@ public class Document
     /// <summary>
     /// The « Type » column: Contrat, Extrait, Comptable, Attestation, Acte, Rapport, Écriture,
     /// Courrier, Procédure, Note, Photo, Statuts… Free text, like <c>MatterParty.Role</c> and for the
-    /// same reason — the UI offers the common ones, and a new kind never needs a release.
+    /// same reason, the UI offers the common ones, and a new kind never needs a release.
     /// </summary>
     public string? Type { get; set; }
 
     /// <summary>
     /// The folder this file is filed under, as a plain string: « Procédure », « Correspondance »,
-    /// « Pièces adverses ». There is no folder table and no tree — a folder exists exactly as long as
+    /// « Pièces adverses ». There is no folder table and no tree, a folder exists exactly as long as
     /// a document names it, which is what stops an empty hierarchy accumulating around three files.
     /// Nested folders are written with « / » and grouped by the client.
     /// </summary>
@@ -57,8 +57,8 @@ public class Document
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// Bumped every time an edit is reintegrated from the working folder. Not a version *history* —
-    /// the previous bytes are dropped — but it answers « ai-je bien enregistré ? » at a glance.
+    /// Bumped every time an edit is reintegrated from the working folder. Not a version *history*,
+    /// the previous bytes are dropped, but it answers « ai-je bien enregistré ? » at a glance.
     /// </summary>
     public int Version { get; set; } = 1;
 
@@ -66,7 +66,7 @@ public class Document
     public int? ExhibitNumber { get; set; }
 
     /// <summary>
-    /// The description written for the judge — « Contrat de travail de M. Dupont du 12 mars 2019 »,
+    /// The description written for the judge, « Contrat de travail de M. Dupont du 12 mars 2019 »,
     /// never the file name.
     /// </summary>
     public string? ExhibitLabel { get; set; }

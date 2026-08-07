@@ -2,7 +2,7 @@ using Avocado.Server.Features.Contacts.Enums;
 
 namespace Avocado.Server.Features.Contacts.Endpoints.Dtos;
 
-/// <summary>What a list row needs. <see cref="Type"/> drives the avatar shape — round for a personne
+/// <summary>What a list row needs. <see cref="Type"/> drives the avatar shape, round for a personne
 /// physique, rounded square for a personne morale.</summary>
 public sealed record ContactSummary(
     Guid Id,

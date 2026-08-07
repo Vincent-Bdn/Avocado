@@ -5,7 +5,7 @@ public enum DocumentSegment
 {
     All,
 
-    /// <summary>Pièces — documents carrying a numéro.</summary>
+    /// <summary>Pièces, documents carrying a numéro.</summary>
     Exhibits,
 
     /// <summary>Documents without a numéro.</summary>

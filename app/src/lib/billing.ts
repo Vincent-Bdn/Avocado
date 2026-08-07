@@ -6,7 +6,7 @@ import type { BillingSummary } from '../types.js'
  *
  * Two states, not one. While there are hours to bill the question is « combien », and the answer is
  * ochre because it is money not yet asked for. Once everything is billed that question has no
- * meaning — « reste à facturer : −150 € » is a provision showing through — and the figure that
+ * meaning, « reste à facturer : −150 € » is a provision showing through, and the figure that
  * matters becomes the boni or the mali: where the practice made money and where it gave some away.
  */
 export interface BillingReading {

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Avocado — design tokens
+   Avocado, design tokens
    Drop into src/styles/tokens.css and import before Tailwind's directives.
    Two complete themes. Dark is the default; light is composed, not inverted.
    Contrast ratios in comments are measured against --surface-panel.
@@ -77,7 +77,7 @@
   --brand-active:      #16281F;
   --brand-subtle:      #E7EEE8;
   --brand-on-subtle:   #22523C;  /*  7.4:1 on --brand-subtle */
-  --accent:            #8A5A10;  /*  5.9:1  AA — "flesh" ochre, urgency only */
+  --accent:            #8A5A10;  /*  5.9:1  AA, "flesh" ochre, urgency only */
   --accent-subtle:     #FAF0DE;
 
   --focus-ring:        #37785A;  /*  5.5:1  AA */
@@ -116,7 +116,7 @@
   --border-default:    #333A32;  /*  2.0:1  panel edges */
   --border-strong:     #6A7468;  /*  3.5:1  interactive controls */
 
-  --brand:             #7FB894;  /*  7.4:1  AAA — lightens, never inverts */
+  --brand:             #7FB894;  /*  7.4:1  AAA, lightens, never inverts */
   --brand-hover:       #96C9A8;
   --brand-active:      #6BA681;
   --brand-subtle:      #1C2A21;

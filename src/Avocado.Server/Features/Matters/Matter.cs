@@ -24,7 +24,7 @@ public class Matter
     public long HourlyRateCents { get; set; }
 
     /// <summary>
-    /// N° RG — the court's docket number. Nullable because advisory work, drafting and transactions
+    /// N° RG, the court's docket number. Nullable because advisory work, drafting and transactions
     /// never reach a court, and the header omits the segment entirely rather than showing a dash.
     /// Indexed because when the greffe telephones they quote this, not a name.
     /// </summary>

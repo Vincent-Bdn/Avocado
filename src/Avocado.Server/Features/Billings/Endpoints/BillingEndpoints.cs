@@ -13,6 +13,10 @@ public static class BillingEndpoints
         routes.MapGet("/api/invoices/{id:guid}/detail.xlsx", ExportBillingDetail.HandleAsync)
             .WithTags("Billing");
 
+        routes.MapPost("/api/matters/{matterId:guid}/costs", ManageCosts.AddAsync).WithTags("Billing");
+        routes.MapPut("/api/costs/{id:guid}", ManageCosts.UpdateAsync).WithTags("Billing");
+        routes.MapDelete("/api/costs/{id:guid}", ManageCosts.RemoveAsync).WithTags("Billing");
+
         routes.MapPut("/api/invoices/{id:guid}", UpdateInvoice.HandleAsync).WithTags("Billing");
         routes.MapPut("/api/ledger-entries/{id:guid}", UpdateLedgerEntry.HandleAsync).WithTags("Billing");
         routes.MapDelete("/api/invoices/{id:guid}", DeleteBillingRecord.InvoiceAsync).WithTags("Billing");

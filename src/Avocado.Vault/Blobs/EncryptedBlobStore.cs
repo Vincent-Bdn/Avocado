@@ -9,7 +9,7 @@ namespace Avocado.Vault.Blobs;
 /// <para>
 /// The file name is <c>HMAC-SHA256(DEK, sha256(plaintext))</c>, not the plaintext hash itself.
 /// Deduplication still works, but a directory listing no longer lets anyone confirm "this vault
-/// contains this exact document" by hashing a candidate file — the database is encrypted, and the
+/// contains this exact document" by hashing a candidate file, the database is encrypted, and the
 /// blob folder should not undo that.
 /// </para>
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class EncryptedBlobStore : IBlobStore
 
             if (File.Exists(finalPath))
             {
-                File.Delete(temporaryPath);  // Already stored — deduplicated.
+                File.Delete(temporaryPath);  // Already stored, deduplicated.
                 return reference;
             }
 

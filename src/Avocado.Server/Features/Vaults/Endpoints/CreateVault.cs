@@ -11,7 +11,7 @@ namespace Avocado.Server.Features.Vaults.Endpoints;
 /// <b>Prepare</b> validates the destination and generates the keys in memory, writing nothing.
 /// <b>Commit</b> is the first moment anything exists on disk, and only runs once the user has been
 /// through the whole wizard. Going back from the recovery step therefore leaves no folder behind, and
-/// no Back button has to delete anything — which is not a thing a Back button should do.
+/// no Back button has to delete anything, which is not a thing a Back button should do.
 /// </para>
 /// </summary>
 public static class CreateVault

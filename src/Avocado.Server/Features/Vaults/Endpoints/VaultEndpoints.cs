@@ -3,7 +3,7 @@ namespace Avocado.Server.Features.Vaults.Endpoints;
 public static class VaultEndpoints
 {
     /// <summary>
-    /// The only routes reachable before the vault is open — see <c>VaultReadyMiddleware</c>, which
+    /// The only routes reachable before the vault is open, see <c>VaultReadyMiddleware</c>, which
     /// holds the matching list.
     /// </summary>
     public static IEndpointRouteBuilder MapVault(this IEndpointRouteBuilder routes)

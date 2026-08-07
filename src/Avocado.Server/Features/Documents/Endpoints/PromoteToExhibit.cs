@@ -5,13 +5,13 @@ namespace Avocado.Server.Features.Documents.Endpoints;
 
 /// <param name="ExhibitNumber">Omit to take the next free number.</param>
 /// <param name="ExhibitLabel">
-/// Written for the judge — « Bail commercial du local sis 14 rue Duquesne, Lyon 6ᵉ, du 1ᵉʳ mars 2019 »,
+/// Written for the judge, « Bail commercial du local sis 14 rue Duquesne, Lyon 6ᵉ, du 1ᵉʳ mars 2019 »,
 /// never the file name.
 /// </param>
 public sealed record ExhibitInput(string ExhibitLabel, int? ExhibitNumber);
 
 /// <summary>
-/// « Verser comme pièce » — the button names the legal act, not the storage operation. Nothing moves:
+/// « Verser comme pièce », the button names the legal act, not the storage operation. Nothing moves:
 /// the document stays where it is and gains a number and a libellé.
 /// </summary>
 public static class PromoteToExhibit

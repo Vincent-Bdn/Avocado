@@ -22,7 +22,7 @@ public sealed record BillingInvoiceInput(
 
 /// <param name="Kind">Chosen before the amount. Determines the stored sign.</param>
 /// <param name="AmountCents">
-/// Always positive — the amount received, or the amount advanced. The client never sends a sign and
+/// Always positive, the amount received, or the amount advanced. The client never sends a sign and
 /// the server refuses one, so a débours cannot become a receipt through a typo.
 /// </param>
 public sealed record BillingLedgerInput(

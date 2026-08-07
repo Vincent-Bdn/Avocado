@@ -178,8 +178,8 @@ export function Documents({ matterId, isOpen, onChanged }: {
   /**
    * Decrypts into the coffre's working folder and hands the path to the operating system.
    *
-   * A closed dossier opens read-only — reading an old lettre de mission to reuse its wording is a
-   * normal thing to do — and the toast says so, because a file that looks editable and silently
+   * A closed dossier opens read-only, reading an old lettre de mission to reuse its wording is a
+   * normal thing to do, and the toast says so, because a file that looks editable and silently
    * discards the edits would be worse than one that refuses to open.
    */
   async function open(item: DocumentItem) {

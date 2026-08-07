@@ -62,6 +62,10 @@ export interface BillingSummary {
   manualInvoicedCents: number
   /** Positive = boni, negative = mali. */
   varianceCents: number
+  /** Rétrocessions et sous-traitance. Never part of `leftToBillCents`. */
+  subcontractedCents: number
+  /** `invoicedCents − subcontractedCents`: what the dossier actually brought the cabinet. */
+  netCents: number
   leftToBillCents: number
 }
 

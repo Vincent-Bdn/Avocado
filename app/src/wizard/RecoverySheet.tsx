@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 
 /**
- * The printed A4 sheet. Pure black on white — no colour, no grey — because it has to survive a nearly
+ * The printed A4 sheet. Pure black on white, no colour, no grey, because it has to survive a nearly
  * empty laser cartridge, and because a lawyer already has somewhere safe for documents that matter.
  *
  * Rendered off-screen and revealed only by the print stylesheet, so `window.print()` produces this

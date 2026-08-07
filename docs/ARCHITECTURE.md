@@ -13,19 +13,19 @@ go one level down each.
 
 ```mermaid
 flowchart TB
-    subgraph shell["app/ — Electron shell"]
+    subgraph shell["app/, Electron shell"]
         main["main process<br/><i>window, CSP, lifecycle</i>"]
         preload["preload<br/><i>seven named channels</i>"]
         renderer["renderer<br/><i>React + TypeScript</i>"]
     end
 
-    subgraph service["src/Avocado.Server — the service"]
+    subgraph service["src/Avocado.Server, the service"]
         api["Minimal API<br/><i>vertical slices</i>"]
         ef["EF Core"]
         workspace["DocumentWorkspace<br/><i>working copies</i>"]
     end
 
-    subgraph vault["src/Avocado.Vault — the vault"]
+    subgraph vault["src/Avocado.Vault, the vault"]
         keyring["VaultKeyring<br/><i>envelope encryption</i>"]
         db["VaultDatabase<br/><i>SQLCipher</i>"]
         blobs["EncryptedBlobStore<br/><i>AES-256-GCM</i>"]
@@ -78,8 +78,8 @@ The price is a spawned process and a handshake, both of which are about fifty li
 
 ## Vertical slices
 
-`src/Avocado.Server/Features/` has one folder per slice — `Matters`, `Activities`, `Documents`,
-`Billings`, `Templates` — and a slice owns its entity, its DTOs, its endpoints and its EF
+`src/Avocado.Server/Features/` has one folder per slice, `Matters`, `Activities`, `Documents`,
+`Billings`, `Templates`, and a slice owns its entity, its DTOs, its endpoints and its EF
 configuration. There is no `Services/`, no `Repositories/`, no MediatR.
 
 ```
@@ -104,8 +104,8 @@ Conventions, applied everywhere:
 - **Types are prefixed by the slice in the singular** (`BillingLedgerEntry`, not `LedgerEntry`), so a
   name is unambiguous the moment you read it in another slice.
 - **One file per endpoint.** Vertical slices do not mean one enormous file.
-- A figure that appears on two screens is computed in **one** place — `BillingSummaryQuery`,
-  `DeadlineUrgencyRule`, `MatterTouch` — because a second implementation eventually disagrees with the
+- A figure that appears on two screens is computed in **one** place (`BillingSummaryQuery`,
+  `DeadlineUrgencyRule`, `MatterTouch`), because a second implementation eventually disagrees with the
   first.
 
 The one thing that cannot be sliced is the `DbContext`; it stays central and collects each slice's
@@ -123,7 +123,7 @@ configuration by assembly scan.
   backups/        snapshots, including the automatic pre-migration ones
 ```
 
-Working copies — files currently open in Word — deliberately live **outside** the vault, in the
+Working copies, files currently open in Word, deliberately live **outside** the vault, in the
 platform's machine-local application-state folder. See [SECURITY.md](SECURITY.md#working-copies).
 
 ```mermaid
@@ -142,7 +142,7 @@ flowchart LR
 
 Envelope encryption: one data encryption key encrypts everything and **never changes**; `vault.json`
 holds the list of ways to unwrap it. Enrolling a new unlock path, revoking one, or changing the
-passphrase rewrites that file and nothing else — no re-encryption of the practice, and no downtime.
+passphrase rewrites that file and nothing else, no re-encryption of the practice, and no downtime.
 It is also what will let a second user be added without touching a single blob.
 
 ---
@@ -170,7 +170,7 @@ sequenceDiagram
 ```
 
 Two middlewares and nothing else. The token is checked in constant time; the vault-ready check exists
-because the application has to run *before* a vault exists — the setup wizard is served by the same
+because the application has to run *before* a vault exists, the setup wizard is served by the same
 service.
 
 ---
@@ -186,25 +186,33 @@ erDiagram
     MATTER ||--o{ TIME_ENTRY : "temps passé"
     MATTER ||--o{ INVOICE : "factures émises ailleurs"
     MATTER ||--o{ LEDGER_ENTRY : "encaissements et débours"
+    MATTER ||--o{ BILLING_COST : "rétrocessions et sous-traitance"
     CONTACT ||--o{ MATTER_PARTY : ""
     CONTACT ||--o{ CONTACT : "personnes rattachées"
     ACTIVITY ||--o| TIME_ENTRY : "logged together"
     ACTIVITY ||--o{ DOCUMENT : "arrived with"
     INVOICE ||--o{ TIME_ENTRY : "hours it covers"
+    INVOICE ||--o{ BILLING_COST : "costs incurred against it"
+    CONTACT ||--o{ BILLING_COST : "who was paid"
 ```
 
 Three decisions worth knowing before reading the code:
 
 - **Status is derived, never stored.** A dossier is *en cours* while `ClosedOn` is null. There is no
   status column to fall out of step with reality.
-- **A pièce is a document** that has been given a number and a libellé — two nullable columns, not a
+- **A pièce is a document** that has been given a number and a libellé, two nullable columns, not a
   second table. The relationship is 1:1 by definition.
+- **Three kinds of money, and they are separate tables on purpose.** An `INVOICE` is a facture *she
+  issued*; a `LEDGER_ENTRY` is money that moved without one, a provision received, a débours advanced
+  *for the client* and re-billed at cost; a `BILLING_COST` is a rétrocession d'honoraires or other
+  sous-traitance, issued *to her*, a charge of the cabinet. Only the first two touch « reste à
+  facturer »: the client owes the full fee whoever did the work.
 - **Money is `long` cents, everywhere.** SQLite has no decimal type; EF stores decimals as text and
   `ORDER BY amount` then sorts lexicographically. `AvocadoDbContext` **throws at model-building time**
   if any property is a `decimal`, so reintroducing one is a build failure rather than a subtly wrong
   total.
 
-Timestamps are `DateTimeOffset` stored as ISO-8601 UTC text through `UtcTimestampConverter` — sortable
+Timestamps are `DateTimeOffset` stored as ISO-8601 UTC text through `UtcTimestampConverter`, sortable
 as text, and legible when you open the database with a tool.
 
 ---

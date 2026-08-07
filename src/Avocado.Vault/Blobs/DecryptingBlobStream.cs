@@ -138,7 +138,7 @@ internal sealed class DecryptingBlobStream : Stream
         catch (CryptographicException ex)
         {
             throw new VaultCorruptedException(
-                "This blob failed authentication — it was modified, reordered or truncated since it was written.",
+                "This blob failed authentication, it was modified, reordered or truncated since it was written.",
                 ex);
         }
 

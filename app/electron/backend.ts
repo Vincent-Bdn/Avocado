@@ -18,7 +18,7 @@ const STARTUP_TIMEOUT_MS = 30_000
 /**
  * Owns the ASP.NET Core process.
  *
- * The shell holds no business logic — its whole job is to start this, learn where it landed, and
+ * The shell holds no business logic, its whole job is to start this, learn where it landed, and
  * point a window at it. Everything else goes through the same HTTP API a hosted Avocado would expose,
  * which is what keeps this file replaceable in a weekend.
  */
@@ -43,7 +43,7 @@ export class Backend {
         // coffre is the thing that gets backed up and may one day be remote.
         AVOCADO_WORKING_DIR: workingDirectory,
         AVOCADO_API_TOKEN: this.token,
-        // Port 0 — the OS picks a free one and the handshake reports it back. A fixed port would
+        // Port 0, the OS picks a free one and the handshake reports it back. A fixed port would
         // collide with whatever else the machine is running.
         AVOCADO_PORT: '0',
       },
@@ -70,7 +70,7 @@ export class Backend {
       }, STARTUP_TIMEOUT_MS)
 
       // Kept open for the life of the process. Closing it once the handshake arrived silently threw
-      // away every backend log line from then on — which made anything that happens after startup,
+      // away every backend log line from then on, which made anything that happens after startup,
       // like the working folder being swept a second later, impossible to see from here.
       const lines = createInterface({ input: stdout })
       let ready = false
@@ -94,7 +94,7 @@ export class Backend {
       child.on('exit', (code) => {
         clearTimeout(timer)
         // The backend exits non-zero when the vault cannot be unlocked on this machine, which is the
-        // recovery-key path — surface its own words rather than a generic failure.
+        // recovery-key path, surface its own words rather than a generic failure.
         reject(new Error(stderr.join('').trim() || `Le service Avocado s’est arrêté (code ${code}).`))
       })
     })

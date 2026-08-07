@@ -10,7 +10,7 @@
 
     This lives in Directory.Build.targets rather than .props on purpose. MSBuild imports .props
     *before* the project body, where OutputType has not been set yet, so the condition below would
-    silently never match — and the publish would quietly come out framework-dependent.
+    silently never match, and the publish would quietly come out framework-dependent.
   -->
   <PropertyGroup Condition="'$(OutputType)' == 'Exe' AND '$(RuntimeIdentifier)' != ''">
     <SelfContained>true</SelfContained>

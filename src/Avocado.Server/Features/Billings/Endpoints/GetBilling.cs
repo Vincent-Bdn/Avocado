@@ -7,7 +7,7 @@ namespace Avocado.Server.Features.Billings.Endpoints;
 
 /// <summary>
 /// Everything the Facturation tab draws. The three components of « reste à facturer » are returned
-/// alongside the result so the subtraction can be checked by eye — a total you cannot recompute
+/// alongside the result so the subtraction can be checked by eye, a total you cannot recompute
 /// yourself is never believed.
 /// </summary>
 public static class GetBilling
@@ -55,6 +55,32 @@ public static class GetBilling
                 entry.AmountCents >= 0 ? BillingMovementKind.Receipt : BillingMovementKind.Disbursement))
             .ToListAsync(cancellationToken);
 
+        // DisplayName is a computed property EF is told to ignore, so the rows are materialised and
+        // projected in memory rather than selected through it.
+        var costRows = await database.Costs
+            .AsNoTracking()
+            .Include(cost => cost.Contact)
+            .Include(cost => cost.Invoice)
+            .Where(cost => cost.MatterId == matterId)
+            .OrderByDescending(cost => cost.Date)
+            .ToListAsync(cancellationToken);
+
+        var costs = costRows
+            .Select(cost => new BillingCostItem(
+                cost.Id,
+                cost.Date,
+                cost.Kind,
+                cost.Label,
+                cost.AmountExclVatCents,
+                cost.ContactId,
+                cost.Contact?.DisplayName,
+                cost.ExternalReference,
+                cost.IsPaid,
+                cost.PaidOn,
+                cost.InvoiceId,
+                cost.Invoice?.ExternalReference))
+            .ToList();
+
         var lastInvoiceDate = invoices.Count == 0 ? null : (DateOnly?)invoices.Max(i => i.Date);
 
         var sinceEntries = await database.TimeEntries
@@ -84,6 +110,8 @@ public static class GetBilling
             ledger,
             ledger.Where(entry => entry.AmountCents > 0).Sum(entry => entry.AmountCents),
             -ledger.Where(entry => entry.AmountCents < 0).Sum(entry => entry.AmountCents),
+            costs,
+            costs.Where(cost => !cost.IsPaid).Sum(cost => cost.AmountExclVatCents),
             statement);
 
         return Results.Ok(overview);

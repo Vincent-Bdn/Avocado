@@ -10,7 +10,7 @@ namespace Avocado.Vault.Keys;
 /// changes; this class manages the list of ways to unwrap it.
 /// <para>
 /// Because the DEK is constant, enrolling a new unlock path, revoking one, or changing the passphrase
-/// are all O(1) — they rewrite <c>vault.json</c> and nothing else. It is also what will let a second
+/// are all O(1), they rewrite <c>vault.json</c> and nothing else. It is also what will let a second
 /// user be added later without re-encrypting the practice.
 /// </para>
 /// </summary>
@@ -43,7 +43,7 @@ public sealed class VaultKeyring
 
     /// <summary>
     /// Creates a brand new keyring: a fresh DEK, a device entry if the platform supports one, and a
-    /// recovery key. The recovery code is returned exactly once and never recoverable afterwards —
+    /// recovery key. The recovery code is returned exactly once and never recoverable afterwards,
     /// the caller is responsible for making the user save it before continuing.
     /// </summary>
     public static VaultKeyringCreation Create(string path, IDeviceKeyStore deviceKeyStore)
@@ -55,7 +55,7 @@ public sealed class VaultKeyring
 
     /// <summary>
     /// Builds the same keyring <em>without touching the disk</em>. The setup wizard shows the recovery
-    /// code before anything is written, so that going back leaves nothing behind to clean up — and a
+    /// code before anything is written, so that going back leaves nothing behind to clean up, and a
     /// folder is only created once the whole flow has been seen through.
     /// </summary>
     public static VaultKeyringCreation Prepare(string path, IDeviceKeyStore deviceKeyStore)
@@ -130,7 +130,7 @@ public sealed class VaultKeyring
         return new VaultKeyring(path, document);
     }
 
-    /// <summary>Unlocks using the OS key store. Tries every device entry — a vault may legitimately
+    /// <summary>Unlocks using the OS key store. Tries every device entry, a vault may legitimately
     /// have been enrolled on more than one machine.</summary>
     public SecretKey UnlockWithDeviceKey(IDeviceKeyStore deviceKeyStore)
     {
@@ -187,7 +187,7 @@ public sealed class VaultKeyring
         if (!RecoveryCode.TryParse(recoveryCode, out var recoveryKey) || recoveryKey is null)
         {
             throw new VaultUnlockFailedException(
-                "That recovery key isn't valid. Check for a mistyped character — the code has a built-in checksum.");
+                "That recovery key isn't valid. Check for a mistyped character, the code has a built-in checksum.");
         }
 
         using (recoveryKey)
@@ -280,7 +280,7 @@ public sealed class VaultKeyring
         }
     }
 
-    /// <summary>Revokes an unlock path — a retired laptop, a recovery sheet that was left on a train.</summary>
+    /// <summary>Revokes an unlock path, a retired laptop, a recovery sheet that was left on a train.</summary>
     public void Remove(Guid keyId)
     {
         var entry = _document.Keys.FirstOrDefault(k => k.Id == keyId)
@@ -307,7 +307,7 @@ public sealed class VaultKeyring
         var id = Guid.CreateVersion7();
         using var kek = SecretKey.Generate();
 
-        // The DEK itself is never handed to the OS API — only this intermediate KEK is.
+        // The DEK itself is never handed to the OS API, only this intermediate KEK is.
         var protectedKek = deviceKeyStore.Protect(kek.Span);
 
         var entry = new VaultKeyEntry
@@ -431,6 +431,6 @@ public sealed class VaultKeyring
 }
 
 /// <param name="RecoveryCode">
-/// Shown to the user exactly once. It cannot be recovered from the keyring afterwards — only replaced.
+/// Shown to the user exactly once. It cannot be recovered from the keyring afterwards, only replaced.
 /// </param>
 public sealed record VaultKeyringCreation(VaultKeyring Keyring, SecretKey DataKey, string RecoveryCode);

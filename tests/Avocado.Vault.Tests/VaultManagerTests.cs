@@ -74,7 +74,7 @@ public class VaultManagerTests
         Assert.True(vault.VerifyRecoveryCode(creation.RecoveryCode));
         Assert.False(vault.VerifyRecoveryCode("XXXXXX-XXXXXX-XXXXXX"));
 
-        // After regenerating, the old sheet must stop verifying — otherwise the quarterly check would
+        // After regenerating, the old sheet must stop verifying, otherwise the quarterly check would
         // reassure the user about a code that no longer opens anything.
         var replacement = vault.RegenerateRecoveryKey();
         Assert.True(vault.VerifyRecoveryCode(replacement));

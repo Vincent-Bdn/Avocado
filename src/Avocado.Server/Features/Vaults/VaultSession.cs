@@ -8,7 +8,7 @@ namespace Avocado.Server.Features.Vaults;
 /// The vault's lifecycle for one running application: absent, locked, or open.
 /// <para>
 /// The server must be able to start <em>without</em> a vault. On a new machine there is nothing to
-/// open yet, and the setup wizard is served over this same API — so refusing to boot would make the
+/// open yet, and the setup wizard is served over this same API, so refusing to boot would make the
 /// first run unreachable. Unlocking is therefore an operation, not a startup precondition.
 /// </para>
 /// </summary>

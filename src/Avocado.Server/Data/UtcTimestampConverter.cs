@@ -8,8 +8,8 @@ namespace Avocado.Server.Data;
 /// <para>
 /// EF Core refuses to translate <c>ORDER BY</c> over a <c>DateTimeOffset</c> on SQLite, because its
 /// default storage keeps the original offset and text ordering would then disagree with chronological
-/// ordering. Without this converter every "most recent" query in the application — the journal, the
-/// accueil's recent dossiers, ⌘K, the *Dernière activité* column — throws at runtime rather than at
+/// ordering. Without this converter every "most recent" query in the application, the journal, the
+/// accueil's recent dossiers, ⌘K, the *Dernière activité* column, throws at runtime rather than at
 /// build time.
 /// </para>
 /// <para>

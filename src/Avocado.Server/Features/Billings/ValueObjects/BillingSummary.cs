@@ -1,7 +1,7 @@
 namespace Avocado.Server.Features.Billings.ValueObjects;
 
 /// <summary>
-/// « Détail à facturer » for one matter — the figures to paste into whatever issues the invoice, not
+/// « Détail à facturer » for one matter, the figures to paste into whatever issues the invoice, not
 /// an invoice. Computed on read; never stored.
 /// </summary>
 /// <param name="BillableTimeCents">
@@ -20,6 +20,16 @@ namespace Avocado.Server.Features.Billings.ValueObjects;
 /// Boni (positive) or mali (negative) accumulated on this dossier: the sum of what was billed less
 /// what the billed hours were worth. The KPI a practice actually watches.
 /// </param>
+/// <param name="SubcontractedCents">
+/// Rétrocessions d'honoraires and other sous-traitance on this dossier. Deliberately absent from
+/// <paramref name="LeftToBillCents"/>: the client owes the full fee whoever did the work, and
+/// subtracting it there would understate what is still to be invoiced by exactly what she is about
+/// to pay away.
+/// </param>
+/// <param name="NetCents">
+/// <c>facturé − sous-traitance</c>. What the dossier actually brought the cabinet, which on a file
+/// largely handed to a confrère is a very different figure from what was invoiced.
+/// </param>
 /// <param name="LeftToBillCents">
 /// <c>unbilled time − ledger − manual invoices</c>. May be negative, meaning the client is in credit,
 /// and that has to be shown as such rather than clamped to zero.
@@ -31,6 +41,8 @@ public sealed record BillingSummary(
     long InvoicedCents,
     long ManualInvoicedCents,
     long VarianceCents,
+    long SubcontractedCents,
+    long NetCents,
     long LeftToBillCents)
 {
     public static BillingSummary Compute(
@@ -39,7 +51,8 @@ public sealed record BillingSummary(
         long ledgerCents,
         long invoicedCents,
         long manualInvoicedCents,
-        long varianceCents) =>
+        long varianceCents,
+        long subcontractedCents) =>
         new(
             unbilledTimeCents,
             unbilledMinutes,
@@ -47,5 +60,9 @@ public sealed record BillingSummary(
             invoicedCents,
             manualInvoicedCents,
             varianceCents,
+            subcontractedCents,
+            invoicedCents - subcontractedCents,
+            // Sous-traitance is absent here on purpose. It is a charge of the cabinet, not something
+            // advanced for the client, so it changes the margin and never the amount still to invoice.
             unbilledTimeCents - ledgerCents - manualInvoicedCents);
 }

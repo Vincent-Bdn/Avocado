@@ -2,7 +2,7 @@ namespace Avocado.Server.Features.Vaults.Enums;
 
 public enum VaultState
 {
-    /// <summary>No vault in the configured folder. First run — the setup wizard has to happen.</summary>
+    /// <summary>No vault in the configured folder. First run, the setup wizard has to happen.</summary>
     Absent,
 
     /// <summary>
