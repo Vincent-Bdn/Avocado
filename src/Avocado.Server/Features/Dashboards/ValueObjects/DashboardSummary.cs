@@ -58,4 +58,6 @@ public sealed record DashboardSummary(
     IReadOnlyList<DashboardDeadline> Deadlines,
     DateOnly? NextDeadlineBeyondHorizon,
     DashboardUnbilled Unbilled,
-    IReadOnlyList<DashboardRecentMatter> RecentMatters);
+    IReadOnlyList<DashboardRecentMatter> RecentMatters,
+    /// <summary>« Ai-je facturé ce que j'ai travaillé ? », twelve months of it.</summary>
+    DashboardHonoraires Honoraires);

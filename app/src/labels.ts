@@ -41,6 +41,19 @@ const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR
 
 export const formatEuros = (cents: number): string => euros.format(cents / 100)
 
+const roundEuros = new Intl.NumberFormat('fr-FR', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+})
+
+/**
+ * « 16 000 € ». For an axis and for headline totals, where the centimes are noise: a gridline reading
+ * 16 000,00 € says nothing more than 16 000 € and takes half again the width to say it. Anywhere a
+ * figure is a figure rather than a scale, use formatEuros.
+ */
+export const formatEurosRounded = (cents: number): string => roundEuros.format(cents / 100)
+
 /** « 4 h 20 », « 45 min » — never « 4.33 h ». */
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60)

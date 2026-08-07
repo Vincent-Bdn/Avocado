@@ -132,7 +132,8 @@ public static class GetDashboard
                 matter.ClientName,
                 matter.Last?.Type,
                 matter.Last?.Summary,
-                matter.TouchedAt))]);
+                matter.TouchedAt))],
+            await HonorairesQuery.ForPracticeAsync(database, today, cancellationToken));
 
         return Results.Ok(summary);
     }

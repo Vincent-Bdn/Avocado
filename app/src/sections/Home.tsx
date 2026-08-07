@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { BookOpen, FolderPlus, HardDriveDownload, Search, Timer } from 'lucide-react'
 import { ApiError, api } from '../api.js'
 import { Button, Kbd } from '../components/ui/button.js'
+import { HonorairesCard, type Honoraires } from './Honoraires.js'
 import { PageHeader } from '../components/ui/page-header.js'
 import { Panel } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
@@ -42,6 +43,7 @@ interface DashboardSummary {
     lastActivitySummary: string | null
     lastActivityAt: string | null
   }[]
+  honoraires: Honoraires
 }
 
 const tiers: DeadlineUrgency[] = ['Overdue', 'Today', 'ThisWeek', 'Later']
@@ -181,6 +183,10 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
         </section>
 
         <div className="grid content-start gap-4">
+          {/* Above the unbilled card, same width: « ai-je facturé ce que j'ai travaillé » comes
+              before « combien reste-t-il à demander ». */}
+          <HonorairesCard data={data.honoraires} />
+
           <Unbilled data={data} onOpenMatter={onOpenMatter} />
 
           <section>
