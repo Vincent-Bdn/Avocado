@@ -153,33 +153,31 @@ export function MatterForm({ matter, onSaved, onCancel }: {
       </Field>
 
       <Field label="Nature du dossier">
-        <div className="grid gap-1.5">
-          <div className="flex gap-0.5">
-            {suggestedClassifications.map((candidate) => (
-              <button
-                key={candidate}
-                type="button"
-                onClick={() => setClassification(candidate)}
-                className={cn(
-                  'h-7 rounded-[3px] px-2.5 text-[12px]',
-                  classification.trim().toLowerCase() === candidate.toLowerCase()
-                    ? 'bg-brand-subtle font-medium text-brand-on-subtle'
-                    : 'text-ink-secondary hover:bg-hover',
-                )}
-              >
-                {candidate}
-              </button>
-            ))}
-          </div>
-
-          {/* Free text underneath the two usual answers: a practice that also does arbitrage or
-              médiation says so here without waiting for a release. */}
+        <div className="grid gap-1">
+          {/*
+            One field, not a pair of chips above a text box that overrides them. The list offers the
+            two usual answers and anything else can be typed: a practice that also does arbitrage or
+            médiation says so without waiting for a release.
+          */}
           <Input
             inputSize="lg"
+            list="matter-classifications"
             value={classification}
             placeholder="Conseil, Contentieux, Arbitrage…"
             onChange={(event) => setClassification(event.target.value)}
           />
+
+          <datalist id="matter-classifications">
+            {suggestedClassifications.map((candidate) => (
+              <option key={candidate} value={candidate} />
+            ))}
+          </datalist>
+
+          {litigation && (
+            <p className="m-0 type-caption text-muted">
+              Un dossier contentieux porte une juridiction et un n° RG.
+            </p>
+          )}
         </div>
       </Field>
 

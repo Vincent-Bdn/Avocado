@@ -853,14 +853,18 @@ function MovementForm({ matterId, movement, initialKind, onSaved, onCancel, bare
 
   const fields = (
     <>
-        <div className="flex gap-0.5">
-          <KindButton active={kind === 'Receipt'} tone="brand" onClick={() => setKind('Receipt')}>
-            Encaissement
-          </KindButton>
-          <KindButton active={kind === 'Disbursement'} tone="accent" onClick={() => setKind('Disbursement')}>
-            Débours
-          </KindButton>
-        </div>
+        {/* Only where the nature is still open. In the dialog it was chosen by the menu item that
+            opened it, and the title says so, so asking again is asking twice. */}
+        {!bare && (
+          <div className="flex gap-0.5">
+            <KindButton active={kind === 'Receipt'} tone="brand" onClick={() => setKind('Receipt')}>
+              Encaissement
+            </KindButton>
+            <KindButton active={kind === 'Disbursement'} tone="accent" onClick={() => setKind('Disbursement')}>
+              Débours
+            </KindButton>
+          </div>
+        )}
 
         <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
 

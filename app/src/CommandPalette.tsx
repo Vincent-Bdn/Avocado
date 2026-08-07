@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, FileText, FolderClosed, Search, User } from 'lucide-react'
 import { api } from './api.js'
 import { cn } from './lib/utils.js'
@@ -84,26 +84,51 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
     }
   }, [term, scope])
 
-  const flat = useMemo(
-    () =>
-      results?.groups.flatMap((group) => group.items.map((item) => ({ group: group.key, item }))) ?? [],
-    [results],
-  )
+  /**
+   * Every row the arrows can reach, in the order they are drawn — the starting points as well as the
+   * results.
+   *
+   * It used to be built from `results` alone, which is null until something is typed, so the footer
+   * promised « ↑↓ naviguer » on precisely the screen where the arrows did nothing: the one you land
+   * on when you press ⌘K.
+   */
+  const rows = useMemo<{ group: string; id: string }[]>(() => {
+    if (results) {
+      return results.groups.flatMap((group) =>
+        group.items.map((item) => ({ group: group.key, id: item.id })))
+    }
+
+    if (!start) return []
+
+    return [
+      ...start.recentMatters.map((matter) => ({ group: 'matters', id: matter.id })),
+      ...start.nearestDeadlines.map((deadline) => ({ group: 'matters', id: deadline.matterId })),
+    ]
+  }, [results, start])
+
+  // Landing on nothing when the list changes under you is worse than landing on the first row.
+  useEffect(() => setActive(0), [rows.length])
+
+  const open = useCallback((group: string, id: string) => {
+    if (group === 'matters') onOpenMatter(id)
+    if (group === 'contacts') onOpenContact(id)
+    onClose()
+  }, [onOpenMatter, onOpenContact, onClose])
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
       if (event.key === 'ArrowDown') {
         event.preventDefault()
-        setActive((current) => Math.min(current + 1, Math.max(0, flat.length - 1)))
+        setActive((current) => Math.min(current + 1, Math.max(0, rows.length - 1)))
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault()
         setActive((current) => Math.max(0, current - 1))
       }
-      if (event.key === 'Enter' && flat[active]) {
+      if (event.key === 'Enter' && rows[active]) {
         event.preventDefault()
-        open(flat[active].group, flat[active].item.id)
+        open(rows[active].group, rows[active].id)
       }
     }
 
@@ -111,11 +136,12 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
     return () => window.removeEventListener('keydown', keys)
   })
 
-  function open(group: string, id: string) {
-    if (group === 'matters') onOpenMatter(id)
-    if (group === 'contacts') onOpenContact(id)
-    onClose()
-  }
+  // The list scrolls, so the highlighted row has to be brought along with the selection.
+  const body = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    body.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [active])
 
   let index = -1
 
@@ -146,28 +172,48 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-1.5">
+        <div ref={body} className="flex-1 overflow-y-auto p-1.5">
           {!results && start && (
             <>
               <Group>Dossiers récents</Group>
-              {start.recentMatters.map((matter) => (
-                <Result key={matter.id} onClick={() => open('matters', matter.id)}>
-                  <FolderClosed size={14} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
-                  <Label>{matter.label}</Label>
-                  <Meta>{matter.reference}</Meta>
-                </Result>
-              ))}
+              {start.recentMatters.map((matter) => {
+                index += 1
+                const isActive = index === active
+
+                return (
+                  <Result
+                    key={matter.id}
+                    active={isActive}
+                    onClick={() => open('matters', matter.id)}
+                  >
+                    <FolderClosed size={14} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
+                    <Label>{matter.label}</Label>
+                    <Meta>{matter.reference}</Meta>
+                    {isActive && <Enter />}
+                  </Result>
+                )
+              })}
 
               <Group>Échéances les plus proches</Group>
-              {start.nearestDeadlines.map((deadline) => (
-                <Result key={deadline.id} onClick={() => open('matters', deadline.matterId)}>
-                  <TierBullet urgency={deadline.urgency} className="mx-[3.5px]" />
-                  <Label>
-                    {deadline.label} · {deadline.matterName}
-                  </Label>
-                  <Meta>{urgencyLabels[deadline.urgency]}</Meta>
-                </Result>
-              ))}
+              {start.nearestDeadlines.map((deadline) => {
+                index += 1
+                const isActive = index === active
+
+                return (
+                  <Result
+                    key={deadline.id}
+                    active={isActive}
+                    onClick={() => open('matters', deadline.matterId)}
+                  >
+                    <TierBullet urgency={deadline.urgency} className="mx-[3.5px]" />
+                    <Label>
+                      {deadline.label} · {deadline.matterName}
+                    </Label>
+                    <Meta>{urgencyLabels[deadline.urgency]}</Meta>
+                    {isActive && <Enter />}
+                  </Result>
+                )
+              })}
 
               {start.recentMatters.length === 0 && start.nearestDeadlines.length === 0 && (
                 <p className="px-2.5 py-4 text-[11px] text-muted">Rien à reprendre pour l’instant.</p>
@@ -191,11 +237,7 @@ export function CommandPalette({ onClose, onOpenMatter, onOpenContact }: {
                     <ResultIcon group={group.key} contactType={item.contactType} />
                     <Label>{item.label}</Label>
                     {item.meta && <Meta>{item.meta}</Meta>}
-                    {isActive && (
-                      <span className="type-kbd shrink-0 rounded-[3px] border border-line-strong bg-panel px-1.5 py-px text-ink-secondary">
-                        ⏎
-                      </span>
-                    )}
+                    {isActive && <Enter />}
                   </Result>
                 )
               })}
@@ -244,6 +286,12 @@ const Meta = ({ children }: { children: React.ReactNode }) => (
   <span className="shrink-0 font-mono text-[11px] whitespace-nowrap text-muted">{children}</span>
 )
 
+const Enter = () => (
+  <span className="type-kbd shrink-0 rounded-[3px] border border-line-strong bg-panel px-1.5 py-px text-ink-secondary">
+    &#9166;
+  </span>
+)
+
 function Result({ active, onClick, children }: {
   active?: boolean
   onClick: () => void
@@ -252,10 +300,12 @@ function Result({ active, onClick, children }: {
   return (
     <button
       type="button"
+      data-active={active ? 'true' : undefined}
       onClick={onClick}
       className={cn(
         'flex h-[34px] w-full items-center gap-2.5 rounded-sm px-2.5 text-left transition-colors',
-        active ? 'bg-brand-subtle' : 'hover:bg-hover',
+        // The 2px marker, as everywhere else a selection is shown.
+        active ? 'bg-brand-subtle shadow-[inset_2px_0_0_var(--brand)]' : 'hover:bg-hover',
       )}
     >
       {children}

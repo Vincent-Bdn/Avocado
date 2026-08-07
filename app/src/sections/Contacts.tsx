@@ -267,9 +267,12 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
               </>
             )}
 
-            <div className="mt-3 flex items-start gap-2 rounded-md border border-line-subtle px-3 py-2.5">
+            {/* The paragraph keeps its measure — 65 characters or so is where prose stays readable —
+                and the box is sized to it, so it stops where the text stops instead of running on
+                across empty space. */}
+            <div className="mt-3 flex max-w-[68ch] items-start gap-2 rounded-md border border-line-subtle px-3 py-2.5">
               <Info size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-secondary" />
-              <p className="m-0 max-w-[64ch] text-[11.5px] leading-[17px] text-ink-secondary">
+              <p className="m-0 text-[11.5px] leading-[17px] text-ink-secondary">
                 Le rôle est du <strong className="font-medium text-ink">texte libre</strong> propre à
                 chaque dossier : le même tiers peut être client ici et fournisseur mis en cause là.
                 Seules les relations marquées « client » alimentent la facturation, c’est le seul rôle
