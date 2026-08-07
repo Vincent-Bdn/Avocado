@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Users,
 } from 'lucide-react'
@@ -154,6 +154,19 @@ function Matters({ selected, onSelect, onNewMatter }: {
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * Read through a ref, never through the closure.
+   *
+   * `selected` cannot be a dependency of `reload` — the list would refetch every time she clicked a
+   * different dossier. But leaving it out of the deps and reading it directly captured the value from
+   * the render that created the callback, which is `null` on mount. Every later reload therefore took
+   * the « nothing selected » branch and jumped to the first row: since favourites sort to the top,
+   * recording an invoice, a time entry or an échéance quietly moved her to a favourite dossier. A ref
+   * keeps the callback stable and the value current, which is what was wanted in the first place.
+   */
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
+
   const reload = useCallback(() => {
     const status = showClosed ? 'Closed' : 'Open'
 
@@ -162,19 +175,21 @@ function Matters({ selected, onSelect, onNewMatter }: {
     )
       .then((result) => {
         setPage(result)
-        // Land on something rather than an empty content pane.
+
+        const current = selectedRef.current
+
+        // Land on something rather than an empty content pane — but only when what she was reading
+        // has genuinely gone, never merely because the list was refreshed underneath her.
         onSelect(
-          selected && result.items.some((item) => item.id === selected)
-            ? selected
+          current && result.items.some((item) => item.id === current)
+            ? current
             : (result.items[0]?.id ?? null),
         )
       })
       .catch((failure: unknown) =>
         setError(failure instanceof ApiError ? failure.message : String(failure)),
       )
-    // `selected` is deliberately excluded: including it would refetch on every selection change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showClosed, search])
+  }, [showClosed, search, onSelect])
 
   useEffect(reload, [reload])
 

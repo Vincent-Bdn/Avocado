@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Building2, ChevronDown, Info, Plus, Unlink, User, Users } from 'lucide-react'
 import { ApiError, api } from '../api.js'
 import { Avatar } from '../components/ui/avatar.js'
@@ -82,16 +82,21 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
   const [showPeople, setShowPeople] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Same reasoning as the dossier list: the selection is read, never depended on. With it in the
+  // dependency array the whole carnet was refetched every time she clicked a different tiers.
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
+
   const reload = useCallback(() => {
     api<ContactSummary[]>(`/api/contacts?search=${encodeURIComponent(search)}`)
       .then((found) => {
         setItems(found)
-        if (!selected && found[0]) onSelect(found[0].id)
+        if (!selectedRef.current && found[0]) onSelect(found[0].id)
       })
       .catch((failure: unknown) =>
         setError(failure instanceof ApiError ? failure.message : String(failure)),
       )
-  }, [search, selected, onSelect])
+  }, [search, onSelect])
 
   useEffect(reload, [reload])
 
