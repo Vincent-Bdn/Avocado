@@ -11,6 +11,7 @@ public static class ContactEndpoints
         group.MapGet("/{id:guid}", GetContact.HandleAsync);
         group.MapPost("/", CreateContact.HandleAsync);
         group.MapPut("/{id:guid}", UpdateContact.HandleAsync);
+        group.MapPut("/{id:guid}/attachment", AttachContact.HandleAsync);
         group.MapDelete("/{id:guid}", DeleteContact.HandleAsync);
 
         return routes;

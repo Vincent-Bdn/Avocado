@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Building2, ChevronDown, Info, Plus, User, Users } from 'lucide-react'
+import { Building2, ChevronDown, Info, Plus, Unlink, User, Users } from 'lucide-react'
 import { ApiError, api } from '../api.js'
 import { Avatar } from '../components/ui/avatar.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
+import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { Input } from '../components/ui/input.js'
 import { Select } from '../components/ui/select.js'
@@ -11,7 +12,7 @@ import { MetaDivider, PageHeader } from '../components/ui/page-header.js'
 import { Panel, PanelHeader } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
 import { activityLabels, formatDate } from '../labels.js'
-import { Micro } from '../tabs/shared.js'
+import { Micro, RowAction } from '../tabs/shared.js'
 import type { ActivityType, ContactSummary, ContactType } from '../types.js'
 
 import { NewContact as NewContactSheet } from './NewContact.js'
@@ -199,6 +200,15 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
   const [attaching, setAttaching] = useState(false)
   const [matterFilter, setMatterFilter] = useState('')
 
+  async function detach(personId: string) {
+    await api(`/api/contacts/${personId}/attachment`, {
+      method: 'PUT',
+      body: JSON.stringify({ attachedToContactId: null, attachedAs: null }),
+    })
+
+    onChanged()
+  }
+
   useEffect(() => {
     api<ContactDetail>(`/api/contacts/${contactId}`).then(setContact).catch(() => setContact(null))
   }, [contactId])
@@ -358,7 +368,12 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
             )}
 
             {contact.attachedPeople.map((person) => (
-              <AttachedRow key={person.id} attachment={person} onOpen={() => onOpenContact(person.id)} />
+              <AttachedRow
+                key={person.id}
+                attachment={person}
+                onOpen={() => onOpenContact(person.id)}
+                onDetach={() => void detach(person.id)}
+              />
             ))}
 
             {contact.type === 'Organisation' && (
@@ -395,13 +410,124 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
       )}
 
       {attaching && (
-        <NewContactSheet
-          attachTo={{ id: contact.id, name: contact.displayName }}
+        <AttachPerson
+          organisation={{ id: contact.id, name: contact.displayName }}
+          already={contact.attachedPeople.map((person) => person.id)}
           onCancel={() => setAttaching(false)}
-          onCreated={() => { setAttaching(false); onChanged() }}
+          onAttached={() => { setAttaching(false); onChanged() }}
         />
       )}
     </Panel>
+  )
+}
+
+/**
+ * Rattacher une personne. It offers the people already in the address book first, because the gérant
+ * of a société is very often a tiers in his own right already — he was the opposing party's contact
+ * on another dossier, or he signed something. Creating a second fiche for him would split his
+ * history in two.
+ */
+function AttachPerson({ organisation, already, onCancel, onAttached }: {
+  organisation: { id: string; name: string }
+  already: string[]
+  onCancel: () => void
+  onAttached: () => void
+}) {
+  const [people, setPeople] = useState<ContactSummary[]>([])
+  const [personId, setPersonId] = useState('')
+  const [role, setRole] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const load = useCallback(() => {
+    api<ContactSummary[]>('/api/contacts')
+      .then((all) => setPeople(all.filter((candidate) => candidate.type === 'Individual')))
+      .catch(() => setPeople([]))
+  }, [])
+
+  useEffect(load, [load])
+
+  async function attach() {
+    if (!personId) {
+      setError('Choisissez une personne, ou créez-la.')
+      return
+    }
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      await api(`/api/contacts/${personId}/attachment`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          attachedToContactId: organisation.id,
+          attachedAs: role.trim() || null,
+        }),
+      })
+
+      onAttached()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Creating one goes through the same sheet as anywhere else, pre-attached to this société.
+  if (creating) {
+    return (
+      <NewContactSheet
+        attachTo={organisation}
+        onCancel={() => setCreating(false)}
+        onCreated={onAttached}
+      />
+    )
+  }
+
+  const available = people.filter((person) => !already.includes(person.id))
+
+  return (
+    <Dialog title={`Rattacher une personne à ${organisation.name}`} onClose={onCancel}>
+      <Field label="Personne">
+        <div className="flex gap-2">
+          <Select
+            className="h-8 flex-1"
+            value={personId}
+            onChange={(event) => { setPersonId(event.target.value); setError(null) }}
+          >
+            <option value="">Choisir une personne physique…</option>
+            {available.map((person) => (
+              <option key={person.id} value={person.id}>{person.displayName}</option>
+            ))}
+          </Select>
+
+          <Button variant="secondary" size="lg" onClick={() => setCreating(true)}>
+            Nouvelle personne…
+          </Button>
+        </div>
+      </Field>
+
+      <Field label="Fonction">
+        <Input
+          inputSize="lg"
+          value={role}
+          placeholder="Gérant et associé majoritaire"
+          onChange={(event) => setRole(event.target.value)}
+        />
+      </Field>
+
+      {available.length === 0 && people.length > 0 && (
+        <Micro>Toutes les personnes physiques du carnet sont déjà rattachées à ce tiers.</Micro>
+      )}
+
+      {error && <p className="m-0 text-danger">{error}</p>}
+
+      <DialogActions>
+        <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
+        <Button size="lg" disabled={busy} onClick={() => void attach()}>Rattacher</Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
@@ -460,25 +586,33 @@ function ContactRow({ contact, selected, onSelect }: {
 }
 
 /** 32px row: avatar, name, function. The gérant is a tiers in his own right, so the row opens him. */
-const AttachedRow = ({ attachment, onOpen }: {
+const AttachedRow = ({ attachment, onOpen, onDetach }: {
   attachment: ContactAttachment
   onOpen: () => void
+  onDetach?: () => void
 }) => (
-  <button
-    type="button"
-    onClick={onOpen}
-    className="flex h-8 w-full items-center gap-2 rounded-[3px] px-1 text-left hover:bg-hover"
-  >
-    <Avatar name={attachment.displayName} type={attachment.type} />
-    <span className="grid min-w-0">
-      <span className="truncate text-[11.5px] leading-4">{attachment.displayName}</span>
-      {attachment.function && (
-        <span className="truncate text-[10.5px] leading-[13px] text-muted" title={attachment.function}>
-          {attachment.function}
-        </span>
-      )}
-    </span>
-  </button>
+  <div className="group/attached flex h-8 items-center gap-2 rounded-[3px] px-1 hover:bg-hover">
+    <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+      <Avatar name={attachment.displayName} type={attachment.type} />
+      <span className="grid min-w-0">
+        <span className="truncate text-[11.5px] leading-4">{attachment.displayName}</span>
+        {attachment.function && (
+          <span className="truncate text-[10.5px] leading-[13px] text-muted" title={attachment.function}>
+            {attachment.function}
+          </span>
+        )}
+      </span>
+    </button>
+
+    {/* Detaching removes the link, never the person: a gérant outlives the société. */}
+    {onDetach && (
+      <span className="opacity-0 transition-opacity group-hover/attached:opacity-100 focus-within:opacity-100">
+        <RowAction label="Détacher de ce tiers" onClick={onDetach}>
+          <Unlink size={12} strokeWidth={1.75} />
+        </RowAction>
+      </span>
+    )}
+  </div>
 )
 
 const Term = ({ children }: { children: string }) => (
