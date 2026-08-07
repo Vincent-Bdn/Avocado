@@ -16,7 +16,7 @@ import { Panel } from './components/ui/panel.js'
 import { Select } from './components/ui/select.js'
 import { NewContact } from './sections/NewContact.js'
 import { RowAction } from './tabs/shared.js'
-import { billingTone, readBilling } from './lib/billing.js'
+import { BillingFigures, billingTone, readBilling } from './lib/billing.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
@@ -254,35 +254,15 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
       </section>
 
       <section className={cn('rounded-sm border px-2.5 py-2', billingTone[reading.tone])}>
-        <ContextTitle className="text-current opacity-80">{reading.caption}</ContextTitle>
-
-        <div className="font-mono text-[19px] leading-6 font-semibold tnum">
-          {reading.headline < 0 && reading.settled ? '− ' : ''}
-          {formatEuros(Math.abs(reading.headline))}
-        </div>
+        <BillingFigures summary={matter.billing} compact />
 
         {reading.settled ? (
-          <>
-            {matter.billing.varianceCents !== 0 && (
-              <div className="font-mono text-[10px] tnum">
-                {matter.billing.varianceCents > 0 ? 'boni ' : 'mali '}
-                {formatEuros(Math.abs(matter.billing.varianceCents))} sur{' '}
-                {formatEuros(matter.billing.invoicedCents - matter.billing.varianceCents)} d’heures
-              </div>
-            )}
-
-            {matter.billing.subcontractedCents > 0 && (
-              <div className="font-mono text-[10px] tnum">
-                net {formatEuros(matter.billing.netCents)} après{' '}
-                {formatEuros(matter.billing.subcontractedCents)} rétrocédés
-              </div>
-            )}
-
-            <div className="font-mono text-[10px] tnum opacity-80">tout le temps saisi est facturé</div>
-          </>
+          <div className="mt-1 font-mono text-[10px] tnum opacity-80">
+            tout le temps saisi est facturé
+          </div>
         ) : (
           <>
-            <div className="font-mono text-[10px] tnum">
+            <div className="mt-1 font-mono text-[10px] tnum">
               {formatDuration(matter.billing.billableMinutes)} facturables ·{' '}
               {formatEuros(matter.hourlyRateCents)}/h
             </div>
@@ -296,28 +276,18 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
             )}
 
             {matter.billing.invoicedCents > 0 && (
-              <div className="mt-1.5 border-t border-current/20 pt-1.5">
-                <div className="type-group opacity-80">Déjà facturé</div>
-                <div className="font-mono text-[13px] leading-4 font-semibold tnum">
-                  {formatEuros(matter.billing.invoicedCents)}
-                </div>
-                {matter.billing.varianceCents !== 0 && (
-                  <div className="font-mono text-[10px] tnum opacity-80">
-                    dont {matter.billing.varianceCents > 0 ? 'boni' : 'mali'}{' '}
-                    {formatEuros(Math.abs(matter.billing.varianceCents))}
-                  </div>
-                )}
-
-                {/* Sous-traitance never touches « reste à facturer », so it is stated here rather
-                    than folded into a figure it has no business changing. */}
-                {matter.billing.subcontractedCents > 0 && (
-                  <div className="font-mono text-[10px] tnum opacity-80">
-                    net {formatEuros(matter.billing.netCents)}
-                  </div>
-                )}
+              <div className="font-mono text-[10px] tnum opacity-80">
+                {formatEuros(matter.billing.invoicedCents)} déjà facturé
               </div>
             )}
           </>
+        )}
+
+        {matter.billing.varianceCents !== 0 && (
+          <div className="mt-1 font-mono text-[10px] tnum opacity-80">
+            {matter.billing.varianceCents > 0 ? 'boni' : 'mali'}{' '}
+            {formatEuros(Math.abs(matter.billing.varianceCents))}
+          </div>
         )}
       </section>
 

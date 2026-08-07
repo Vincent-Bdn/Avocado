@@ -97,6 +97,20 @@
 }
 
 @layer base {
+  /*
+    Native popups, the datalist under an autocomplete, a <select>'s option list, the date picker,
+    are drawn by the browser and not by us. Without this they follow the operating system, so on a
+    machine set to dark mode a black list drops out of a white field. Declaring the scheme is what
+    ties them to the theme the application is actually rendering.
+  */
+  :root[data-theme='light'] {
+    color-scheme: light;
+  }
+
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+  }
+
   *,
   *::before,
   *::after {

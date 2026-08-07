@@ -13,7 +13,7 @@ import { SplitButton, SplitButtonItem } from '../components/ui/split-button.js'
 import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
-import { readBilling } from '../lib/billing.js'
+import { BillingFigures, readBilling } from '../lib/billing.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
 import type { ContactSummary } from '../types.js'
@@ -177,15 +177,12 @@ export function Billing({ matterId, isOpen, onChanged }: {
       */}
       {settled ? (
         <section className="rounded-md border border-[#BFD3C5] bg-[#F4F8F5] px-4 py-3.5 text-brand-on-subtle">
-          <div className="flex items-center gap-1.5 text-[12px] font-medium">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium">
             <Check size={13} strokeWidth={2.5} />
             Tout le temps saisi est facturé
           </div>
 
-          <div className="mt-1 font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
-            {formatEuros(summary.invoicedCents)}
-          </div>
-          <div className="font-mono text-[11px] tnum">facturés sur ce dossier</div>
+          <BillingFigures summary={summary} />
 
           {summary.varianceCents !== 0 && (
             <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
@@ -209,18 +206,6 @@ export function Billing({ matterId, isOpen, onChanged }: {
             </div>
           )}
 
-          {summary.subcontractedCents > 0 && (
-            <div className="mt-2 border-t border-[#BFD3C5] pt-1.5">
-              <div className="type-group opacity-80">Net de sous-traitance</div>
-              <div className="font-mono text-[15px] leading-5 font-semibold tnum">
-                {formatEuros(summary.netCents)}
-              </div>
-              <div className="font-mono text-[10px] tnum opacity-80">
-                après {formatEuros(summary.subcontractedCents)} rétrocédés
-              </div>
-            </div>
-          )}
-
           {summary.leftToBillCents < 0 && (
             <p className="m-0 mt-2 text-[11px] leading-4">
               Le client est en avance de {formatEuros(-summary.leftToBillCents)} : provision reçue ou
@@ -230,10 +215,7 @@ export function Billing({ matterId, isOpen, onChanged }: {
         </section>
       ) : (
         <section className="rounded-md border border-[#E8D5AE] bg-[#FDF8ED] px-4 py-3.5 text-[#6E4A0E]">
-          <div className="text-[12px] font-medium">Reste à facturer</div>
-          <div className="font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
-            {formatEuros(summary.leftToBillCents)}
-          </div>
+          <BillingFigures summary={summary} />
 
           <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
             <Line label="Temps non facturé" value={formatEuros(summary.billableTimeCents)} />
