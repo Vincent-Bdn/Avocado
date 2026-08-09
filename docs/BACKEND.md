@@ -44,6 +44,29 @@ the project body, where `OutputType` has not been set yet, so the condition woul
 and the publish would quietly come out framework-dependent. Supported RIDs are in
 `.github/workflows/ci.yml`: `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`.
 
+### Cutting a version
+
+A tag is the release. Nothing else creates one, so the tag and what people download cannot describe
+different code.
+
+```bash
+git tag v1.0.0-beta.1
+git push origin v1.0.0-beta.1
+```
+
+That builds the six platforms, asserts each binary really bundled the runtime (a framework-dependent
+publish looks fine right up until someone without .NET runs it), smoke tests the three the runners can
+execute, and publishes the GitHub release from those same artifacts rather than from a second build.
+One archive per platform holding the binary and the licence, plus `SHA256SUMS` across all six.
+
+A hyphen makes it a pre-release in the semantic-version sense, and GitHub is told as much, so
+`v1.0.0-beta.1` is not offered as the current version. The tag patterns are version-shaped, so a
+scratch tag ships nothing.
+
+CI otherwise runs on pull requests and on demand (`gh workflow run ci.yml`), not on every push to
+`main`. Publishing is skipped on pull requests: what it proves matters when a binary reaches somebody,
+and the tests already answer the question a proposed change asks.
+
 ---
 
 ## Lifecycle
