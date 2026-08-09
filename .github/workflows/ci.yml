@@ -22,9 +22,9 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -52,23 +52,41 @@ jobs:
           - { rid: osx-arm64,   runner: macos-latest }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
       - name: Publish self-contained
         run: dotnet publish src/Avocado.Cli -c Release -r ${{ matrix.rid }} -o artifacts/${{ matrix.rid }}
 
+      # The apphost is avocado.exe on Windows and avocado everywhere else. Resolved once, into the
+      # environment, rather than re-derived by each step that needs it.
+      #
+      # It used to be `ls avocado avocado.exe | head -1`, which reads as "whichever of the two is
+      # there" and is not: ls exits 2 when either name is missing, which is always, one of them is
+      # the other platform's. Under `-e -o pipefail` that failed the job before the check it feeds
+      # had run, so every publish job died with a bare "exit code 2" and no message.
+      - name: Locate the published binary
+        shell: bash
+        run: |
+          binary=artifacts/${{ matrix.rid }}/avocado
+          [ -f "$binary" ] || binary=$binary.exe
+          if [ ! -f "$binary" ]; then
+            echo "::error::No avocado binary in artifacts/${{ matrix.rid }}."
+            ls -la artifacts/${{ matrix.rid }}
+            exit 1
+          fi
+          echo "BINARY=$binary" >> "$GITHUB_ENV"
+
       # A framework-dependent publish looks fine until a user without .NET installed tries to run it,
       # so assert the runtime really was bundled rather than trusting the property took effect.
       - name: Assert the publish is self-contained
         shell: bash
         run: |
-          binary=$(ls artifacts/${{ matrix.rid }}/avocado artifacts/${{ matrix.rid }}/avocado.exe 2>/dev/null | head -1)
-          size=$(wc -c < "$binary")
-          echo "$binary is $size bytes"
+          size=$(wc -c < "$BINARY")
+          echo "$BINARY is $size bytes"
           if [ "$size" -lt 20000000 ]; then
             echo "::error::Only $size bytes - the .NET runtime was not bundled."
             exit 1
@@ -80,20 +98,19 @@ jobs:
         if: matrix.rid == 'win-x64' || matrix.rid == 'linux-x64' || matrix.rid == 'osx-arm64'
         shell: bash
         run: |
-          binary=$(ls artifacts/${{ matrix.rid }}/avocado artifacts/${{ matrix.rid }}/avocado.exe 2>/dev/null | head -1)
-          chmod +x "$binary" 2>/dev/null || true
+          chmod +x "$BINARY" 2>/dev/null || true
 
-          "$binary" create "$RUNNER_TEMP/smoke-vault" | tee create.log
-          "$binary" info "$RUNNER_TEMP/smoke-vault"
+          "$BINARY" create "$RUNNER_TEMP/smoke-vault" | tee create.log
+          "$BINARY" info "$RUNNER_TEMP/smoke-vault"
 
           # Unlocks via the device key on every platform - DPAPI on Windows, the owner-only machine
           # key file on Linux and macOS. Nothing is read from stdin, so this hanging would itself be
           # the failure signal.
-          "$binary" backup "$RUNNER_TEMP/smoke-vault" < /dev/null
+          "$BINARY" backup "$RUNNER_TEMP/smoke-vault" < /dev/null
 
           # And the recovery path, which is what a replacement machine would use.
           code=$(grep -oE '[0-9A-Z]{6}(-[0-9A-Z]{6}){8}' create.log | head -1)
-          echo "$code" | "$binary" verify-recovery "$RUNNER_TEMP/smoke-vault"
+          echo "$code" | "$BINARY" verify-recovery "$RUNNER_TEMP/smoke-vault"
 
       - uses: actions/upload-artifact@v4
         with:
