@@ -1,14 +1,28 @@
 name: CI
 
+# Runs when a version is cut, when someone proposes a change, or when asked. Not on every push to
+# main: main is where the day's work lands, and a green tick on a commit nobody is shipping tells
+# you nothing you did not already know from building locally.
+#
+# A tag is the release. Pushing v1.0.0 builds the six platforms, checks them, and publishes the
+# GitHub release with the binaries attached. Nothing else creates a release, so the tag and what
+# users download cannot describe different code.
 on:
   push:
-    branches: [main]
+    tags:
+      # Semantic versions only, so a scratch tag never ships anything. The second pattern is the
+      # pre-release form, v1.0.0-beta.1, which is where this is starting.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
   pull_request:
   workflow_dispatch:
 
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+permissions:
+  contents: read
 
 jobs:
   # The vault has to behave identically on all three, so the tests run on all three. The device-key
@@ -40,6 +54,9 @@ jobs:
     name: Publish (${{ matrix.rid }})
     runs-on: ${{ matrix.runner }}
     needs: test
+    # Six runners for a proposed change is a lot of machine for a question the tests already answer.
+    # What publishing proves matters when a binary reaches someone, so it runs on tags and on demand.
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -58,8 +75,16 @@ jobs:
         with:
           global-json-file: global.json
 
+      # Stamped with the tag on a release build, so a binary someone sends back in a bug report can
+      # say which one it is. Untagged runs keep the default and are not meant to be kept.
       - name: Publish self-contained
-        run: dotnet publish src/Avocado.Cli -c Release -r ${{ matrix.rid }} -o artifacts/${{ matrix.rid }}
+        shell: bash
+        run: |
+          version=""
+          case "$GITHUB_REF" in
+            refs/tags/v*) version="-p:Version=${GITHUB_REF_NAME#v}" ;;
+          esac
+          dotnet publish src/Avocado.Cli -c Release -r ${{ matrix.rid }} -o artifacts/${{ matrix.rid }} $version
 
       # The apphost is avocado.exe on Windows and avocado everywhere else. Resolved once, into the
       # environment, rather than re-derived by each step that needs it.
@@ -117,3 +142,64 @@ jobs:
           name: avocado-cli-${{ matrix.rid }}
           path: artifacts/${{ matrix.rid }}
           retention-days: 7
+
+  # Only a tag gets here. The release is assembled from the artifacts the publish jobs just proved,
+  # not from a second build, so what is attached is what was tested.
+  release:
+    name: Release ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: avocado-cli-*
+          path: artifacts
+
+      # One archive per platform, holding the binary and the licence and nothing else. The CLI is a
+      # single self-contained file, so anything else in there would only be debris to explain.
+      - name: Package each platform
+        run: |
+          mkdir -p release
+
+          for directory in artifacts/avocado-cli-*; do
+            rid=${directory#artifacts/avocado-cli-}
+            stage=$(mktemp -d)
+            cp LICENSE README.md "$stage/"
+
+            if [ -f "$directory/avocado.exe" ]; then
+              cp "$directory/avocado.exe" "$stage/"
+              (cd "$stage" && zip -qr "$GITHUB_WORKSPACE/release/avocado-${GITHUB_REF_NAME}-$rid.zip" .)
+            else
+              cp "$directory/avocado" "$stage/"
+              chmod +x "$stage/avocado"
+              tar -czf "release/avocado-${GITHUB_REF_NAME}-$rid.tar.gz" -C "$stage" .
+            fi
+          done
+
+          # A vault holds a cabinet's files, so whoever downloads the thing that opens it should be
+          # able to check they got what we built.
+          (cd release && sha256sum avocado-* > SHA256SUMS)
+          ls -l release
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A hyphen in a semantic version is what makes it a pre-release, and v1.0.0-beta.1 should
+          # not be offered as the current one.
+          prerelease=""
+          case "$GITHUB_REF_NAME" in
+            *-*) prerelease=--prerelease ;;
+          esac
+
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            $prerelease
