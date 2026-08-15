@@ -149,13 +149,14 @@ Content-Security-Policy, set on every response by the main process:
 
 ```
 default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
-img-src 'self' data:; font-src 'self';
+img-src 'self'; font-src 'self';
 connect-src 'self' <backend> https://recherche-entreprises.api.gouv.fr;
 object-src 'none'; frame-src 'none'
 ```
 
 `style-src 'unsafe-inline'` is required by the bar chart, whose heights are percentages computed from
-data. `img-src data:` is required by the recovery sheet's QR code, generated in-process.
+data. Nothing requires `img-src data:` any more: it existed for the recovery sheet's QR code, and the
+QR was removed once it became clear nothing could read it.
 
 Fonts are self-hosted and bundled (IBM Plex, OFL 1.1), so there is no CDN at runtime, which is what
 makes the "nothing leaves this machine" claim checkable rather than merely stated.

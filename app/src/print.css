@@ -51,9 +51,6 @@
 .sheet-lead { margin: 12px 0 16px; font-size: 11.5px; line-height: 18px; }
 
 .sheet-body { display: flex; gap: 20px; align-items: flex-start; }
-.sheet-qr { margin: 0; width: 148px; }
-.sheet-qr img { width: 148px; height: 148px; border: 1px solid #000; }
-.sheet-qr figcaption { margin-top: 4px; font-size: 9.5px; text-align: center; }
 
 .sheet-key { flex: 1; }
 .sheet-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }

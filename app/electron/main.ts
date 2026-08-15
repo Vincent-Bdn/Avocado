@@ -82,7 +82,10 @@ function applyContentSecurityPolicy(): void {
             "default-src 'self'",
             "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data:",
+            // No data: images any more. It was there for the recovery sheet's QR code, generated
+            // in-process as a data URI; with the QR gone, so is the reason to allow inline image
+            // payloads at all.
+            "img-src 'self'",
             "font-src 'self'",
             `connect-src 'self' ${handshake?.url ?? ''} https://recherche-entreprises.api.gouv.fr`,
             "object-src 'none'",

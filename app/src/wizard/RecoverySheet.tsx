@@ -1,5 +1,3 @@
-import { useEffect, useState } from 'react'
-import QRCode from 'qrcode'
 
 /**
  * The printed A4 sheet. Pure black on white, no colour, no grey, because it has to survive a nearly
@@ -7,24 +5,21 @@ import QRCode from 'qrcode'
  *
  * Rendered off-screen and revealed only by the print stylesheet, so `window.print()` produces this
  * page and nothing else.
+ *
+ * It carried a QR code and told the reader to scan it from Avocado, which Avocado has never been able
+ * to do. A promise printed on a document people keep for years is worse than a missing feature, so
+ * the code is gone rather than the scanner being built to justify it.
+ *
+ * It also deliberately says nothing about where the backups are. Coupling the two would mean
+ * reprinting this every time a destination or its name changed, and a sheet that quietly goes out of
+ * date is exactly the failure it exists to prevent. It holds the key, which is the one thing that
+ * never changes.
  */
 export function RecoverySheet({ recoveryCode, fingerprint, createdOn }: {
   recoveryCode: string
   fingerprint: string
   createdOn: string
 }) {
-  const [qr, setQr] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Black on white, high correction: this is scanned off paper, possibly a poor print.
-    void QRCode.toDataURL(recoveryCode, {
-      errorCorrectionLevel: 'H',
-      margin: 0,
-      width: 296,
-      color: { dark: '#000000', light: '#FFFFFF' },
-    }).then(setQr)
-  }, [recoveryCode])
-
   const groups = recoveryCode.split('-')
 
   return (
@@ -50,11 +45,6 @@ export function RecoverySheet({ recoveryCode, fingerprint, createdOn }: {
       </p>
 
       <div className="sheet-body">
-        <figure className="sheet-qr">
-          {qr && <img src={qr} alt="" />}
-          <figcaption>à scanner depuis Avocado</figcaption>
-        </figure>
-
         <div className="sheet-key">
           <div className="sheet-label">La clé, en toutes lettres</div>
           <div className="sheet-groups">
@@ -74,7 +64,10 @@ export function RecoverySheet({ recoveryCode, fingerprint, createdOn }: {
         <ol>
           <li>Installer Avocado et choisir « Restaurer une sauvegarde ».</li>
           <li>Désigner le fichier de sauvegarde (clé USB, disque externe ou dossier synchronisé).</li>
-          <li>Scanner le QR code ci-dessus, ou saisir les neuf groupes à la main.</li>
+          <li>
+            Choisir « Lire depuis la fiche » et désigner ce document s’il a été enregistré en PDF,
+            ou saisir les neuf groupes à la main.
+          </li>
         </ol>
       </section>
 
