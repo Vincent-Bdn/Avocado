@@ -5,6 +5,7 @@
     <Project Path="src/Avocado.Vault/Avocado.Vault.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Avocado.Server.Tests/Avocado.Server.Tests.csproj" />
     <Project Path="tests/Avocado.Vault.Tests/Avocado.Vault.Tests.csproj" />
   </Folder>
 </Solution>
