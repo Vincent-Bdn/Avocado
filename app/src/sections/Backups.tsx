@@ -423,16 +423,41 @@ function Explainers({ localCount }: { localCount: number }) {
       </Explain>
 
       <Explain title="Google Drive, Dropbox, OneDrive">
-        Choisissez « Ajouter un dossier » et désignez le dossier que ces services synchronisent sur
-        cet ordinateur. Avocado y écrit ses sauvegardes comme dans n’importe quel dossier, et leur
-        logiciel les envoie dans le nuage. C’est la seule chose qu’ils aient à faire, et elle est sans
-        risque : une sauvegarde est un fichier fermé, déjà chiffré.
-        <br />
-        <br />
-        Le coffre lui-même, en revanche, ne doit jamais être placé dans un dossier synchronisé. C’est
-        une base de données ouverte en permanence, et un logiciel de synchronisation qui la copie en
-        pleine écriture finit par la corrompre. C’est la première cause de coffre illisible, et c’est
-        pourquoi Avocado refuse cet emplacement à l’installation tout en vous le recommandant ici.
+        Avocado ne se connecte pas à ces services par un compte : il écrit dans le dossier que leur
+        logiciel garde synchronisé sur cet ordinateur, et c’est ce logiciel qui l’envoie dans le nuage.
+        Rien à autoriser, aucun mot de passe à confier, et le jour où vous changez de service, il n’y a
+        qu’un dossier à redésigner.
+      </Explain>
+
+      <div className="grid gap-1">
+        <span className="type-label text-ink-secondary">Mettre en place Google Drive, en trois temps</span>
+        <ol className="m-0 grid list-decimal gap-1 pl-4 text-[11.5px] leading-[17px] text-muted">
+          <li>
+            Installez « Google Drive pour ordinateur » depuis{' '}
+            <span className="font-mono text-[11px]">google.com/drive/download</span>, puis connectez-vous
+            à votre compte Google. C’est un logiciel de Google, pas d’Avocado.
+          </li>
+          <li>
+            Il ajoute un dossier « Google Drive » à cet ordinateur, souvent sous la forme d’un nouveau
+            lecteur. Créez-y un dossier, « Sauvegardes Avocado » par exemple.
+          </li>
+          <li>
+            Revenez ici, « Ajouter un dossier », et désignez-le. La première copie part aussitôt.
+          </li>
+        </ol>
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          Pour vérifier que cela fonctionne vraiment : après la première sauvegarde, ouvrez
+          drive.google.com depuis n’importe quel navigateur. Si le dossier et son contenu y sont, la
+          copie a bien quitté cet ordinateur. C’est la seule preuve qui compte, et elle prend dix
+          secondes. OneDrive et Dropbox se mettent en place de la même façon.
+        </p>
+      </div>
+
+      <Explain title="Ce que ces services voient de vos dossiers">
+        Rien. Tout ce qu’Avocado écrit est déjà chiffré avant d’être posé dans le dossier : Google,
+        Microsoft ou Dropbox hébergent des fichiers qu’ils ne peuvent pas ouvrir, et personne chez eux
+        ne peut lire un nom de client ni une pièce. Seule votre clé de récupération les rouvre. C’est
+        aussi pourquoi cette clé doit rester ailleurs que dans ce même nuage.
       </Explain>
 
       <Explain title="À quel rythme">

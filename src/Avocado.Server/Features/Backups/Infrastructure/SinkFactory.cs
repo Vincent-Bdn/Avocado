@@ -28,9 +28,10 @@ public sealed class SinkFactory
     {
         BackupDestinationKinds.Folder => "Aucun dossier n'est configuré pour cette destination.",
         BackupDestinationKinds.Volume => "Ce support n'a pas d'identifiant : reconfigurez-le.",
-        BackupDestinationKinds.GoogleDrive =>
-            "La connexion à Google Drive n'est pas encore disponible dans cette version. En attendant, " +
-            "vous pouvez choisir le dossier Google Drive de cet ordinateur comme destination.",
+        "googleDrive" =>
+            "Avocado ne se connecte pas directement à Google Drive. Installez « Google Drive pour " +
+            "ordinateur », puis choisissez son dossier comme destination : la copie s'y fait comme " +
+            "dans n'importe quel dossier, et Google s'occupe de l'envoyer.",
         _ => $"Type de destination inconnu ({destination.Kind}).",
     };
 }

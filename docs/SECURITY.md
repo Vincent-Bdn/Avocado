@@ -236,9 +236,13 @@ Stated because a security document that lists only its strengths is not one.
   onto a new machine from the destination and the recovery key. What is missing is the interface, so
   today a destination has to be added over the API. Until that lands, the feature exists and nobody
   can reach it.
-- **No native Google Drive.** A synced Drive, OneDrive or Dropbox folder works today, because to
-  Avocado it is a folder like any other. Talking to Drive's own API, for the many people who never
-  installed the desktop client, is not built.
+- **No native cloud connectors, and this one is a decision rather than a gap.** Drive, OneDrive and
+  Dropbox are reached through the folder their desktop client keeps in sync, which to Avocado is a
+  folder like any other. Talking to Drive's own API would need an OAuth client owned by a Google
+  Cloud project, putting somebody's legal identity on a consent screen shown to other people's
+  clients, and no solo practice will create one for itself. The trade is real: it needs the desktop
+  client installed. What it buys is no credentials shipped in an open-source binary, no token
+  storage, nothing to renew, and no third party to trust with an authorisation.
 - **No Keychain on macOS**, no Secret Service on Linux: a `0600` file stands in for both.
 - **No idle re-lock.** An unlocked session stays unlocked until the application closes.
 - **No audit trail.** Who changed what, and when, is not recorded beyond `CreatedAt` and `UpdatedAt`.

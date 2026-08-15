@@ -82,6 +82,10 @@ public static class BackupDestinationKinds
     /// <summary>A removable device, found by its marker rather than by a drive letter that moves.</summary>
     public const string Volume = "volume";
 
-    /// <summary>Google Drive over its own API, for the many people who have never installed the desktop client.</summary>
-    public const string GoogleDrive = "googleDrive";
+    // There is deliberately no GoogleDrive kind. Talking to Drive's API needs an OAuth client owned
+    // by a Google Cloud project, which means someone's legal identity on the consent screen shown to
+    // other people's clients, and a solo practice is never going to create one for itself. Drive,
+    // OneDrive and Dropbox are supported through Folder instead: their desktop client keeps a folder
+    // in sync, and a folder is something this already understands. Fewer moving parts, no
+    // credentials to ship, and nothing to renew.
 }
