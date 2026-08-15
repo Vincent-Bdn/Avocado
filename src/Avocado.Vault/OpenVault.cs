@@ -1,3 +1,4 @@
+using Avocado.Vault.Backups;
 using Avocado.Vault.Blobs;
 using Avocado.Vault.Crypto;
 using Avocado.Vault.Keys;
@@ -94,24 +95,35 @@ public sealed class OpenVault : IDisposable
     }
 
     /// <summary>
-    /// Snapshots the database into <c>backups/</c> and returns the path.
+    /// The local snapshot history. Point-in-time copies of the database, beside the vault, which is
+    /// what makes them useful for undoing an afternoon and useless against a dead disk. Getting a copy
+    /// off this machine is <see cref="Backups.IBackupSink"/>'s job.
+    /// </summary>
+    public SnapshotStore Snapshots => field ??= new SnapshotStore(Paths);
+
+    /// <summary>
+    /// Snapshots the database into <c>backups/</c>.
     /// <para>
     /// Call this before every EF Core migration. SQLite DDL is transactional so a <em>failed</em>
     /// migration rolls back on its own, but a migration that succeeds and is wrong is unrecoverable,
     /// and this is the user's only copy of their practice.
     /// </para>
     /// </summary>
-    public string CreateBackup(string label = "backup")
+    public VaultSnapshot CreateBackup(string label = "backup")
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var safeLabel = string.Concat(label.Select(c => char.IsLetterOrDigit(c) || c == '-' ? c : '-'));
-        var fileName = $"{DateTime.UtcNow:yyyyMMdd-HHmmss}-{safeLabel}.db";
+        var takenAt = DateTimeOffset.UtcNow;
+        var fileName = $"{takenAt.UtcDateTime:yyyyMMdd-HHmmss}-{safeLabel}.db";
         var destination = Path.Combine(Paths.BackupsDirectory, fileName);
 
-        using var connection = OpenConnection();
-        VaultDatabase.BackupTo(connection, destination);
-        return destination;
+        using (var connection = OpenConnection())
+        {
+            VaultDatabase.BackupTo(connection, destination);
+        }
+
+        return new VaultSnapshot(fileName, destination, takenAt, new FileInfo(destination).Length);
     }
 
     public void Dispose()

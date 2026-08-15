@@ -183,7 +183,7 @@ public class VaultManagerTests
         var creation = VaultManager.Create(directory.Path, new FakeDeviceKeyStore());
         using var vault = creation.Vault;
 
-        var backupPath = vault.CreateBackup("before-migration");
+        var backupPath = vault.CreateBackup("before-migration").FullPath;
 
         Assert.True(File.Exists(backupPath));
         Assert.StartsWith(vault.Paths.BackupsDirectory, backupPath, StringComparison.Ordinal);

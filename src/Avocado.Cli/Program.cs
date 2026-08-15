@@ -85,7 +85,7 @@ static int Unlock(string folder)
 static int Backup(string folder)
 {
     using var vault = Open(folder);
-    var path = vault.CreateBackup("manual");
+    var path = vault.CreateBackup("manual").FullPath;
 
     Console.WriteLine($"Backup written to {path} ({new FileInfo(path).Length:N0} bytes, encrypted).");
     Console.WriteLine("Restoring it on another machine needs the recovery key.");

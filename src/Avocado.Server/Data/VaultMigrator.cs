@@ -33,7 +33,7 @@ public static class VaultMigrator
             "Vault {VaultId} has {Count} pending migration(s): {Migrations}. Taking a snapshot first.",
             vault.Id, pending.Count, string.Join(", ", pending));
 
-        var backupPath = vault.CreateBackup("pre-migration");
+        var backupPath = vault.CreateBackup("pre-migration").FullPath;
         logger.LogInformation("Snapshot written to {BackupPath}.", backupPath);
 
         try

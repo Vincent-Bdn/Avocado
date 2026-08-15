@@ -33,6 +33,16 @@ public sealed class SyncedFolderException : VaultException
     public string DetectedRoot { get; }
 }
 
+/// <summary>
+/// A backup destination was asked to do something while it was not connected. Its own type because
+/// the backup service treats it as "try again in a minute" rather than as an error worth telling
+/// anyone about: a USB key spends most of its life unplugged, and that is not a fault.
+/// </summary>
+public sealed class SinkUnavailableException : VaultException
+{
+    public SinkUnavailableException(string message) : base(message) { }
+}
+
 /// <summary>This platform has no OS-backed key store, so the device unlock path is unavailable.</summary>
 public sealed class DeviceKeyStoreUnavailableException : VaultException
 {
