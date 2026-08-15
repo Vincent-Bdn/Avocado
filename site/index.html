@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Avocado, le suivi de dossiers pour les avocats</title>
+    <meta
+      name="description"
+      content="Un logiciel de suivi de dossiers pour avocats. Tout reste sur votre ordinateur, chiffré. Pas de compte, pas d’abonnement, pas de serveur. Gratuit et libre."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="avocado.css" />
+    <meta property="og:title" content="Avocado, le suivi de dossiers pour les avocats" />
+    <meta
+      property="og:description"
+      content="Vos dossiers, votre journal, vos pièces, vos échéances et votre temps passé. Sur votre ordinateur, chiffrés, sans abonnement."
+    />
+    <meta property="og:type" content="website" />
+  </head>
+
+  <body>
+    <header class="masthead">
+      <div class="masthead__inner">
+        <a class="wordmark" href="index.html">
+          <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
+            <rect width="64" height="64" rx="16" class="mark__skin" />
+            <circle cx="32" cy="25" r="10" class="mark__flesh" />
+            <circle cx="32" cy="37" r="15.5" class="mark__flesh" />
+            <circle cx="32" cy="37" r="6.4" class="mark__skin" />
+          </svg>
+          Avocado
+        </a>
+        <nav>
+          <a href="index.html" aria-current="page">Le logiciel</a>
+          <a href="installation.html">Installation</a>
+          <a href="donnees.html">Vos données</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero__mark">
+          <svg width="56" height="56" viewBox="0 0 64 64" role="img" aria-label="Avocado">
+            <rect width="64" height="64" rx="16" class="mark__skin" />
+            <circle cx="32" cy="25" r="10" class="mark__flesh" />
+            <circle cx="32" cy="37" r="15.5" class="mark__flesh" />
+            <circle cx="32" cy="37" r="6.4" class="mark__skin" />
+          </svg>
+        </div>
+
+        <h1>Le suivi de dossiers, sans le logiciel de cabinet.</h1>
+
+        <p class="lede">
+          Un dossier réunit son client, le journal de ce qui s’y passe, ses documents, ses échéances,
+          le temps que vous y consacrez et ce qu’il vous reste à facturer. Tout tient sur votre
+          ordinateur, chiffré. Aucun serveur, aucun compte, aucun abonnement.
+        </p>
+
+        <div class="actions">
+          <a class="button" href="installation.html">
+            Installer Avocado
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </a>
+          <a class="button button--ghost" href="#fonctions">Voir ce que ça fait</a>
+        </div>
+
+        <p class="hero__meta">
+          Gratuit, sans limite et sans version payante. Windows, macOS et Linux. Logiciel libre sous
+          licence AGPL-3.0.
+        </p>
+      </section>
+
+      <!--
+        Emplacement des captures d’écran de l’application. Rien n’est mis ici tant que les captures
+        ne sont pas les vraies : une maquette présentée comme un écran de l’application est le genre
+        de petit mensonge qui coûte exactement la confiance qu’on cherche à gagner.
+      -->
+
+      <section>
+        <p class="eyebrow">Pourquoi</p>
+        <h2>Les logiciels de cabinet demandent trois écrans pour noter un appel.</h2>
+
+        <p>
+          Ils sont chers, lents, et personne ne sait plus très bien où sont les données. On les
+          garde parce qu’en changer coûte plus cher encore. Avocado prend le problème par l’autre
+          bout : le dossier au centre, et le reste qui en découle.
+        </p>
+
+        <p>
+          Ce qui compte tient en une phrase. <strong>Ce qui n’est pas noté au moment où l’on
+          raccroche ne se facturera jamais.</strong> Tout le logiciel est construit autour de ce
+          geste-là, et de sa rapidité.
+        </p>
+      </section>
+
+      <section id="fonctions">
+        <p class="eyebrow">Ce que ça fait</p>
+        <h2>Un dossier, et tout ce qui s’y rattache.</h2>
+
+        <h3>Les dossiers</h3>
+        <p>
+          Une référence, un intitulé, un client, une date d’ouverture, un taux horaire. Un dossier
+          est <strong>en cours</strong> tant qu’il n’a pas de date de clôture, et
+          <strong>clôturé</strong> ensuite : il n’y a aucun statut à tenir à jour. Vous le classez en
+          conseil ou en contentieux, ou avec vos propres mots, et un dossier contentieux porte en
+          plus sa juridiction et son n° RG. Les quelques dossiers du mois se mettent en favori et
+          remontent en tête de liste.
+        </p>
+
+        <h3>Le journal</h3>
+        <p>
+          Le geste central, et le plus rapide : <kbd>Ctrl</kbd> <kbd>J</kbd> depuis n’importe où,
+          deux lignes, <kbd>Ctrl</kbd> <kbd>Entrée</kbd>. Un appel, un courrier, un rendez-vous, une
+          audience. Et, dans le même geste, <strong>le temps passé</strong>, qui remonte tout seul
+          dans ce qu’il vous reste à facturer.
+        </p>
+
+        <h3>Les documents et les pièces</h3>
+        <p>
+          Chaque fichier qui arrive au dossier s’y range, chiffré, dans les dossiers de classement
+          que vous choisissez. Un document devient une <strong>pièce</strong> quand vous lui donnez
+          un numéro et un libellé écrit pour le juge ; les numéros retirés restent libres, parce
+          qu’ils sont peut-être déjà cités dans des conclusions déposées.
+        </p>
+        <p>
+          Un double-clic ouvre le fichier dans Word, ou dans ce que votre ordinateur utilise pour ce
+          type de fichier. <strong>Chaque enregistrement revient tout seul à sa place</strong>, sans
+          rien exporter ni réimporter.
+        </p>
+
+        <h3>Les modèles</h3>
+        <p>
+          Écrivez votre lettre de mission une fois, dans Word, en laissant des repères là où le
+          dossier doit s’écrire : <code>{{client.nom}}</code>,
+          <code>{{dossier.reference}}</code>, <code>{{dossier.tauxHoraire}}</code>. Depuis un
+          dossier, « Générer depuis un modèle » les remplit et dépose le résultat, que vous ouvrez et
+          terminez.
+        </p>
+
+        <h3>Les échéances</h3>
+        <p>
+          Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas être
+          manqué. Elles se regroupent par urgence, dépassées, aujourd’hui, cette semaine, plus tard,
+          et chacune porte la distance en toutes lettres, de sorte qu’une impression en noir et blanc
+          reste lisible.
+        </p>
+
+        <h3>Le temps et ce qui reste à facturer</h3>
+        <p>
+          Avocado <strong>n’émet aucune facture</strong> et ne calcule aucune TVA : votre logiciel
+          comptable le fait déjà. Il note ce qui est parti, pour que ce qui reste soit connu.
+        </p>
+        <ul class="facts">
+          <li>
+            Le temps se saisit en heures et minutes, facturable ou non, avec un taux dérogatoire si
+            vous en avez accordé un.
+          </li>
+          <li>
+            Pour facturer, vous choisissez les lignes de temps, vous voyez ce qu’elles valent, et
+            vous décidez du montant. L’écart entre les deux est enregistré comme
+            <strong>boni</strong> ou <strong>mali</strong> : c’est là que se lit où le cabinet a
+            gagné de l’argent, et où il en a laissé.
+          </li>
+          <li>Les provisions reçues et les frais avancés se notent et viennent en déduction.</li>
+          <li>
+            Quand une partie du travail est sous-traitée à un confrère, la rétrocession d’honoraires
+            s’enregistre à part. Elle ne change rien à ce que le client doit : elle change ce qui
+            vous reste, et le dossier affiche son montant net.
+          </li>
+          <li>
+            Un bouton produit le <strong>détail de facturation</strong> en Excel, à joindre à la
+            facture envoyée au client.
+          </li>
+        </ul>
+
+        <h3>Les tiers</h3>
+        <p>
+          Clients, parties adverses, confrères, experts. Le même tiers est client sur un dossier et
+          partie adverse sur un autre : le rôle est du texte libre, propre à chaque dossier. Pour une
+          société, tapez trois lettres de sa raison sociale ou son SIREN, et Avocado remplit le
+          SIREN, la forme juridique et l’adresse depuis l’annuaire des entreprises.
+        </p>
+
+        <h3>L’accueil et la recherche</h3>
+        <p>
+          Ce que vous voyez en ouvrant le matin : ce qui tombe, ce qui a été gagné et pas encore
+          demandé, où vous en étiez, et un graphique sur douze mois qui répond à une seule question,
+          <strong>est-ce que je facture ce que je travaille ?</strong> Et
+          <kbd>Ctrl</kbd> <kbd>K</kbd> ouvre la recherche, dossiers, tiers et documents ensemble.
+        </p>
+      </section>
+
+      <section>
+        <p class="eyebrow">Honnêteté</p>
+        <h2>Ce qu’Avocado ne fait pas.</h2>
+        <p>
+          Mieux vaut le savoir avant d’installer qu’après. Ces choix ne sont pas des manques de
+          temps, ce sont des refus.
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Pas dans Avocado</th>
+                <th scope="col">Pourquoi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Émettre des factures, calculer la TVA, Factur-X</td>
+                <td>
+                  Vous avez déjà une plateforme de facturation. Avocado produit le contenu à
+                  facturer, pas la facture.
+                </td>
+              </tr>
+              <tr>
+                <td>RPVA et e-Barreau</td>
+                <td>
+                  Système fermé : certificat sur une clé physique derrière un VPN, aucune interface
+                  ouverte aux tiers.
+                </td>
+              </tr>
+              <tr>
+                <td>Synchronisation entre plusieurs appareils</td>
+                <td>
+                  Une sauvegarde couvre le besoin réel. Synchroniser voudrait dire un serveur, donc
+                  vos dossiers ailleurs que chez vous.
+                </td>
+              </tr>
+              <tr>
+                <td>Plusieurs utilisateurs, droits et rôles</td>
+                <td>
+                  Avocado est fait pour un avocat qui exerce seul. Le chiffrement est conçu pour que
+                  cela puisse évoluer, ce n’est pas fait aujourd’hui.
+                </td>
+              </tr>
+              <tr>
+                <td>Compte, statistiques d’usage, mouchards</td>
+                <td>Rien à mesurer, rien à revendre, rien à héberger.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow">Confidentialité</p>
+        <h2>Vos dossiers ne quittent pas votre ordinateur.</h2>
+        <p>
+          Tout votre travail tient dans un seul dossier sur votre disque, que vous choisissez à
+          l’installation. Base de données, documents, modèles : le contenu est chiffré en permanence,
+          y compris quand l’application est fermée. Personne ne peut le lire sans votre clé, moi
+          compris.
+        </p>
+        <p>
+          Une seule requête sort de votre machine, et elle se coupe d’un interrupteur : la recherche
+          d’une société dans l’annuaire des entreprises, qui ne reçoit que ce que vous tapez dans le
+          champ « Raison sociale ».
+        </p>
+        <div class="actions">
+          <a class="button button--ghost" href="donnees.html">Comment vos données sont protégées</a>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow">Qui</p>
+        <h2>Écrit par une personne, pour des amis avocats.</h2>
+        <p>
+          Avocado n’est pas un produit d’éditeur. C’est un logiciel que j’écris gratuitement parce
+          que des amis avocats méritaient mieux que ce qu’on leur vend. Le code est public :
+          n’importe quel développeur peut vérifier ce que fait l’application, y compris ce qu’elle
+          fait de vos données.
+        </p>
+        <div class="actions">
+          <a class="button button--ghost" href="qui-suis-je.html">Qui écrit ce logiciel</a>
+        </div>
+      </section>
+
+      <section>
+        <h2>Trois minutes, puis vous n’en entendez plus parler.</h2>
+        <p>
+          Au premier lancement, un assistant vous demande deux choses : où vivront vos dossiers, et
+          de mettre votre clé de récupération à l’abri. C’est tout.
+        </p>
+        <div class="actions">
+          <a class="button" href="installation.html">
+            Installer Avocado
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer__inner">
+        <p>
+          Avocado, suivi de dossiers pour les avocats. Logiciel libre sous licence AGPL-3.0. Les
+          données de votre cabinet ne sont couvertes par aucune licence : elles sont à vous, dans un
+          format ouvert, sur votre disque.
+        </p>
+        <div class="footer__links">
+          <a href="installation.html">Installation</a>
+          <a href="donnees.html">Vos données</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado/issues">Signaler un problème</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

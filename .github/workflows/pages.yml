@@ -1,0 +1,51 @@
+name: Site
+
+# Publishes site/ to GitHub Pages. The site is the front door: a lawyer who lands on a code
+# repository closes the tab, so the download lives somewhere that looks like a product.
+#
+# It deploys from main rather than from a tag, deliberately. Fixing a wrong sentence in an
+# installation instruction is not a release, and making it one would mean the instructions stay wrong
+# until the next version ships.
+#
+# One-time setup in the repository, this workflow cannot do it for you:
+# Settings > Pages > Build and deployment > Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A second push while a deploy is running waits for it rather than cancelling it. Half a site is
+# worse than an old one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/configure-pages@v5
+
+      # Static HTML and CSS, no build step. Nothing on the site is generated, so there is nothing
+      # between what is in the repository and what is served.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

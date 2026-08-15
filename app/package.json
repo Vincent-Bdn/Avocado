@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "electron:dev": "vite build && electron .",
     "electron:pack": "vite build && electron-builder --dir",
+    "electron:dist": "vite build && electron-builder --publish never",
     "icons": "powershell -ExecutionPolicy Bypass -File scripts/make-icons.ps1"
   },
   "devDependencies": {
@@ -40,6 +41,8 @@
   "build": {
     "appId": "fr.avocado.app",
     "productName": "Avocado",
+    "artifactName": "Avocado-${os}-${arch}.${ext}",
+    "publish": null,
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -56,15 +59,35 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "icon": "public/icon.png",
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "identity": null,
+      "notarize": false,
+      "hardenedRuntime": false
     },
     "linux": {
       "icon": "public/icon.png",
-      "target": "AppImage",
+      "target": [
+        "AppImage",
+        "tar.gz"
+      ],
       "category": "Office"
     }
   }
