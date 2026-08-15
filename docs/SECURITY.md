@@ -231,9 +231,14 @@ succeeds and is wrong is the one nothing can undo.
 
 Stated because a security document that lists only its strengths is not one.
 
-- **No backup automation.** The vault can be copied, and the CLI can snapshot it, but nothing schedules
-  it and nothing warns when the last one is old. The status bar the design calls for is not built.
-  This is the gap with real consequences.
+- **Backups have no screen yet.** The engine is built and scheduled: snapshots on a timer, an
+  incremental mirror to any number of destinations, and a restore path that rebuilds a whole practice
+  onto a new machine from the destination and the recovery key. What is missing is the interface, so
+  today a destination has to be added over the API. Until that lands, the feature exists and nobody
+  can reach it.
+- **No native Google Drive.** A synced Drive, OneDrive or Dropbox folder works today, because to
+  Avocado it is a folder like any other. Talking to Drive's own API, for the many people who never
+  installed the desktop client, is not built.
 - **No Keychain on macOS**, no Secret Service on Linux: a `0600` file stands in for both.
 - **No idle re-lock.** An unlocked session stays unlocked until the application closes.
 - **No audit trail.** Who changed what, and when, is not recorded beyond `CreatedAt` and `UpdatedAt`.
