@@ -6,6 +6,7 @@ import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
+import { Backups } from './sections/Backups.js'
 import { Templates } from './sections/Templates.js'
 import { cn } from './lib/utils.js'
 import { centsToAmount, parseAmountToCents } from './lib/amount.js'
@@ -66,6 +67,16 @@ export function Settings() {
           onToggle={toggle}
         >
           <Storage />
+        </Section>
+
+        <Section
+          id="backups"
+          title="Sauvegarde"
+          summary="Où vos dossiers sont copiés, et à quel rythme"
+          open={open === 'backups'}
+          onToggle={toggle}
+        >
+          <Backups />
         </Section>
 
         <Section

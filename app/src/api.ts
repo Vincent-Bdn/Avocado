@@ -3,7 +3,7 @@ declare global {
   interface Window {
     avocado: {
       connection: () => Promise<{ url: string; token: string; vaultState: string }>
-      chooseFolder: (startIn?: string) => Promise<string | null>
+      chooseFolder: (startIn?: string, title?: string) => Promise<string | null>
       removableDrives: () => Promise<{ path: string; label: string; freeBytes: number }[]>
       saveRecoveryKey: (drivePath: string, contents: string) => Promise<string>
       exportRecoverySheet: () => Promise<string | null>
