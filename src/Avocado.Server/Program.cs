@@ -4,6 +4,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Avocado.Server.Data;
 using Avocado.Server.Features.Activities.Endpoints;
+using Avocado.Server.Features.Backups;
+using Avocado.Server.Features.Backups.Endpoints;
+using Avocado.Server.Features.Backups.Infrastructure;
 using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
@@ -59,6 +62,9 @@ builder.Services.AddSingleton<VaultDbContextFactory>();
 builder.Services.AddSingleton(WorkingDirectory.Resolve(builder.Configuration));
 builder.Services.AddSingleton<DocumentWorkspace>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DocumentWorkspace>());
+builder.Services.AddSingleton<SinkFactory>();
+builder.Services.AddSingleton<BackupService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<BackupService>());
 builder.Services.AddScoped(services =>
     new TenantContext(services.GetRequiredService<IVaultStore>().Get(Guid.Empty).Id));
 builder.Services.AddScoped(services =>
@@ -112,6 +118,7 @@ app.MapTimeEntries();
 app.MapBilling();
 app.MapSettings();
 app.MapTemplates();
+app.MapBackups();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.

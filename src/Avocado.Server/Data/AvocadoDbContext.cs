@@ -1,4 +1,5 @@
 using Avocado.Server.Features.Activities;
+using Avocado.Server.Features.Backups;
 using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Contacts;
 using Avocado.Server.Features.Deadlines;
@@ -31,6 +32,7 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<BillingLedgerEntry> LedgerEntries => Set<BillingLedgerEntry>();
     public DbSet<BillingCost> Costs => Set<BillingCost>();
     public DbSet<PracticeSetting> PracticeSettings => Set<PracticeSetting>();
+    public DbSet<BackupDestination> BackupDestinations => Set<BackupDestination>();
     public DbSet<DocumentTemplate> Templates => Set<DocumentTemplate>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
