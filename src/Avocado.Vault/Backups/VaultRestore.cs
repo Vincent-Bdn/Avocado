@@ -106,14 +106,41 @@ public static class VaultRestore
         // Same rule as a new vault: a live SQLite database inside a sync client's folder gets
         // corrupted. Restoring into one would produce a vault that works for a fortnight.
         CloudSyncDetector.ThrowIfInsideSyncedFolder(paths.Root);
-        paths.EnsureDirectories();
 
         progress?.Report(new BackupProgress("Clés", 0, 1));
-        await FetchAsync(sink, BackupLayout.Keyring(vaultId), paths.KeyringFile, cancellationToken).ConfigureAwait(false);
 
-        // Fails here, before the download, or not at all.
-        using (var probe = VaultKeyring.Load(paths.KeyringFile).UnlockWithRecoveryCode(recoveryCode))
+        // The key is checked against a copy in the temp folder, and the destination is not touched
+        // until it passes.
+        //
+        // This used to write the keyring into the destination and check afterwards, which meant one
+        // mistyped recovery key left a vault.json behind, and `paths.Exists` is exactly that file. The
+        // retry was then refused with "un coffre existe déjà" and the folder could never be used
+        // again. On a day when someone has lost their computer and is typing fifty-four characters
+        // off a printed sheet, one typo is not an unlikely event, and it must cost nothing.
+        var staged = Path.Combine(Path.GetTempPath(), $"avocado-restore-{Guid.NewGuid():N}.json");
+
+        try
         {
+            await FetchAsync(sink, BackupLayout.Keyring(vaultId), staged, cancellationToken).ConfigureAwait(false);
+
+            using (var probe = VaultKeyring.Load(staged).UnlockWithRecoveryCode(recoveryCode))
+            {
+            }
+
+            paths.EnsureDirectories();
+            File.Copy(staged, paths.KeyringFile, overwrite: true);
+        }
+        finally
+        {
+            // Wrapped keys and salts, useless without the recovery key, but there is no reason to
+            // leave them in the temp folder either.
+            try
+            {
+                File.Delete(staged);
+            }
+            catch (IOException)
+            {
+            }
         }
 
         progress?.Report(new BackupProgress("Clés", 1, 1));

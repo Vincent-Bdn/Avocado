@@ -5,6 +5,7 @@ import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
 import { StepRecovery } from './StepRecovery.js'
+import { StepRestore } from './StepRestore.js'
 import { StepVault } from './StepVault.js'
 import { Point, Points, WizardFootnote, WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
@@ -23,6 +24,7 @@ interface Destination {
  */
 export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () => void }) {
   const [step, setStep] = useState(0)
+  const [restoring, setRestoring] = useState(false)
   const [directory, setDirectory] = useState(status.suggestedDirectory)
   const [prepared, setPrepared] = useState<VaultPrepared | null>(null)
   const [created, setCreated] = useState<VaultCreated | null>(null)
@@ -75,9 +77,13 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
       </header>
 
       <main className="grid grid-rows-[minmax(0,1fr)_auto] overflow-hidden">
-        {step === 0 && <StepWelcome onContinue={() => setStep(1)} />}
+        {restoring && <StepRestore onBack={() => setRestoring(false)} onRestored={onReady} />}
 
-        {step === 1 && (
+        {!restoring && step === 0 && (
+          <StepWelcome onContinue={() => setStep(1)} onRestore={() => setRestoring(true)} />
+        )}
+
+        {!restoring && step === 1 && (
           <StepVault
             suggested={directory}
             onBack={() => setStep(0)}
@@ -89,7 +95,7 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
           />
         )}
 
-        {step === 2 && prepared && (
+        {!restoring && step === 2 && prepared && (
           <StepRecovery
             recoveryCode={prepared.recoveryCode}
             onBack={() => void stepBackFromRecovery()}
@@ -97,7 +103,7 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
           />
         )}
 
-        {step === 3 && prepared && (
+        {!restoring && step === 3 && prepared && (
           <StepDone
             directory={directory}
             created={created}
@@ -110,7 +116,7 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
   )
 }
 
-function StepWelcome({ onContinue }: { onContinue: () => void }) {
+function StepWelcome({ onContinue, onRestore }: { onContinue: () => void; onRestore: () => void }) {
   return (
     <>
       <WizardScroll>
@@ -146,6 +152,13 @@ function StepWelcome({ onContinue }: { onContinue: () => void }) {
       </WizardScroll>
 
       <WizardGate>
+        {/* Quiet, and present from the very first screen. Someone whose laptop was stolen last week
+            is not going to hunt for this, and sending them through vault creation first would have
+            them create the thing they are trying to recover. */}
+        <Button variant="ghost" onClick={onRestore}>
+          J’ai déjà un coffre et une sauvegarde
+        </Button>
+
         <span className="flex-1" />
         <Button size="lg" onClick={onContinue}>Commencer</Button>
       </WizardGate>

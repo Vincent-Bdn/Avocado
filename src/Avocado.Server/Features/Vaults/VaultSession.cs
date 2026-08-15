@@ -103,6 +103,26 @@ public sealed class VaultSession : IVaultStore, IDisposable
         }
     }
 
+    /// <summary>
+    /// Takes over a vault someone else opened, which today means one just rebuilt from a backup.
+    /// Restoring already produced an unlocked vault; without this the session would still believe
+    /// there is none and the window would be sent back to the wizard it just came out of.
+    /// </summary>
+    public void Adopt(OpenVault vault)
+    {
+        lock (_gate)
+        {
+            _pending?.Dispose();
+            _pending = null;
+
+            _vault?.Dispose();
+            _vault = vault;
+            Paths = vault.Paths;
+            State = VaultState.Unlocked;
+            LockReason = null;
+        }
+    }
+
     /// <summary>The way back in on a replacement machine, or after restoring a folder.</summary>
     public void UnlockWithRecoveryCode(string recoveryCode)
     {
