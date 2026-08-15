@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Check, Clock, Lock, ShieldCheck } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Check, Clock, FolderSync, Lock, ShieldCheck, Usb } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
 import { Button } from '../components/ui/button.js'
@@ -9,6 +9,13 @@ import { StepVault } from './StepVault.js'
 import { Point, Points, WizardFootnote, WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
 const steps = ['Bienvenue', 'Coffre', 'Clé de récupération', 'Terminé'] as const
+
+/** Shaped exactly like the body POST /api/backups/destinations takes, so it goes straight across. */
+interface Destination {
+  kind: 'volume' | 'folder'
+  label: string
+  path: string
+}
 
 /**
  * First run. Full-screen, no rail, no status bar: these screens are read once and carefully, so the
@@ -158,6 +165,21 @@ function StepDone({ directory, created, onCommit, onFinish }: {
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [drives, setDrives] = useState<{ path: string; label: string; freeBytes: number }[]>([])
+  const [choice, setChoice] = useState<Destination | null>(null)
+
+  // The same bridge the recovery step uses. Not /api/backups/volumes: that route needs an unlocked
+  // vault, and at this instant there is not one yet.
+  useEffect(() => {
+    window.avocado.removableDrives().then(setDrives).catch(() => setDrives([]))
+  }, [])
+
+  async function chooseFolder() {
+    const path = await window.avocado.chooseFolder(undefined, 'Dossier de sauvegarde')
+    if (path) {
+      setChoice({ kind: 'folder', label: path.split(/[/\\]/).filter(Boolean).pop() ?? 'Dossier', path })
+    }
+  }
 
   async function finish() {
     setBusy(true)
@@ -166,6 +188,14 @@ function StepDone({ directory, created, onCommit, onFinish }: {
     try {
       if (!created) {
         await onCommit()
+      }
+
+      // Only now: the destination is a row in the vault's own database, so it cannot exist before
+      // the vault does. Then one backup runs straight away, because a destination that has never
+      // been written to is a promise rather than a fact.
+      if (choice) {
+        await post('/api/backups/destinations', choice)
+        await post('/api/backups/run', {})
       }
 
       onFinish()
@@ -191,21 +221,110 @@ function StepDone({ directory, created, onCommit, onFinish }: {
           </Point>
         </Points>
 
-        <WizardFootnote>
-          Les sauvegardes automatiques et le choix de leur destination arriveront avec les réglages.
-          Une sauvegarde est un fichier fermé, que la synchronisation copie sans risque : c’est le
-          coffre lui-même qui ne devait pas s’y trouver.
-        </WizardFootnote>
+        <div className="mt-5 grid gap-2 border-t border-line-subtle pt-4">
+          <span className="type-label text-ink-secondary">Où vos sauvegardes seront écrites</span>
+
+          <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-ink-secondary">
+            Le coffre vit sur cet ordinateur. Si celui-ci est volé, tombe en panne ou prend l’eau, il
+            part avec lui : c’est une copie ailleurs, et elle seule, qui vous permettra de rouvrir vos
+            dossiers. Avocado s’en chargera tout seul, mais il lui faut un endroit.
+          </p>
+
+          {drives.map((drive) => (
+            <DestinationChoice
+              key={drive.path}
+              icon={<Usb size={15} strokeWidth={1.75} />}
+              title={drive.label}
+              detail={`${drive.path} · ${formatBytes(drive.freeBytes)} libres`}
+              selected={choice?.path === drive.path}
+              onSelect={() => setChoice({ kind: 'volume', label: drive.label, path: drive.path })}
+            />
+          ))}
+
+          <DestinationChoice
+            icon={<FolderSync size={15} strokeWidth={1.75} />}
+            title={choice?.kind === 'folder' ? choice.label : 'Un dossier de cet ordinateur'}
+            detail={
+              choice?.kind === 'folder'
+                ? choice.path
+                : 'Y compris un dossier Google Drive, OneDrive ou Dropbox, qui l’enverra dans le nuage'
+            }
+            selected={choice?.kind === 'folder'}
+            onSelect={() => void chooseFolder()}
+          />
+
+          <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+            Un dossier synchronisé est ici une bonne réponse, alors qu’il était refusé pour le coffre.
+            Ce n’est pas une contradiction : une sauvegarde est un fichier fermé, que la
+            synchronisation recopie sans risque, là où le coffre est une base ouverte en permanence
+            qu’elle finirait par abîmer. Tout est chiffré dans les deux cas, et votre clé de
+            récupération reste le seul moyen de le rouvrir.
+          </p>
+        </div>
 
         {error && <p className="mt-3 mb-0 text-danger">{error}</p>}
       </WizardScroll>
 
       <WizardGate>
         <span className="flex-1" />
+        {/* Never a dead end. Réglages holds the same question, and the Accueil says so until it is
+            answered, so "later" is a real choice rather than a way of losing the user. */}
+        {!choice && (
+          <span className="text-[11.5px] text-muted">
+            Vous pourrez le choisir plus tard dans les réglages.
+          </span>
+        )}
+
         <Button size="lg" disabled={busy} onClick={() => void finish()}>
-          {busy ? 'Création du coffre…' : 'Créer le coffre et ouvrir Avocado'}
+          {busy
+            ? 'Création du coffre…'
+            : choice
+              ? 'Créer le coffre, sauvegarder et ouvrir Avocado'
+              : 'Créer le coffre et ouvrir Avocado'}
         </Button>
       </WizardGate>
     </>
   )
+}
+
+/**
+ * One answer to « où vos sauvegardes seront écrites ». A row rather than a bare radio: the thing
+ * being chosen is a physical object, and its name, its letter and its free space are what let someone
+ * recognise the key on their desk.
+ */
+function DestinationChoice({ icon, title, detail, selected, onSelect }: {
+  icon: ReactNode
+  title: string
+  detail: string
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex w-full items-center gap-2.5 rounded-md border px-3 py-2.5 text-left transition-colors',
+        selected
+          ? 'border-brand bg-brand-subtle'
+          : 'border-line hover:border-line-strong hover:bg-hover',
+      )}
+    >
+      <span className={selected ? 'text-brand' : 'text-ink-secondary'}>{icon}</span>
+
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="truncate text-[12.5px] font-medium">{title}</span>
+        <span className="truncate font-mono text-[10.5px] text-muted">{detail}</span>
+      </span>
+
+      {selected && <Check size={14} strokeWidth={2.5} className="shrink-0 text-brand" />}
+    </button>
+  )
+}
+
+function formatBytes(bytes: number) {
+  const giga = bytes / 1_000_000_000
+  return giga >= 1
+    ? `${giga.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`
+    : `${Math.round(bytes / 1_000_000)} Mo`
 }
