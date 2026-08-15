@@ -2,11 +2,21 @@
    Avocado, le site
    Même palette et même typographie que l'application (voir ds/tokens.css),
    avec l'air en plus : une page qu'on lit debout, pas un outil qu'on habite.
-   Le thème clair est le défaut ici. Un cabinet est une pièce éclairée, et une
-   page de présentation en noir ressemble à un terminal.
+
+   Le site est clair, toujours, même chez un visiteur dont le système est en
+   sombre. L'application, elle, a ses deux thèmes : on y passe ses journées, et
+   c'est un réglage personnel. Une page de présentation se lit trois minutes,
+   dans un cabinet qui est une pièce éclairée, et un site institutionnel en noir
+   ressemble à un terminal. Un seul rendu, c'est aussi un seul rendu à vérifier.
+
+   Le color-scheme dit au navigateur de ne pas assombrir de son côté ce que
+   cette feuille ne colore pas : barres de défilement, champs de formulaire,
+   contrôles natifs.
    ========================================================================== */
 
 :root {
+  color-scheme: light;
+
   --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
 
@@ -47,47 +57,12 @@
   --elevation-2: 0 2px 6px -1px rgb(22 33 26 / 0.1), 0 1px 2px rgb(22 33 26 / 0.06);
   --elevation-3: 0 14px 32px -10px rgb(22 33 26 / 0.22), 0 2px 6px rgb(22 33 26 / 0.08);
 
-  /* La colonne de lecture. Assez étroite pour qu'une ligne se lise sans que
-     l'œil ait à chercher le début de la suivante. */
-  --measure: 34rem;
-  --page: 68rem;
-}
-
-/* Le thème sombre suit le réglage du système. Il n'est pas l'inverse du clair,
-   il reprend les tons de l'application. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface-app: #101310;
-    --surface-panel: #171b18;
-    --surface-sunken: #0b0d0b;
-    --surface-hover: #232823;
-
-    --text-primary: #e8ece6;
-    --text-secondary: #aeb6ac;
-    --text-muted: #838c82;
-    --text-on-brand: #0e1710;
-
-    --border-subtle: #242923;
-    --border-default: #333a32;
-    --border-strong: #6a7468;
-
-    --brand: #7fb894;
-    --brand-hover: #96c9a8;
-    --brand-subtle: #1c2a21;
-    --brand-on-subtle: #9ed3b0;
-
-    --accent: #d9a85e;
-    --accent-subtle: #2a2113;
-
-    --status-danger: #e8736a;
-    --status-danger-bg: #2c1917;
-    --status-info: #6fa8dc;
-    --status-info-bg: #16232e;
-
-    --elevation-1: inset 0 1px 0 rgb(255 255 255 / 0.04);
-    --elevation-2: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 20px -8px rgb(0 0 0 / 0.6);
-    --elevation-3: inset 0 1px 0 rgb(255 255 255 / 0.07), 0 18px 44px -12px rgb(0 0 0 / 0.75);
-  }
+  /* La colonne de lecture, environ 75 signes : assez étroite pour qu'une ligne
+     se lise sans que l'œil ait à chercher le début de la suivante. La largeur de
+     page est calée dessus et non l'inverse, sinon le texte s'échoue à gauche
+     d'un conteneur trop large et la page a l'air d'avoir raté sa mise en page. */
+  --measure: 38rem;
+  --page: 60rem;
 }
 
 *,
@@ -146,8 +121,9 @@ a:hover {
 
 /* --- La marque -------------------------------------------------------------
    Les couleurs sont posées en CSS et non en attributs de présentation : var()
-   ne fonctionne pas dans un attribut fill. En thème sombre, la marque s'inverse
-   d'elle-même, ce que le design system prévoit comme variante négative. */
+   ne fonctionne pas dans un attribut fill. Passer par les jetons plutôt que par
+   deux hexadécimaux en dur garde la marque d'accord avec la page si la palette
+   bouge un jour. */
 
 .mark__skin {
   fill: var(--brand);
@@ -269,7 +245,7 @@ p {
   font-size: 1.125rem;
   line-height: 1.55;
   color: var(--text-secondary);
-  max-width: 38rem;
+  max-width: 40rem;
 }
 
 .eyebrow {
@@ -618,6 +594,13 @@ kbd {
   margin-bottom: 0.75rem;
 }
 
+/* Une règle de classe l'emporte sur le display:none que le navigateur applique à
+   [hidden], donc sans cette ligne la pastille « Votre système » s'affiche sur les
+   trois cartes, y compris sur les deux qui ne sont pas le système du visiteur. */
+.download__badge[hidden] {
+  display: none;
+}
+
 .download__os {
   font: 500 0.75rem/1 var(--font-mono);
   letter-spacing: 0.08em;
@@ -727,6 +710,69 @@ details[open] summary {
   height: 0.4rem;
   border-radius: var(--radius-full);
   background: var(--brand);
+}
+
+/* --- Glossaire -------------------------------------------------------------
+   Chaque entrée dit trois choses dans le même ordre : le mot, ce qu'il veut
+   dire en français ordinaire, et ce que ça change pour le lecteur. La troisième
+   est celle qui compte, elle est donc traitée comme telle et non comme une
+   remarque en fin de paragraphe. */
+
+.sommaire {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: none;
+}
+
+.sommaire a {
+  display: inline-block;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+
+.sommaire a:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.terme {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 1.75rem;
+  margin-top: 1.75rem;
+  max-width: 42rem;
+}
+
+.terme h3 {
+  margin-top: 0;
+  font-size: 1.1875rem;
+}
+
+.terme__aussi {
+  font: 400 0.8125rem/1.5 var(--font-mono);
+  color: var(--text-muted);
+  margin: -0.4rem 0 0.7rem;
+}
+
+.terme__vous {
+  background: var(--brand-subtle);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 0;
+  max-width: none;
+  color: var(--text-primary);
+}
+
+.terme__vous strong {
+  color: var(--brand-on-subtle);
 }
 
 /* --- Pied de page ---------------------------------------------------------- */

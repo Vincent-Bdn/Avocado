@@ -1,153 +1,57 @@
 # Avocado
 
-**Le suivi de dossiers pour les avocats.** Tout reste sur votre ordinateur,
-chiffré. Aucun serveur, aucun compte, aucun abonnement.
+**Le suivi de dossiers pour les avocats.** Tout reste sur votre ordinateur, chiffré. Aucun serveur,
+aucun compte, aucun abonnement.
 
-Avocado remplace les logiciels de gestion de cabinet dont on hérite en s'installant : ceux qui
-demandent trois écrans pour noter un appel, et dont personne ne sait plus où sont les données. Ici,
-un dossier réunit son client, le journal de ce qui s'y passe, ses documents, ses échéances, le temps
+### 👉 [Vous êtes avocat ? Le site, et le téléchargement, c'est ici.](https://vincent-bdn.github.io/Avocado/)
+
+> Cette page-ci est le dépôt de code. Elle s'adresse à qui veut lire, vérifier ou modifier le
+> logiciel. Pour l'installer et s'en servir,
+> [le site](https://vincent-bdn.github.io/Avocado/) dit tout, sans une ligne de code.
+
+---
+
+## Ce que c'est
+
+Un dossier réunit son client, le journal de ce qui s'y passe, ses documents, ses échéances, le temps
 que vous y consacrez et ce qu'il vous reste à facturer. Le reste en découle.
+
+- **Le journal** est le geste central, et le plus rapide : `⌘J` depuis n'importe où, deux lignes,
+  `⌘⏎`, avec le temps passé dans le même geste. Ce qui n'est pas noté au moment où l'on raccroche ne
+  se facturera jamais.
+- **Les documents** se rangent chiffrés dans le coffre, s'ouvrent dans Word d'un double-clic, et
+  chaque enregistrement y revient tout seul. Un document devient une **pièce** quand il reçoit un
+  numéro et un libellé écrit pour le juge.
+- **Le temps et la facturation** : Avocado n'émet aucune facture et ne calcule aucune TVA, le
+  logiciel comptable le fait déjà. Il note ce qui est parti pour que ce qui reste soit connu, boni et
+  mali compris, rétrocessions d'honoraires comprises.
+- **Les tiers** portent un rôle en texte libre, propre à chaque dossier, et se remplissent depuis
+  l'annuaire des entreprises.
+
+La description complète, écrite pour un avocat plutôt que pour un développeur, est sur
+[le site](https://vincent-bdn.github.io/Avocado/).
 
 > Logiciel libre sous licence AGPL-3.0. Le code est lisible, vérifiable et réutilisable ;
 > ce que vous en faites vous appartient.
 
 ---
 
-## Ce que ça fait
+## Le modèle, en trois phrases
 
-### Les dossiers
+**Un coffre est un dossier sur le disque.** Base de données, documents, modèles : tout y est chiffré
+en permanence, y compris application fermée. Sauvegarder Avocado, c'est copier ce dossier.
 
-Un dossier porte une référence, un intitulé, un client, une date d'ouverture et un taux horaire.
-Il est **en cours** tant qu'il n'a pas de date de clôture, et **clôturé** ensuite : il n'y a pas de
-statut à tenir à jour. Vous le classez en *conseil* ou en *contentieux*, ou avec vos propres mots,
-et un dossier contentieux porte en plus sa juridiction et son n° RG.
+**Deux façons de l'ouvrir.** Au quotidien aucune, la clé est gardée par le système d'exploitation et
+liée à cette machine et à cette session. La **clé de récupération**, neuf groupes de six caractères,
+est l'autre chemin et le seul qui traverse les machines. Il n'en existe aucune autre copie.
 
-Les quelques dossiers du mois se mettent en favori et remontent en tête de liste.
+**Une seule requête sort de la machine**, la recherche dans l'annuaire des entreprises, et elle se
+coupe d'un interrupteur. Pas de compte, pas de télémétrie, pas de synchronisation, pas de mise à jour
+silencieuse.
 
-### Le journal
-
-Le geste central de l'application, et le plus rapide : `⌘J` depuis n'importe où, deux lignes, `⌘⏎`.
-Un appel, un courrier, un rendez-vous, une audience. Et, dans le même geste, **le temps passé**.
-
-C'est là que se joue l'essentiel : ce qui n'est pas noté au moment où l'on raccroche ne se facturera
-jamais. Le temps saisi depuis le journal remonte automatiquement dans l'onglet *Temps passé* et dans
-ce qui reste à facturer.
-
-### Les documents
-
-Chaque fichier qui arrive au dossier s'y range, chiffré, dans les dossiers de classement que vous
-choisissez. Un document devient une **pièce** quand vous lui donnez un numéro et un libellé écrit
-pour le juge ; les numéros retirés restent libres, parce qu'ils sont peut-être déjà cités dans des
-conclusions déposées.
-
-Un double-clic ouvre le fichier dans Word, ou dans ce que votre ordinateur utilise pour ce type de
-fichier. **Chaque enregistrement revient tout seul dans le coffre**, sans rien exporter ni
-réimporter.
-
-### Les modèles
-
-Écrivez votre lettre de mission une fois, dans Word, en laissant des repères là où le dossier doit
-s'écrire : `{{client.nom}}`, `{{dossier.reference}}`, `{{dossier.tauxHoraire}}`. Depuis un dossier,
-« Générer depuis un modèle » les remplit et dépose le résultat dans le coffre, où vous l'ouvrez et le
-terminez.
-
-### Les échéances
-
-Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas être manqué.
-Elles se regroupent par urgence (dépassées, aujourd'hui, cette semaine, plus tard) et chacune porte
-la distance en toutes lettres, de sorte qu'une impression en noir et blanc reste lisible.
-
-### Le temps et la facturation
-
-Avocado **n'émet aucune facture** et ne calcule aucune TVA : votre logiciel comptable le fait déjà.
-Il note ce qui est parti, pour que ce qui reste soit connu.
-
-- Le temps se saisit en heures et minutes, facturable ou non, avec un taux dérogatoire si vous en
-  avez accordé un.
-- Pour facturer, vous **choisissez les lignes de temps**, vous voyez ce qu'elles valent, et vous
-  décidez du montant. L'écart entre les deux est enregistré comme **boni** ou **mali** : c'est là que
-  se lit où le cabinet a gagné de l'argent et où il en a laissé.
-- Les provisions reçues et les frais avancés se notent comme *mouvements* et viennent en déduction.
-- Quand une partie du travail est **sous-traitée** à un confrère, la rétrocession d'honoraires
-  s'enregistre à part. Elle ne change rien à ce que le client doit : elle change ce qui vous reste,
-  et le dossier affiche son montant net.
-- Un bouton produit le **détail de facturation** en Excel, à joindre à la facture envoyée au client.
-
-### Les tiers
-
-Clients, parties adverses, confrères, experts. Le même tiers est client sur un dossier et partie
-adverse sur un autre : le rôle est du texte libre, propre à chaque dossier, et *client* est le seul
-que l'application interprète, c'est lui qui alimente la facturation.
-
-Pour une société, tapez trois lettres de sa raison sociale ou son SIREN : Avocado interroge
-l'**annuaire des entreprises** et remplit le SIREN, la forme juridique et l'adresse. Cette recherche
-se coupe d'un interrupteur, et c'est la seule requête que l'application envoie sur Internet.
-
-### L'accueil
-
-Ce que vous voyez en ouvrant le matin : ce qui tombe, ce qui a été gagné et pas encore demandé, où
-vous en étiez, et un graphique sur douze mois qui répond à une seule question, **est-ce que je
-facture ce que je travaille ?**
-
-### La recherche
-
-`⌘K` ouvre la palette : dossiers, tiers, documents. `@` pour ne chercher que dans les tiers, `#` que
-dans les documents.
-
----
-
-## Comment ça marche
-
-### Un coffre, un dossier sur votre disque
-
-Toute votre pratique tient dans **un seul dossier**, que vous choisissez à l'installation. Base de
-données, documents, modèles : tout y est chiffré en permanence, y compris quand l'application est
-fermée. Personne ne peut le lire sans une clé, y compris nous.
-
-Sauvegarder Avocado, c'est copier ce dossier. Le déplacer sur un autre ordinateur, c'est le copier et
-saisir votre clé de récupération.
-
-### Deux façons d'ouvrir le coffre
-
-**Au quotidien, aucune.** La clé est gardée par votre système d'exploitation et liée à cette machine
-et à votre session Windows. Vous ouvrez l'application, elle s'ouvre.
-
-**La clé de récupération** est l'autre chemin, et le seul qui traverse les machines : neuf groupes de
-six caractères, imprimés sur une feuille A4 avec un QR code au moment de l'installation. C'est elle
-qui rouvrira vos dossiers sur un ordinateur neuf, après un vol ou une panne. **Il n'en existe aucune
-autre copie** : ce n'est pas un mot de passe qu'on réinitialise. L'assistant de démarrage refuse de
-vous laisser passer avant que vous l'ayez mise à l'abri.
-
-Vous pouvez la contrôler à tout moment depuis les réglages, recopier deux groupes de votre feuille
-suffit, et en éditer une nouvelle si la feuille est perdue.
-
-### Ce qui ne quitte pas votre ordinateur
-
-Tout, à une exception près : la recherche dans l'annuaire des entreprises, qui ne reçoit que ce que
-vous tapez dans le champ « Raison sociale », et qui se désactive.
-
-Pas de compte, pas de télémétrie, pas de synchronisation, pas de mise à jour silencieuse.
-
-### Ce qu'Avocado refuse de faire
-
-- **Installer le coffre dans un dossier synchronisé** (OneDrive, Dropbox, Google Drive). Une base de
-  données vivante dans un dossier synchronisé finit corrompue. L'application vous propose le montage
-  qui marche : le coffre en local, les sauvegardes dans le dossier synchronisé.
-- **Vous laisser passer l'étape de la clé de récupération** sans l'avoir imprimée, copiée ou
-  enregistrée sur une clé USB.
-- **Migrer une base sans en faire une copie d'abord.** Chaque mise à jour du schéma prend un
-  instantané avant de toucher à quoi que ce soit, et vous dit où il est.
-
----
-
-## Installation
-
-Une application de bureau pour **Windows, macOS et Linux**. Elle embarque tout ce dont elle a besoin :
-il n'y a pas de runtime à installer d'abord, pas de base de données à administrer, pas de service à
-démarrer.
-
-Au premier lancement, un assistant vous demande deux choses : où vivront vos dossiers, et de mettre
-votre clé de récupération à l'abri. Trois minutes, puis vous n'en entendez plus parler.
+Le détail, et ce que l'application refuse de faire, sont sur
+[la page « Vos données »](https://vincent-bdn.github.io/Avocado/donnees.html) et dans
+[docs/SECURITY.md](docs/SECURITY.md).
 
 ---
 
@@ -156,7 +60,7 @@ votre clé de récupération à l'abri. Trois minutes, puis vous n'en entendez p
 | Document | Ce qu'il couvre |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | La forme générale : les trois projets, comment ils s'assemblent, pourquoi |
-| [docs/BACKEND.md](docs/BACKEND.md) | Le service C# : compilation, cycle de vie, API, permissions |
+| [docs/BACKEND.md](docs/BACKEND.md) | Le service C# : compilation, cycle de vie, API, permissions, comment une version est coupée |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | La coque Electron et l'interface React |
 | [docs/SECURITY.md](docs/SECURITY.md) | Le modèle de menace et tout ce qui en découle |
 | [docs/GLOSSARY.md](docs/GLOSSARY.md) | Le vocabulaire français du métier et son équivalent dans le code |
@@ -175,6 +79,40 @@ Les tests du coffre, chiffrement, clé de récupération, sauvegardes, sont dans
 ```bash
 dotnet test
 ```
+
+Fabriquer les installeurs localement, ce que fait le job `desktop` de la CI :
+
+```bash
+dotnet publish src/Avocado.Server -c Release -r win-x64 -o artifacts/backend
+cd app && npm ci && npm run build
+npx electron-builder --win --x64 --publish never
+```
+
+### Ce que contient le dépôt
+
+| Dossier | Ce qu'il y a dedans |
+|---|---|
+| `src/` | `Avocado.Vault` (chiffrement, coffre), `Avocado.Server` (l'API), `Avocado.Cli` (le coffre en ligne de commande) |
+| `app/` | La coque Electron et l'interface React |
+| `site/` | Le site public, du HTML et une feuille de style, sans étape de compilation. Publié par `.github/workflows/pages.yml` |
+| `ds/` | Le design system et les maquettes d'écran |
+| `docs/` | La documentation technique |
+
+### Ce que publie une version
+
+Pousser un tag `v*` déclenche tout. Une version publie :
+
+- **Les installeurs**, `Avocado-<os>-<arch>.<ext>` : NSIS et zip sur Windows, `.dmg` et zip sur macOS,
+  AppImage et tarball sur Linux x64. **Le numéro de version est volontairement absent de ces noms**,
+  parce que les boutons du site pointent sur `/releases/latest/download/Avocado-win-x64.exe`, une
+  adresse qui ne résout que si le nom ne change jamais.
+- **Le coffre en ligne de commande**, `avocado-cli-<tag>-<rid>`, pour les six RID.
+- `SHA256SUMS` sur l'ensemble.
+
+Rien n'est signé numériquement : un certificat Windows coûte 200 à 400 € par an, le programme
+développeur Apple 99 $ par an, et ce projet ne porte pas ce coût.
+[La page d'installation](https://vincent-bdn.github.io/Avocado/installation.html#pourquoi-avertissement)
+explique aux utilisateurs ce que SmartScreen et Gatekeeper leur diront, et pourquoi.
 
 ---
 

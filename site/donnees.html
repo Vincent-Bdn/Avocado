@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vos données, dans Avocado</title>
+    <meta
+      name="description"
+      content="Où vivent vos dossiers, comment ils sont chiffrés, ce qui sort de votre ordinateur et ce qui n’en sort pas, et comment sauvegarder."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="avocado.css" />
+  </head>
+
+  <body>
+    <header class="masthead">
+      <div class="masthead__inner">
+        <a class="wordmark" href="index.html">
+          <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
+            <rect width="64" height="64" rx="16" class="mark__skin" />
+            <circle cx="32" cy="25" r="10" class="mark__flesh" />
+            <circle cx="32" cy="37" r="15.5" class="mark__flesh" />
+            <circle cx="32" cy="37" r="6.4" class="mark__skin" />
+          </svg>
+          Avocado
+        </a>
+        <nav>
+          <a href="index.html">Le logiciel</a>
+          <a href="installation.html">Installation</a>
+          <a href="donnees.html" aria-current="page">Vos données</a>
+          <a href="glossaire.html">Glossaire</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Vos données</h1>
+        <p class="lede">
+          Un logiciel qui tient les dossiers d’un cabinet tient du secret professionnel. Voici, sans
+          formule marketing, où vont vos fichiers, qui peut les lire, et ce qui se passe le jour où
+          votre ordinateur disparaît.
+        </p>
+
+        <div class="callout callout--info">
+          <p class="callout__title">Si vous ne lisez qu’un encadré, lisez celui-ci</p>
+          <p>
+            Deux objets vous permettent de tout retrouver après un vol, un incendie ou une panne :
+            <strong>votre clé de récupération</strong>, une feuille de papier remise à
+            l’installation, et <strong>votre sauvegarde</strong>, une copie de vos dossiers ailleurs
+            que dans votre ordinateur. Les deux ensemble, et vous repartez de n’importe où. Une
+            seule des deux, et il n’y a rien à faire, ni pour vous ni pour moi.
+            <a href="#deux-choses">Ce que cela veut dire concrètement.</a>
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow">L’essentiel</p>
+        <h2>Il n’y a pas de serveur. Il n’y a que votre disque.</h2>
+
+        <p>
+          Avocado n’a pas de compte à créer, parce qu’il n’a nulle part où le créer. Aucune donnée de
+          votre cabinet n’est envoyée, copiée ou sauvegardée ailleurs que là où vous la mettez. Cela
+          n’est pas une promesse contractuelle : c’est une conséquence de la façon dont le logiciel
+          est construit, et le code public permet de le vérifier.
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Question</th>
+                <th scope="col">Réponse</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Qui héberge mes dossiers ?</td>
+                <td>Personne. Ils sont sur votre disque, dans un dossier que vous avez choisi.</td>
+              </tr>
+              <tr>
+                <td>Puis-je lire mes dossiers, moi ?</td>
+                <td>
+                  Oui, l’auteur du logiciel ne le peut pas, mais vous le pouvez : le contenu est
+                  chiffré, la clé est sur votre machine, et le format est ouvert et documenté.
+                </td>
+              </tr>
+              <tr>
+                <td>Y a-t-il des statistiques d’usage ?</td>
+                <td>Aucune. Ni compteur, ni rapport d’erreur automatique, ni identifiant.</td>
+              </tr>
+              <tr>
+                <td>Le logiciel se met-il à jour tout seul ?</td>
+                <td>Non. Vous téléchargez une nouvelle version quand vous le décidez.</td>
+              </tr>
+              <tr>
+                <td>Que se passe-t-il si le projet s’arrête ?</td>
+                <td>
+                  Rien ne s’arrête. Le logiciel continue de fonctionner sans serveur, et le code
+                  reste public et réutilisable sous licence libre.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="chiffrement-detail">
+        <p class="eyebrow">Le chiffrement</p>
+        <h2>Un dossier sur votre disque, illisible sans votre clé.</h2>
+
+        <p>
+          Toute votre pratique tient dans un seul dossier, que vous choisissez à l’installation. Base
+          de données, documents, modèles : tout y est chiffré en permanence,
+          <strong>y compris quand l’application est fermée</strong>. Un ordinateur volé, un disque
+          revendu, une sauvegarde qui traîne : dans les trois cas, ce qui se trouve dans ce dossier
+          ne se lit pas.
+        </p>
+
+        <p>
+          C’est une différence de fond avec la plupart des logiciels de cabinet, où la base est un
+          fichier ordinaire que n’importe qui peut ouvrir en le copiant sur une clé USB.
+        </p>
+
+        <h3>Au quotidien, vous n’avez rien à saisir</h3>
+        <p>
+          La clé est gardée par votre système d’exploitation, liée à cette machine et à votre
+          session. Vous ouvrez l’application, elle s’ouvre. Il n’y a pas de mot de passe à retenir,
+          donc pas de mot de passe à écrire sur un papier collé sous le clavier.
+        </p>
+
+        <h3>La clé de récupération est l’autre chemin, et le seul</h3>
+        <p>
+          Neuf groupes de six caractères, imprimés sur une feuille A4 avec un QR code au moment de
+          l’installation. C’est elle qui rouvrira vos dossiers sur un ordinateur neuf, après un vol
+          ou une panne. Vous pouvez la contrôler à tout moment depuis les réglages, recopier deux
+          groupes de votre feuille suffit, et en éditer une nouvelle si la feuille est perdue.
+        </p>
+
+        <div class="callout callout--grave">
+          <p class="callout__title">Il n’en existe aucune autre copie</p>
+          <p>
+            Ce n’est pas un mot de passe qu’on réinitialise. Il n’y a pas de service client, pas de
+            « mot de passe oublié », et je n’ai aucun moyen technique de vous dépanner, ce qui est
+            exactement ce qui garantit que je ne peux pas lire vos dossiers non plus. Perdre à la
+            fois votre ordinateur et votre feuille, c’est perdre le contenu.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow">Le réseau</p>
+        <h2>Ce qui sort de votre ordinateur.</h2>
+
+        <p>
+          Une seule chose, et elle se coupe d’un interrupteur dans les réglages : la recherche d’une
+          société dans l’<strong>annuaire des entreprises</strong>, le service public qui publie les
+          données du registre. Elle ne reçoit que ce que vous tapez dans le champ « Raison sociale »
+          ou « SIREN », et vous rend en retour la forme juridique et l’adresse, pour vous éviter de
+          les saisir.
+        </p>
+
+        <p>
+          Cette requête ne contient aucune référence de dossier, aucun nom de client personne
+          physique, et rien du reste de votre base. Coupée, l’application fonctionne à l’identique,
+          vous saisissez les coordonnées à la main.
+        </p>
+
+        <ul class="facts">
+          <li>Pas de compte, donc pas d’authentification à envoyer nulle part.</li>
+          <li>Pas de télémétrie, pas de mesure d’audience, pas de rapport d’incident automatique.</li>
+          <li>Pas de synchronisation, pas de sauvegarde dans un nuage à votre insu.</li>
+          <li>Pas de mise à jour silencieuse : rien ne change sans que vous l’ayez décidé.</li>
+        </ul>
+      </section>
+
+      <section id="deux-choses">
+        <p class="eyebrow">Le point le plus important de cette page</p>
+        <h2>Votre cabinet tient à deux choses.</h2>
+
+        <p>
+          Si vous ne deviez retenir qu’un paragraphe de cette page, c’est celui-ci. Tout votre
+          travail dans Avocado repose sur deux objets, et ils ne servent à rien l’un sans l’autre.
+        </p>
+
+        <div class="grid">
+          <div class="panel">
+            <h3>1. Votre clé de récupération</h3>
+            <p>
+              Une feuille de papier, avec neuf groupes de six caractères. C’est ce qui
+              <strong>ouvre</strong>. Elle vous est remise à l’installation, et il n’en existe aucune
+              autre copie.
+            </p>
+          </div>
+          <div class="panel">
+            <h3>2. Votre sauvegarde</h3>
+            <p>
+              Une copie de vos dossiers ailleurs que dans votre ordinateur : une clé USB, un disque
+              externe, un espace en ligne. C’est ce qu’il y a <strong>à ouvrir</strong>.
+            </p>
+          </div>
+        </div>
+
+        <p style="margin-top: 1.75rem">
+          <strong>Avec les deux, vous repartez de n’importe où.</strong> Un ordinateur neuf acheté
+          cet après-midi, Avocado installé dessus, la sauvegarde branchée, la clé recopiée depuis
+          votre feuille : vous retrouvez vos dossiers, vos documents, votre journal et vos heures,
+          exactement comme vous les aviez laissés. Que l’ancien ordinateur ait été volé, noyé ou
+          simplement mort n’y change rien.
+        </p>
+
+        <p>
+          <strong>Avec une seule des deux, il n’y a rien à faire.</strong> Ni pour vous, ni pour un
+          réparateur, ni pour moi. Ce n’est pas une politique commerciale, c’est de l’arithmétique :
+          une serrure sans porte, ou une porte sans serrure.
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Ce que vous avez</th>
+                <th scope="col">Ce que vous pouvez faire</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Votre ordinateur, en état de marche</td>
+                <td>Travailler normalement. Vous n’avez besoin de rien d’autre au quotidien.</td>
+              </tr>
+              <tr>
+                <td><strong>La clé et la sauvegarde</strong></td>
+                <td>
+                  <strong>Tout retrouver</strong>, sur n’importe quel ordinateur, en une heure.
+                </td>
+              </tr>
+              <tr>
+                <td>La sauvegarde seule, sans la clé</td>
+                <td>
+                  Rien. Les fichiers sont là, sous vos yeux, et ils sont illisibles. C’est ce qui
+                  fait qu’une clé USB perdue dans le métro ne trahit pas vos clients.
+                </td>
+              </tr>
+              <tr>
+                <td>La clé seule, sans sauvegarde</td>
+                <td>Rien. Il n’y a plus rien à ouvrir.</td>
+              </tr>
+              <tr>
+                <td>Ni l’une ni l’autre</td>
+                <td>
+                  Rien, définitivement, et personne au monde ne peut vous aider. Moi le premier :
+                  <a href="#chiffrement-detail">je n’ai aucun accès à quoi que ce soit chez vous</a>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout callout--grave">
+          <p class="callout__title">Ne rangez pas les deux au même endroit</p>
+          <p>
+            La feuille dans le tiroir du bureau et la clé USB posée à côté, c’est un seul objet aux
+            yeux d’un cambrioleur comme d’un incendie. La feuille chez vous et la clé USB au cabinet,
+            ou l’inverse, et vous avez vraiment deux choses.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <p class="eyebrow">Les sauvegardes</p>
+        <h2>Avocado sauvegarde tout seul. Vous, vous choisissez où.</h2>
+
+        <p>
+          C’est le partage des rôles, et il n’y en a pas d’autre. Vous indiquez une fois où les
+          copies doivent aller, et l’application s’occupe du reste, sans jamais vous le redemander.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Vous désignez une destination, une fois</h3>
+            <p>
+              Dans les réglages : une clé USB, un disque externe, un dossier sur le réseau du
+              cabinet, un espace en ligne. Vous lui donnez un nom à vous, « Clé USB du cabinet », et
+              c’est fini. Vous pouvez en mettre plusieurs, et c’est même une bonne idée.
+            </p>
+          </li>
+          <li>
+            <h3>Avocado copie, tout seul, pendant que vous travaillez</h3>
+            <p>
+              Il le fait à l’ouverture si la dernière copie date, régulièrement dans la journée tant
+              qu’il reste du travail non copié, à la fermeture de l’application, et
+              <strong>dès l’instant où vous branchez la clé USB</strong>. Il reconnaît votre clé
+              quelle que soit la lettre que Windows lui donne ce jour-là.
+            </p>
+          </li>
+          <li>
+            <h3>L’écran vous dit ce que vous risquez, en travail</h3>
+            <p>
+              Pas « dernière sauvegarde le 2 mars », une date qu’on lit sans la voir, mais
+              <strong>« depuis, vous avez ajouté 46 entrées de journal, 9 documents et 11 h 20 de
+              temps saisi »</strong>. C’est la phrase qui fait aller chercher la clé USB. Et quand
+              rien n’a changé, l’écran le dit et se tait.
+            </p>
+          </li>
+        </ol>
+
+        <div class="callout">
+          <p class="callout__title">Ce qu’Avocado ne peut pas faire à votre place</p>
+          <p>
+            Brancher la clé. Un logiciel qui n’a aucune destination configurée, ou dont la clé USB
+            dort dans un tiroir depuis six mois, sauvegarde dans le vide. C’est le seul geste qui
+            reste à votre charge, et l’application vous le rappellera tant que vous ne l’aurez pas
+            fait.
+          </p>
+        </div>
+
+        <h3>Ce qu’il y a sur la clé USB, si vous l’ouvrez</h3>
+        <p>
+          Des dossiers et des fichiers ordinaires, pas une archive mystérieuse à un seul bloc : le
+          contenu est chiffré, mais la <em>forme</em> est lisible, et un fichier texte y explique en
+          français ce que c’est et comment restaurer. Cela n’a l’air de rien, et c’est ce qui vous
+          garantit de pouvoir récupérer vos données dans dix ans, même si ce logiciel n’existe plus.
+        </p>
+        <p>
+          Ce fichier explicatif ne mentionne ni le nom de votre cabinet, ni vos clients, ni la
+          machine d’où vient la copie. Une sauvegarde qui atterrit dans un espace en ligne ne raconte
+          à personne de qui elle est.
+        </p>
+
+        <h3>Les copies restées sur votre disque ne comptent pas</h3>
+        <p>
+          Avocado garde aussi des copies datées à l’intérieur de votre ordinateur. Elles servent à
+          revenir en arrière après une fausse manœuvre, et c’est utile. Mais
+          <strong>ce sont des archives, pas une sécurité</strong> : elles disparaissent avec le
+          disque qui les porte. Seule compte une copie qui a quitté la machine.
+        </p>
+
+        <div class="callout callout--warn">
+          <p class="callout__title">OneDrive, Dropbox et Google Drive : la sauvegarde, oui, le coffre, non</p>
+          <p>
+            Avocado refuse d’installer votre coffre dans un dossier synchronisé, et ce refus est
+            volontaire. Une base de données vivante dans un dossier que le nuage recopie en même
+            temps qu’on écrit dedans finit corrompue, parfois après des mois de fonctionnement
+            apparemment normal. L’application vous propose le montage qui marche : le coffre en
+            local, les sauvegardes dans le dossier synchronisé.
+          </p>
+        </div>
+
+        <h3>Et lors des mises à jour</h3>
+        <p>
+          Quand une nouvelle version doit modifier la structure de la base, elle en prend une copie
+          complète avant d’y toucher, et vous dit où cette copie se trouve. Une mise à jour qui
+          tourne mal ne peut donc pas emporter votre travail.
+        </p>
+      </section>
+
+      <section id="rgpd">
+        <p class="eyebrow">RGPD</p>
+        <h2>Votre responsable de traitement, c’est vous.</h2>
+
+        <p>
+          Vous traitez des données personnelles de vos clients et de leurs adversaires, et vous en
+          répondez. Avocado ne change pas cette responsabilité, il en change les conditions
+          matérielles : il n’y a pas de sous-traitant à qui vous confiez ces données, donc pas de
+          contrat de sous-traitance à conclure avec moi, et pas de transfert hors de l’Union à
+          documenter.
+        </p>
+
+        <p>
+          Ce qui reste de votre côté, et qu’aucun logiciel ne fera à votre place : chiffrer le disque
+          de la machine, tenir vos sauvegardes hors du bureau, et savoir où est votre clé de
+          récupération.
+        </p>
+
+        <div class="actions">
+          <a class="button button--ghost" href="https://github.com/Vincent-Bdn/Avocado/blob/main/docs/SECURITY.md">
+            Le détail technique, pour qui veut vérifier
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer__inner">
+        <p>
+          Avocado, suivi de dossiers pour les avocats. Logiciel libre sous licence AGPL-3.0. Les
+          données de votre cabinet ne sont couvertes par aucune licence : elles sont à vous, dans un
+          format ouvert, sur votre disque.
+        </p>
+        <div class="footer__links">
+          <a href="index.html">Le logiciel</a>
+          <a href="installation.html">Installation</a>
+          <a href="glossaire.html">Glossaire</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado/issues">Signaler un problème</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

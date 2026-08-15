@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Installer Avocado</title>
+    <meta
+      name="description"
+      content="Télécharger et installer Avocado sur Windows, Mac ou Linux. Étape par étape, y compris l’avertissement de sécurité et ce qu’il faut en faire."
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="avocado.css" />
+  </head>
+
+  <body>
+    <header class="masthead">
+      <div class="masthead__inner">
+        <a class="wordmark" href="index.html">
+          <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
+            <rect width="64" height="64" rx="16" class="mark__skin" />
+            <circle cx="32" cy="25" r="10" class="mark__flesh" />
+            <circle cx="32" cy="37" r="15.5" class="mark__flesh" />
+            <circle cx="32" cy="37" r="6.4" class="mark__skin" />
+          </svg>
+          Avocado
+        </a>
+        <nav>
+          <a href="index.html">Le logiciel</a>
+          <a href="installation.html" aria-current="page">Installation</a>
+          <a href="donnees.html">Vos données</a>
+          <a href="glossaire.html">Glossaire</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <h1>Installer Avocado</h1>
+        <p class="lede">
+          Téléchargez le fichier qui correspond à votre ordinateur, ouvrez-le, et laissez-vous
+          guider. Comptez cinq minutes, dont trois pour mettre votre clé de récupération à l’abri.
+        </p>
+        <p class="hero__meta">
+          Il n’y a rien à installer d’autre au préalable. Pas de compte à créer, pas de clé de
+          licence, pas de carte bancaire.
+        </p>
+      </section>
+
+      <section>
+        <p class="eyebrow">Étape 1</p>
+        <h2>Télécharger</h2>
+        <p>
+          Votre système est mis en avant automatiquement. Si vous ne savez pas lequel choisir, celui
+          qui porte la pastille verte est le bon.
+        </p>
+
+        <div class="os-cards" id="os-cards">
+          <article class="download" data-os="windows">
+            <span class="download__badge" data-badge hidden>Votre système</span>
+            <p class="download__os">Windows 10 et 11</p>
+            <div class="actions">
+              <a
+                class="button"
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-win-x64.exe"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v12M7 11l5 5 5-5M4 20h16" />
+                </svg>
+                Télécharger pour Windows
+              </a>
+              <a href="#avertissement-windows">Windows va afficher un avertissement</a>
+            </div>
+            <p class="download__version">
+              Fichier <code>Avocado-win-x64.exe</code>, environ 120 Mo. Toujours la dernière version
+              publiée.
+            </p>
+            <div class="download__others">
+              <a
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-win-arm64.exe"
+                >Windows sur processeur ARM</a
+              >
+              <a href="#sans-installeur">Version sans installeur</a>
+            </div>
+          </article>
+
+          <article class="download" data-os="macos">
+            <span class="download__badge" data-badge hidden>Votre système</span>
+            <p class="download__os">macOS</p>
+            <div class="actions">
+              <a
+                class="button"
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-mac-arm64.dmg"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v12M7 11l5 5 5-5M4 20h16" />
+                </svg>
+                Télécharger pour Mac Apple Silicon
+              </a>
+              <a href="#avertissement-mac">macOS va refuser de l’ouvrir la première fois</a>
+            </div>
+            <p class="download__version">
+              Pour les Mac à puce M1, M2, M3, M4 et suivantes, c’est-à-dire tous les Mac vendus
+              depuis fin 2020.
+            </p>
+            <div class="download__others">
+              <a
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-mac-x64.dmg"
+                >Mac Intel (avant 2021)</a
+              >
+              <a href="#quel-mac">Comment savoir lequel j’ai ?</a>
+              <a href="#sans-installeur">Version sans installeur</a>
+            </div>
+          </article>
+
+          <article class="download" data-os="linux">
+            <span class="download__badge" data-badge hidden>Votre système</span>
+            <p class="download__os">Linux x86-64</p>
+            <div class="actions">
+              <a
+                class="button"
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-linux-x64.AppImage"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 3v12M7 11l5 5 5-5M4 20h16" />
+                </svg>
+                Télécharger l’AppImage
+              </a>
+            </div>
+            <p class="download__version">
+              <code>chmod +x Avocado-linux-x64.AppImage</code> puis lancez-la. Aucune dépendance à
+              installer.
+            </p>
+            <div class="download__others">
+              <a
+                href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-linux-x64.tar.gz"
+                >Archive tar.gz</a
+              >
+              <a href="https://github.com/Vincent-Bdn/Avocado/releases/latest"
+                >Toutes les versions et la ligne de commande</a
+              >
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="avertissement-windows">
+        <p class="eyebrow">Étape 2, sur Windows</p>
+        <h2>Windows va vous avertir. Voici quoi faire.</h2>
+
+        <p>
+          Au moment d’ouvrir le fichier, Windows affiche un écran bleu foncé qui dit avoir protégé
+          votre ordinateur. <strong>Ce n’est pas un virus détecté.</strong> Windows dit simplement
+          qu’il ne reconnaît pas l’éditeur du logiciel, parce qu’Avocado n’est pas signé
+          numériquement.
+          <a href="#pourquoi-avertissement">L’explication est plus bas</a>, et elle tient à une
+          histoire d’argent, pas de sécurité.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Ouvrez le fichier téléchargé</h3>
+            <p>
+              Il est dans votre dossier Téléchargements, et s’appelle
+              <code>Avocado-win-x64.exe</code>. Double-cliquez dessus.
+            </p>
+          </li>
+          <li>
+            <h3>Cliquez sur « Informations complémentaires »</h3>
+            <p>
+              C’est le petit lien en dessous du texte. Il est discret exprès, et sans lui le seul
+              bouton visible est celui qui annule tout.
+            </p>
+
+            <div class="dialog">
+              <p class="dialog__caption">Reproduction de l’écran Windows</p>
+              <div class="dialog__body">
+                <p class="dialog__title">Windows a protégé votre ordinateur</p>
+                <p>
+                  Microsoft Defender SmartScreen a empêché le démarrage d’une application non
+                  reconnue. L’exécution de cette application peut mettre votre ordinateur en danger.
+                </p>
+                <p><span class="dialog__link">Informations complémentaires</span></p>
+                <div class="dialog__buttons">
+                  <span class="dialog__button">Ne pas exécuter</span>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h3>Puis sur « Exécuter quand même »</h3>
+            <p>
+              Le bouton apparaît une fois le lien cliqué. L’installation démarre et se termine toute
+              seule, sans rien demander : ni mot de passe administrateur, ni dossier à choisir.
+              Avocado s’installe pour votre session Windows uniquement.
+            </p>
+
+            <div class="dialog">
+              <p class="dialog__caption">Après avoir cliqué sur « Informations complémentaires »</p>
+              <div class="dialog__body">
+                <p class="dialog__title">Windows a protégé votre ordinateur</p>
+                <p>Application : Avocado-win-x64.exe<br />Éditeur : Éditeur inconnu</p>
+                <div class="dialog__buttons">
+                  <span class="dialog__button dialog__button--target">Exécuter quand même</span>
+                  <span class="dialog__button">Ne pas exécuter</span>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h3>Avocado s’ouvre</h3>
+            <p>
+              Un raccourci a été posé sur votre bureau et dans le menu Démarrer. Vous ne reverrez
+              plus jamais cet avertissement.
+            </p>
+          </li>
+        </ol>
+
+        <div class="callout callout--info">
+          <p class="callout__title">Si votre navigateur bloque le téléchargement</p>
+          <p>
+            Chrome et Edge affichent parfois « Ce fichier est rarement téléchargé » et proposent de
+            le supprimer. Dans la liste des téléchargements du navigateur, choisissez
+            « Conserver ». C’est le même mécanisme et la même raison.
+          </p>
+        </div>
+      </section>
+
+      <section id="avertissement-mac">
+        <p class="eyebrow">Étape 2, sur Mac</p>
+        <h2>macOS refuse d’ouvrir Avocado la première fois.</h2>
+
+        <p>
+          Le message parle de logiciel malveillant. Il faut le lire pour ce qu’il dit exactement :
+          <strong>Apple ne peut pas vérifier</strong> l’application, faute d’avoir été payée pour
+          cela. Ce n’est pas la même chose que « Apple a vérifié et c’est dangereux ».
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Ouvrez le fichier .dmg et glissez Avocado dans Applications</h3>
+            <p>
+              Une fenêtre s’ouvre avec l’icône d’Avocado d’un côté et le dossier Applications de
+              l’autre. Faites glisser l’une sur l’autre, puis fermez la fenêtre.
+            </p>
+          </li>
+          <li>
+            <h3>Ouvrez Avocado depuis Applications, et laissez-le refuser</h3>
+            <p>
+              Le refus est nécessaire : c’est lui qui inscrit Avocado dans les réglages de sécurité,
+              où vous pourrez l’autoriser à l’étape suivante. Cliquez sur « Terminé » ou
+              « Annuler », surtout pas sur « Déplacer vers la corbeille ».
+            </p>
+
+            <div class="dialog">
+              <p class="dialog__caption">Reproduction du message macOS</p>
+              <div class="dialog__body">
+                <p class="dialog__title">
+                  « Avocado » n’a pas pu être ouvert car Apple ne peut pas vérifier qu’il ne contient
+                  pas de logiciel malveillant.
+                </p>
+                <p>Ce logiciel doit être mis à jour. Contactez le développeur pour en savoir plus.</p>
+                <div class="dialog__buttons">
+                  <span class="dialog__button dialog__button--target">Terminé</span>
+                  <span class="dialog__button">Déplacer vers la corbeille</span>
+                </div>
+              </div>
+            </div>
+          </li>
+          <li>
+            <h3>Allez dans Réglages Système, Confidentialité et sécurité</h3>
+            <p>
+              Descendez jusqu’à la section « Sécurité ». Une ligne y est apparue :
+              « Avocado a été bloqué car il ne provient pas d’un développeur identifié ». Cliquez sur
+              <strong>« Ouvrir quand même »</strong>, puis confirmez avec votre mot de passe ou
+              Touch ID.
+            </p>
+          </li>
+          <li>
+            <h3>Avocado s’ouvre</h3>
+            <p>
+              Cette autorisation vaut une fois pour toutes. Les lancements suivants se font
+              normalement, depuis le Launchpad ou le Dock.
+            </p>
+          </li>
+        </ol>
+
+        <details>
+          <summary>Si vous préférez une seule commande dans le Terminal</summary>
+          <p>
+            Cette commande retire l’étiquette « téléchargé depuis Internet » que macOS pose sur le
+            fichier, et l’application s’ouvre ensuite normalement. Elle remplace les étapes 2 et 3.
+          </p>
+          <pre><code>xattr -dr com.apple.quarantine /Applications/Avocado.app</code></pre>
+          <p>
+            Ne lancez jamais une commande de ce genre sur un logiciel dont vous ne savez pas d’où il
+            vient. Ici, vous pouvez lire le code qui a produit le fichier.
+          </p>
+        </details>
+
+        <h3 id="quel-mac">Quel Mac ai-je ?</h3>
+        <p>
+          Menu Pomme en haut à gauche, puis « À propos de ce Mac ». Si la ligne « Puce » mentionne
+          Apple M1, M2, M3 ou M4, prenez la version <strong>Apple Silicon</strong>. Si elle
+          mentionne un processeur Intel, prenez la version <strong>Intel</strong>. Dans le doute,
+          Apple Silicon : c’est le cas de tous les Mac vendus depuis fin 2020.
+        </p>
+      </section>
+
+      <section id="sans-installeur">
+        <p class="eyebrow">Autre chemin</p>
+        <h2>Sans installeur, si vous préférez.</h2>
+
+        <p>
+          Un installeur est un programme qui écrit sur votre disque et pose des raccourcis. Si vous
+          préférez ne rien laisser s’installer, chaque version existe aussi en simple archive à
+          décompresser. L’application est identique, elle ne s’enregistre nulle part, et
+          <strong>la supprimer se fait en jetant le dossier</strong>.
+        </p>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Système</th>
+                <th scope="col">Fichier</th>
+                <th scope="col">Ce que vous en faites</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Windows</td>
+                <td>
+                  <a
+                    href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-win-x64.zip"
+                    >Avocado-win-x64.zip</a
+                  >
+                </td>
+                <td>
+                  Clic droit, « Extraire tout », puis ouvrez <code>Avocado.exe</code> dans le dossier
+                  obtenu. Le même avertissement Windows apparaît au premier lancement.
+                </td>
+              </tr>
+              <tr>
+                <td>Mac Apple Silicon</td>
+                <td>
+                  <a
+                    href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-mac-arm64.zip"
+                    >Avocado-mac-arm64.zip</a
+                  >
+                </td>
+                <td>
+                  Double-cliquez pour décompresser, glissez Avocado où vous voulez. Le passage par
+                  les réglages de sécurité reste nécessaire.
+                </td>
+              </tr>
+              <tr>
+                <td>Mac Intel</td>
+                <td>
+                  <a
+                    href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-mac-x64.zip"
+                    >Avocado-mac-x64.zip</a
+                  >
+                </td>
+                <td>Idem.</td>
+              </tr>
+              <tr>
+                <td>Linux</td>
+                <td>
+                  <a
+                    href="https://github.com/Vincent-Bdn/Avocado/releases/latest/download/Avocado-linux-x64.tar.gz"
+                    >Avocado-linux-x64.tar.gz</a
+                  >
+                </td>
+                <td>Décompressez et lancez <code>avocado</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="callout">
+          <p class="callout__title">Vos dossiers ne sont pas dans l’application</p>
+          <p>
+            Que vous passiez par l’installeur ou par l’archive, votre travail vit dans un dossier
+            séparé que vous choisissez au premier lancement. Supprimer l’application n’efface rien,
+            et la réinstaller retrouve tout.
+          </p>
+        </div>
+      </section>
+
+      <section id="pourquoi-avertissement">
+        <p class="eyebrow">La question qu’il faut poser</p>
+        <h2>Pourquoi un logiciel sérieux déclenche-t-il un avertissement ?</h2>
+
+        <p>
+          Parce que Microsoft et Apple font payer le droit d’être reconnu. Un certificat de signature
+          Windows coûte entre 200 et 400 € par an, et il faut y ajouter un boîtier matériel ou un
+          service de conservation de clés. Côté Apple, le programme développeur coûte 99 $ par an.
+        </p>
+
+        <p>
+          Avocado est gratuit et le restera. Facturer une licence pour financer un certificat serait
+          une drôle de façon de commencer, et payer de ma poche une redevance annuelle à deux
+          entreprises pour avoir le droit de donner un logiciel ne me paraît pas mieux. L’avertissement
+          est le prix de ce choix, et il est assumé.
+        </p>
+
+        <p>
+          Ce que cet avertissement ne dit pas, il faut aussi le savoir :
+          <strong>il ne signifie pas qu’un antivirus a trouvé quelque chose.</strong> Il signifie que
+          le fichier n’a pas de carte d’identité payante. Trois choses, à la place, sont
+          vérifiables :
+        </p>
+
+        <ul class="facts">
+          <li>
+            <strong>Le code est public.</strong> Tout ce que fait Avocado est lisible sur
+            <a href="https://github.com/Vincent-Bdn/Avocado">GitHub</a>, y compris par un confrère
+            qui aurait un ami développeur.
+          </li>
+          <li>
+            <strong>Les fichiers sont construits en public.</strong> Chaque version est compilée par
+            GitHub à partir du code publié, pas sur mon ordinateur. Le journal de construction est
+            consultable, et personne ne peut y glisser quoi que ce soit entre les deux.
+          </li>
+          <li>
+            <strong>Une empreinte accompagne chaque fichier</strong>, ce qui permet de vérifier que
+            celui que vous avez téléchargé est bien celui qui a été construit.
+            <a href="#empreintes">La marche à suivre est juste en dessous.</a>
+          </li>
+          <li>
+            <strong>Il y a quelqu’un derrière.</strong>
+            <a href="qui-suis-je.html">Un nom, un parcours et un profil public</a>, pas un pseudonyme.
+          </li>
+        </ul>
+      </section>
+
+      <section id="empreintes">
+        <h2>Vérifier que le fichier téléchargé est le bon</h2>
+        <p>
+          Facultatif, et réservé à qui veut aller au bout. Chaque version publie un fichier
+          <code>SHA256SUMS</code> qui contient l’empreinte de tous les fichiers. Si l’empreinte de
+          votre téléchargement correspond, c’est bien le fichier qui est sorti de la construction
+          publique, intact.
+        </p>
+
+        <details>
+          <summary>La commande, selon votre système</summary>
+          <p>Windows, dans PowerShell :</p>
+          <pre><code>Get-FileHash "$env:USERPROFILE\Downloads\Avocado-win-x64.exe" -Algorithm SHA256</code></pre>
+          <p>Mac ou Linux, dans le Terminal :</p>
+          <pre><code>shasum -a 256 ~/Downloads/Avocado-mac-arm64.dmg</code></pre>
+          <p>
+            Comparez le résultat à la ligne correspondante du fichier
+            <a href="https://github.com/Vincent-Bdn/Avocado/releases/latest">SHA256SUMS</a> publié
+            avec la version.
+          </p>
+        </details>
+      </section>
+
+      <section>
+        <p class="eyebrow">Étape 3</p>
+        <h2>Au premier lancement</h2>
+
+        <p>
+          Un assistant vous pose deux questions. Il n’y en aura pas de troisième, et vous ne le
+          reverrez plus.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Où vivront vos dossiers</h3>
+            <p>
+              Un dossier sur votre disque, qui contiendra tout : la base, les documents, les modèles.
+              Le proposé par défaut convient. Sauvegarder Avocado, ce sera copier ce dossier.
+            </p>
+            <p>
+              L’assistant refusera de le placer dans OneDrive, Dropbox ou Google Drive, et vous
+              proposera le montage qui marche : les dossiers en local, les sauvegardes dans le
+              dossier synchronisé. Une base de données vivante dans un dossier synchronisé finit
+              corrompue.
+            </p>
+          </li>
+          <li>
+            <h3>Votre clé de récupération</h3>
+            <p>
+              Neuf groupes de six caractères, présentés sur une feuille A4 avec un QR code. Vous
+              l’imprimez, vous l’enregistrez sur une clé USB, ou les deux. L’assistant ne vous
+              laissera pas passer avant.
+            </p>
+            <p>
+              C’est le seul chemin qui traverse les machines : c’est elle qui rouvrira vos dossiers
+              sur un ordinateur neuf, après un vol ou une panne.
+            </p>
+          </li>
+        </ol>
+
+        <div class="callout callout--grave">
+          <p class="callout__title">Il n’existe aucune autre copie de cette clé</p>
+          <p>
+            Ce n’est pas un mot de passe qu’on réinitialise, et je n’ai aucun moyen de la retrouver
+            pour vous. Vos dossiers sont chiffrés : sans la clé, sur une machine autre que la vôtre,
+            ils sont définitivement illisibles. Prenez les trois minutes.
+            <a href="donnees.html">Ce que cela protège exactement.</a>
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Désinstaller</h2>
+        <p>
+          Sur Windows, Paramètres, Applications, Avocado, Désinstaller. Sur Mac, jetez
+          <code>Avocado.app</code> à la corbeille. Sur Linux, supprimez l’AppImage.
+        </p>
+        <p>
+          Dans les trois cas, <strong>le dossier qui contient votre travail n’est pas touché</strong>.
+          Si vous voulez aussi l’effacer, supprimez-le vous-même, en sachant qu’aucune copie n’existe
+          ailleurs.
+        </p>
+      </section>
+
+      <section>
+        <h2>Ça ne marche pas</h2>
+        <p>
+          Ouvrez un signalement sur
+          <a href="https://github.com/Vincent-Bdn/Avocado/issues">la page des problèmes</a> en
+          disant quel système vous utilisez et ce que vous avez vu à l’écran. Un compte GitHub
+          gratuit suffit, et une phrase suffit aussi.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer__inner">
+        <p>
+          Avocado, suivi de dossiers pour les avocats. Logiciel libre sous licence AGPL-3.0. Les
+          données de votre cabinet ne sont couvertes par aucune licence : elles sont à vous, dans un
+          format ouvert, sur votre disque.
+        </p>
+        <div class="footer__links">
+          <a href="index.html">Le logiciel</a>
+          <a href="donnees.html">Vos données</a>
+          <a href="glossaire.html">Glossaire</a>
+          <a href="qui-suis-je.html">Qui écrit ça</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado">Code source</a>
+          <a href="https://github.com/Vincent-Bdn/Avocado/issues">Signaler un problème</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="telechargement.js" defer></script>
+  </body>
+</html>

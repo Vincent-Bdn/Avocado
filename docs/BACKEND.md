@@ -57,11 +57,28 @@ git push origin v1.0.0-beta.1
 That builds the six platforms, asserts each binary really bundled the runtime (a framework-dependent
 publish looks fine right up until someone without .NET runs it), smoke tests the three the runners can
 execute, and publishes the GitHub release from those same artifacts rather than from a second build.
-One archive per platform holding the binary and the licence, plus `SHA256SUMS` across all six.
+One archive per platform holding the binary and the licence, named `avocado-cli-<tag>-<rid>`, plus
+`SHA256SUMS` across everything attached.
+
+In parallel, the `desktop` job builds what a lawyer actually installs: `Avocado.Server` published for
+the target RID into `artifacts/backend`, then electron-builder over `app/`, producing an NSIS installer
+and a zip on Windows, a `.dmg` and a zip on macOS, an AppImage and a tarball on Linux x64. Five
+platforms, not six: cross-building an AppImage for `linux-arm64` needs emulation and breaks often, and
+that user can run the CLI or build from source.
+
+Those artifacts are named `Avocado-<os>-<arch>.<ext>` with **no version in the name**, deliberately.
+The site's download buttons are plain links to `/releases/latest/download/Avocado-win-x64.exe`, which
+only resolves if the name is identical in every release. Renaming them breaks every download button on
+`site/`.
+
+Nothing is signed. Windows SmartScreen and macOS Gatekeeper therefore object, and
+`site/installation.html` walks users through it. Adding signing later is credentials in the environment
+plus `identity` and `certificateFile` in `app/package.json`, not a different pipeline.
 
 A hyphen makes it a pre-release in the semantic-version sense, and GitHub is told as much, so
-`v1.0.0-beta.1` is not offered as the current version. The tag patterns are version-shaped, so a
-scratch tag ships nothing.
+`v1.0.0-beta.1` is not offered as the current version. Note that `/releases/latest/download/` skips
+pre-releases too, so the site keeps pointing at the last stable one, which is the intended behaviour.
+The tag patterns are version-shaped, so a scratch tag ships nothing.
 
 CI otherwise runs on pull requests and on demand (`gh workflow run ci.yml`), not on every push to
 `main`. Publishing is skipped on pull requests: what it proves matters when a binary reaches somebody,
