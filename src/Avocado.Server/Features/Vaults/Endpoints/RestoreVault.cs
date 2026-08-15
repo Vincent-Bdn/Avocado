@@ -1,11 +1,15 @@
 using Avocado.Server.Data;
 using Avocado.Vault;
 using Avocado.Vault.Backups;
+using Avocado.Vault.Crypto;
 
 namespace Avocado.Server.Features.Vaults.Endpoints;
 
 /// <param name="Source">The folder holding the backup: a USB key's root, a synced folder, a share.</param>
 public sealed record RestoreSourceInput(string Source);
+
+/// <param name="Path">A file the user picked: the sheet saved as a PDF, or the text file on the key.</param>
+public sealed record RecoveryFileInput(string Path);
 
 /// <param name="Destination">Where the rebuilt vault goes. Must not already hold one.</param>
 public sealed record RestoreInput(
@@ -66,6 +70,29 @@ public static class RestoreVault
             candidate.Snapshots
                 .Select(point => new RestorePointView(point.Path, point.TakenAt, point.SizeBytes))
                 .ToList())));
+    }
+
+    /// <summary>
+    /// Reads the recovery code out of the sheet, so it does not have to be transcribed.
+    ///
+    /// <para>The file is read here rather than in the window because the renderer is sandboxed and has
+    /// no filesystem, which is the arrangement that keeps a bug in the UI away from the vault. It
+    /// never leaves this machine either way.</para>
+    /// </summary>
+    public static IResult ReadRecoveryFile(RecoveryFileInput input)
+    {
+        if (RecoveryCodeFile.Extract(input.Path) is { } code)
+        {
+            return Results.Ok(new { code });
+        }
+
+        return Results.Problem(
+            title: "Clé introuvable dans ce fichier",
+            detail: "Ce fichier ne contient pas de clé de récupération lisible. Si c'est bien votre " +
+                    "fiche, saisissez les neuf groupes à la main : une fiche scannée ou photographiée " +
+                    "est une image, et son texte n'est pas lisible par l'application.",
+            statusCode: StatusCodes.Status400BadRequest,
+            extensions: new Dictionary<string, object?> { ["code"] = "no-key-in-file" });
     }
 
     /// <summary>

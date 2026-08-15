@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
+import { ArrowLeft, FileText, FolderOpen, HardDrive, Loader2 } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
@@ -60,6 +60,28 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
         setChosen(found[0])
         setPoint(found[0].points[0] ?? null)
       }
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * Accepts the PDF the wizard exported, or the text file it wrote to a USB key. The code carries a
+   * checksum, so a file that happens to contain something code-shaped is rejected rather than
+   * silently filling the field with the wrong thing.
+   */
+  async function readSheet() {
+    const path = await window.avocado.chooseFile('Votre fiche de clé de récupération')
+    if (!path) return
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      const found = await post<{ code: string }>('/api/vault/restore/recovery-file', { path })
+      setCode(found.code)
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
@@ -198,6 +220,16 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
           </Stage>
 
           <Stage index={3} title="Votre clé de récupération" done={false}>
+            {/* The straightforward path, offered first. Someone who saved the sheet as a PDF should
+                not be made to transcribe fifty-four characters out of a file the computer can read. */}
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => void readSheet()}>
+                <FileText size={13} strokeWidth={2} />
+                Lire depuis la fiche
+              </Button>
+              <span className="text-[11.5px] text-muted">ou saisissez-la ci-dessous</span>
+            </div>
+
             <Input
               value={code}
               onChange={(event) => setCode(event.target.value)}

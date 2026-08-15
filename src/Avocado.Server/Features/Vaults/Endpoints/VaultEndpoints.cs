@@ -22,6 +22,7 @@ public static class VaultEndpoints
         // The other first run: this machine is the replacement, and everything comes back from a
         // destination plus the recovery key.
         group.MapPost("/restore/discover", RestoreVault.DiscoverAsync);
+        group.MapPost("/restore/recovery-file", RestoreVault.ReadRecoveryFile);
         group.MapPost("/restore", RestoreVault.HandleAsync);
 
         return routes;

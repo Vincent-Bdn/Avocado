@@ -133,6 +133,21 @@ app.whenReady().then(async () => {
       return result.canceled ? null : (result.filePaths[0] ?? null)
     })
 
+    // Restoring accepts the sheet itself rather than only what is typed off it.
+    ipcMain.handle('avocado:chooseFile', async (_event, title: string) => {
+      const result = await dialog.showOpenDialog({
+        title,
+        properties: ['openFile'],
+        filters: [
+          { name: 'Fiche de récupération', extensions: ['pdf', 'txt'] },
+          { name: 'Tous les fichiers', extensions: ['*'] },
+        ],
+        buttonLabel: 'Utiliser ce fichier',
+      })
+
+      return result.canceled ? null : (result.filePaths[0] ?? null)
+    })
+
     // The recovery step will not let the user continue until one of these has actually happened.
     ipcMain.handle('avocado:removableDrives', () => listRemovableDrives())
 
