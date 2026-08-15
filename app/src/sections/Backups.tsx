@@ -235,10 +235,25 @@ function SameMachineWarning({ detail, onCancel, onAccept }: {
  */
 function Headline({ status }: { status: Status }) {
   const { exposure } = status
-  const nothingAtRisk =
+  const nothingChanged =
     exposure.activities === 0 && exposure.documents === 0 && exposure.timeEntries === 0
 
-  const tone = !status.hasOffMachineDestination || !nothingAtRisk ? 'warning' : 'success'
+  // Three states, not two. The middle one is the honest answer for a folder on this computer: a copy
+  // exists, and whether anything carries it away is not something Avocado can see. Claiming safety
+  // there is the bug that was reported; claiming loss would be just as wrong, since the person may
+  // well have a sync tool of their own.
+  //
+  // Note this keys off a copy having been *written*, not off a destination being configured. A
+  // destination nothing has ever been sent to is a promise, and saying « vous ne perdriez rien »
+  // because one exists is how the screen managed to contradict itself in consecutive lines.
+  const safe = status.exposedSince !== null && nothingChanged
+  const onlyHere =
+    !safe &&
+    status.destinations.some(
+      (destination) => destination.reach !== 'OffMachine' && destination.lastBackupAt !== null,
+    )
+
+  const tone = safe ? 'success' : 'warning'
 
   return (
     <div
@@ -252,19 +267,29 @@ function Headline({ status }: { status: Status }) {
       <div className="type-group opacity-80">Si cet ordinateur disparaissait maintenant</div>
 
       <div className="text-[13px] leading-[19px] font-medium">
-        {/* An empty vault is its own answer, and the design says so rather than warning about
-            nothing: « Aucune sauvegarde nécessaire, le coffre est vide ». */}
-        {nothingAtRisk
-          ? status.hasOffMachineDestination
-            ? 'Vous ne perdriez rien : tout votre travail existe ailleurs.'
-            : 'Rien pour l’instant, le coffre est vide. Choisissez une destination avant de commencer à y travailler.'
-          : describeLoss(exposure)}
+        {safe
+          ? 'Vous ne perdriez rien : tout votre travail existe ailleurs.'
+          : onlyHere
+            ? 'Nous ne pouvons pas le dire : vos sauvegardes sont sur cet ordinateur.'
+            : nothingChanged
+              ? 'Rien pour l’instant, le coffre est vide. Choisissez une destination avant de commencer à y travailler.'
+              : describeLoss(exposure)}
       </div>
+
+      {onlyHere && (
+        <div className="text-[11.5px] leading-[17px] opacity-90">
+          Une copie a bien été écrite, mais dans un dossier de cette machine. Si vous la recopiez
+          ailleurs par un moyen qu’Avocado ne voit pas, tout va bien. Sinon, ajoutez une clé USB ou un
+          dossier synchronisé, et cette phrase deviendra une certitude.
+        </div>
+      )}
 
       <div className="font-mono text-[11px] tnum opacity-80">
         {status.exposedSince
           ? `Dernière copie hors de cet ordinateur : ${formatMoment(status.exposedSince)}`
-          : 'Aucune copie n’est jamais sortie de cet ordinateur.'}
+          : status.hasOffMachineDestination
+            ? 'Destination configurée, mais aucune copie ne lui a encore été envoyée.'
+            : 'Aucune copie n’est jamais sortie de cet ordinateur.'}
       </div>
     </div>
   )
