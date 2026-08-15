@@ -43,11 +43,18 @@ desktop.ini
 # A real vault must never reach the repository. These are the exact on-disk names from
 # VaultPaths. Losing this rule means publishing a lawyer's practice to a public repo.
 # Tests build their vaults under the system temp folder, so nothing here hides a fixture.
+#
+# The directory rules are anchored to the repository root. Unanchored, `backups/` matches a directory
+# of that name at any depth, which is not only a vault's runtime folder but also
+# src/Avocado.Vault/Backups/ and src/Avocado.Server/Features/Backups/. It silently kept the entire
+# backup feature out of the repository: commits referenced classes that were never in it, and nothing
+# noticed, because it all still built here.
+#
 vault.json
 avocado.db
 avocado.db-wal
 avocado.db-shm
-blobs/
-backups/
+/blobs/
+/backups/
 *.blob
 
