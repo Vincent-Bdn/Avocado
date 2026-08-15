@@ -21,6 +21,8 @@ interface Destination {
   path: string | null
   isEnabled: boolean
   status: 'Ready' | 'Absent' | 'Unreachable' | 'Denied'
+  reach: 'OffMachine' | 'SameMachine' | 'InsideVault'
+  reachDetail: string
   location: string | null
   lastBackupAt: string | null
   lastError: string | null
@@ -40,6 +42,7 @@ interface Status {
   localSnapshotAt: string | null
   localSnapshotCount: number
   hasDestination: boolean
+  hasOffMachineDestination: boolean
   anyReady: boolean
   exposure: Exposure
   destinations: Destination[]
@@ -57,6 +60,7 @@ export function Backups() {
   const [volumes, setVolumes] = useState<Volume[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState<{ body: object; detail: string } | null>(null)
 
   const reload = useCallback(() => {
     api<Status>('/api/backups').then(setStatus).catch(() => setStatus(null))
@@ -169,7 +173,58 @@ export function Backups() {
       </div>
 
       <Explainers localCount={status.localSnapshotCount} />
+
+      {pending && (
+        <SameMachineWarning
+          detail={pending.detail}
+          onCancel={() => setPending(null)}
+          onAccept={() => {
+            const { body } = pending
+            setPending(null)
+            void run(() => post('/api/backups/destinations', { ...body, acceptSameMachine: true }))
+          }}
+        />
+      )}
     </>
+  )
+}
+
+/**
+ * The override. Not a confirmation dialog in the « êtes-vous sûr » sense: it says what the folder
+ * does and does not protect against, and then gets out of the way, because someone syncing that
+ * folder by means we cannot see is right and we are not.
+ */
+function SameMachineWarning({ detail, onCancel, onAccept }: {
+  detail: string
+  onCancel: () => void
+  onAccept: () => void
+}) {
+  return (
+    <div className="grid gap-2 rounded-md border border-[#E8D5AE] bg-warning-bg px-3 py-2.5">
+      <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-warning">
+        <AlertCircle size={14} strokeWidth={2} />
+        Ce dossier ne quitte pas cet ordinateur
+      </div>
+
+      <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-warning">
+        {detail}
+      </p>
+
+      <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-warning opacity-90">
+        Si vous copiez ce dossier ailleurs par un autre moyen, une tâche planifiée, un disque Time
+        Machine, un outil de votre cabinet, alors c'est un choix valable et Avocado n'a aucun moyen de
+        le savoir. Sinon, préférez une clé USB ou un dossier synchronisé.
+      </p>
+
+      <div className="flex gap-1.5">
+        <Button size="sm" variant="secondary" onClick={onCancel}>
+          Choisir autre chose
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onAccept}>
+          Utiliser ce dossier quand même
+        </Button>
+      </div>
+    </div>
   )
 }
 
@@ -183,7 +238,7 @@ function Headline({ status }: { status: Status }) {
   const nothingAtRisk =
     exposure.activities === 0 && exposure.documents === 0 && exposure.timeEntries === 0
 
-  const tone = !status.hasDestination || !nothingAtRisk ? 'warning' : 'success'
+  const tone = !status.hasOffMachineDestination || !nothingAtRisk ? 'warning' : 'success'
 
   return (
     <div
@@ -200,7 +255,7 @@ function Headline({ status }: { status: Status }) {
         {/* An empty vault is its own answer, and the design says so rather than warning about
             nothing: « Aucune sauvegarde nécessaire, le coffre est vide ». */}
         {nothingAtRisk
-          ? status.hasDestination
+          ? status.hasOffMachineDestination
             ? 'Vous ne perdriez rien : tout votre travail existe ailleurs.'
             : 'Rien pour l’instant, le coffre est vide. Choisissez une destination avant de commencer à y travailler.'
           : describeLoss(exposure)}
@@ -265,6 +320,16 @@ function DestinationRow({
         >
           {connected ? 'connectée' : statusLabel[destination.status]}
         </span>
+
+        {/* The distinction that was invisible, and that made the headline lie. */}
+        {destination.reach !== 'OffMachine' && (
+          <span
+            className="rounded-full bg-warning-bg px-1.5 py-px font-mono text-[10px] leading-3 text-warning"
+            title={destination.reachDetail}
+          >
+            sur cet ordinateur
+          </span>
+        )}
 
         <button
           type="button"

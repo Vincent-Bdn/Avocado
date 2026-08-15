@@ -167,6 +167,7 @@ function StepDone({ directory, created, onCommit, onFinish }: {
   const [error, setError] = useState<string | null>(null)
   const [drives, setDrives] = useState<{ path: string; label: string; freeBytes: number }[]>([])
   const [choice, setChoice] = useState<Destination | null>(null)
+  const [sameMachine, setSameMachine] = useState<string | null>(null)
 
   // The same bridge the recovery step uses. Not /api/backups/volumes: that route needs an unlocked
   // vault, and at this instant there is not one yet.
@@ -181,9 +182,10 @@ function StepDone({ directory, created, onCommit, onFinish }: {
     }
   }
 
-  async function finish() {
+  async function finish(accepted = false) {
     setBusy(true)
     setError(null)
+    setSameMachine(null)
 
     try {
       if (!created) {
@@ -194,7 +196,20 @@ function StepDone({ directory, created, onCommit, onFinish }: {
       // the vault does. Then one backup runs straight away, because a destination that has never
       // been written to is a promise rather than a fact.
       if (choice) {
-        await post('/api/backups/destinations', choice)
+        try {
+          await post('/api/backups/destinations', { ...choice, acceptSameMachine: accepted })
+        } catch (failure) {
+          // The folder never leaves this computer. Ask rather than refuse, and stop here rather than
+          // opening the app with a destination silently dropped. The vault is already created, and
+          // the guard above means pressing the button again will not try to create it twice.
+          if (failure instanceof ApiError && failure.code === 'same-machine') {
+            setSameMachine(failure.message)
+            return
+          }
+
+          throw failure
+        }
+
         await post('/api/backups/run', {})
       }
 
@@ -261,6 +276,24 @@ function StepDone({ directory, created, onCommit, onFinish }: {
             récupération reste le seul moyen de le rouvrir.
           </p>
         </div>
+
+        {sameMachine && (
+          <div className="mt-3 grid gap-2 rounded-md border border-[#E8D5AE] bg-warning-bg px-3 py-2.5">
+            <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-warning">{sameMachine}</p>
+            <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-warning opacity-90">
+              Si ce dossier est recopié ailleurs par un moyen qu’Avocado ne voit pas, c’est un choix
+              valable. Sinon, préférez une clé USB ou un dossier synchronisé.
+            </p>
+            <div className="flex gap-1.5">
+              <Button size="sm" variant="secondary" onClick={() => void chooseFolder()}>
+                Choisir un autre dossier
+              </Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => void finish(true)}>
+                Utiliser ce dossier quand même
+              </Button>
+            </div>
+          </div>
+        )}
 
         {error && <p className="mt-3 mb-0 text-danger">{error}</p>}
       </WizardScroll>

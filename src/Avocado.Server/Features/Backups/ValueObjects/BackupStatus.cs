@@ -2,6 +2,9 @@ namespace Avocado.Server.Features.Backups.ValueObjects;
 
 /// <param name="Status">From the vault's SinkStatus: Ready, Absent, Unreachable, Denied.</param>
 /// <param name="Location">Where it turned out to be today. « E:\ », for a key that moves.</param>
+/// <param name="Reach">OffMachine, SameMachine or InsideVault. Recomputed on every read, since
+/// installing a sync client tomorrow changes the answer for a folder configured today.</param>
+/// <param name="ReachDetail">Why, in French. Shown on the row so the distinction is visible.</param>
 public sealed record BackupDestinationView(
     Guid Id,
     string Kind,
@@ -9,6 +12,8 @@ public sealed record BackupDestinationView(
     string? Path,
     bool IsEnabled,
     string Status,
+    string Reach,
+    string ReachDetail,
     string? Location,
     DateTimeOffset? LastBackupAt,
     string? LastError,
@@ -26,12 +31,18 @@ public sealed record BackupDestinationView(
 /// </summary>
 /// <param name="ExposedSince">Null when nothing has ever left this machine, which is its own answer.</param>
 /// <param name="LocalSnapshotAt">The newest local snapshot. History, not safety: it dies with the disk.</param>
+/// <param name="HasDestination">Any destination at all, which is what « Sauvegarder maintenant » needs.</param>
+/// <param name="HasOffMachineDestination">
+/// Whether any of them genuinely leaves this computer. Separate from the above on purpose: a folder
+/// beside the vault is a destination worth running and is not safety, and one flag cannot say both.
+/// </param>
 /// <param name="Exposure">What that instant costs, in work. See <see cref="BackupExposure"/>.</param>
 public sealed record BackupStatus(
     DateTimeOffset? ExposedSince,
     DateTimeOffset? LocalSnapshotAt,
     int LocalSnapshotCount,
     bool HasDestination,
+    bool HasOffMachineDestination,
     bool AnyReady,
     BackupExposure Exposure,
     IReadOnlyList<BackupDestinationView> Destinations);

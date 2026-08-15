@@ -37,6 +37,12 @@ public static class GetBackupStatus
                 ? null
                 : await sink.ProbeAsync(cancellationToken).ConfigureAwait(false);
 
+            // A volume is off-machine by construction: it only became one by being enumerated as
+            // removable or network. A folder is judged on where it actually points, today.
+            var verdict = destination.Kind == BackupDestinationKinds.Folder && destination.Path is { } configured
+                ? DestinationReachInspector.Inspect(configured, vault.Paths.Root)
+                : new ReachVerdict(DestinationReach.OffMachine, "Support amovible ou réseau.");
+
             views.Add(new BackupDestinationView(
                 destination.Id,
                 destination.Kind,
@@ -44,6 +50,8 @@ public static class GetBackupStatus
                 destination.Path,
                 destination.IsEnabled,
                 probe?.Status.ToString() ?? "Unreachable",
+                verdict.Reach.ToString(),
+                verdict.Detail,
                 probe?.Location,
                 destination.LastBackupAt,
                 destination.LastError ?? (sink is null ? sinks.ExplainMissing(destination) : probe?.Detail),
@@ -53,10 +61,19 @@ public static class GetBackupStatus
 
         var snapshots = vault.Snapshots.List();
 
-        // The newest copy that is somewhere other than this machine. Disabled destinations still
-        // count: turning one off does not un-write what it already holds.
+        // The newest copy that is genuinely somewhere else. Only off-machine destinations count,
+        // and that restriction is the whole point: a folder beside the vault takes a real copy and
+        // reports real success, and counting it here is what let the screen say « vous ne perdriez
+        // rien » to someone whose only copy was on the disk about to fail.
+        //
+        // Disabled destinations still count. Turning one off does not un-write what it already holds.
+        var offMachine = views
+            .Where(view => view.Reach == nameof(DestinationReach.OffMachine))
+            .Select(view => view.Id)
+            .ToHashSet();
+
         var exposedSince = destinations
-            .Where(destination => destination.LastBackupAt is not null)
+            .Where(destination => destination.LastBackupAt is not null && offMachine.Contains(destination.Id))
             .Max(destination => destination.LastBackupAt);
 
         return new BackupStatus(
@@ -64,6 +81,7 @@ public static class GetBackupStatus
             snapshots.Count == 0 ? null : snapshots[0].TakenAt,
             snapshots.Count,
             destinations.Count > 0,
+            offMachine.Count > 0,
             views.Any(view => view is { IsEnabled: true, Status: "Ready" }),
             await MeasureExposureAsync(database, exposedSince, cancellationToken).ConfigureAwait(false),
             views);
