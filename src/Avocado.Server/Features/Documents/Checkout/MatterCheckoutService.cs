@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Avocado.Server.Data;
 using Avocado.Server.Features.Documents.Workspace;
@@ -582,10 +583,31 @@ public sealed class MatterCheckoutService(
         return unique;
     }
 
+    /// <summary>
+    /// The grouping a document inherits from where it sits on disk.
+    ///
+    /// <para>Normalised, because a folder name is a string and two strings that look identical are not
+    /// necessarily equal. « Pièces » is one code point on Windows and two on macOS, or after a paste
+    /// from a browser, and a trailing space is invisible in Explorer. Left alone, one folder became
+    /// two groups with the same name, and a document went into whichever the last sweep happened to
+    /// produce. Unicode composition and trimmed segments are what make « the same folder » mean the
+    /// same thing twice running.</para>
+    /// </summary>
     private static string? FolderOf(string relativePath)
     {
         var index = relativePath.LastIndexOf('/');
-        return index <= 0 ? null : relativePath[..index];
+        if (index <= 0)
+        {
+            return null;
+        }
+
+        var segments = relativePath[..index]
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment => segment.Normalize(NormalizationForm.FormC).Trim())
+            .Where(segment => segment.Length > 0)
+            .ToList();
+
+        return segments.Count == 0 ? null : string.Join('/', segments);
     }
 
     /// <summary>

@@ -445,9 +445,17 @@ export function Documents({ matterId, isOpen, onChanged }: {
         <div>
           <Caption>Documents · {plain.length}</Caption>
 
-          {groupByFolder(plain).map(([folder, items]) => {
+          {groupByFolder(plain).map(([folder, items], index, groups) => {
             const segments = folder?.split('/') ?? []
             const indent = segments.length > 0 ? (segments.length - 1) * 14 : 0
+
+            // A folder exists only as long as a document names it, so a parent holding nothing
+            // directly has no heading of its own and its child would appear indented under nothing.
+            // When the group above is not this one's parent, the heading says the whole path rather
+            // than a bare « Draft » floating at depth two.
+            const parent = segments.slice(0, -1).join('/')
+            const above = index > 0 ? groups[index - 1]?.[0] ?? null : null
+            const orphaned = parent.length > 0 && above !== parent && !(above ?? '').startsWith(parent + '/')
 
             return (
               <div key={folder ?? ''}>
@@ -457,7 +465,11 @@ export function Documents({ matterId, isOpen, onChanged }: {
                     className="flex items-center gap-1.5 pt-3 pb-1 text-[11.5px] font-medium text-ink-secondary"
                   >
                     <Folder size={12} strokeWidth={2} className="text-muted" />
-                    {segments.length > 0 ? segments[segments.length - 1] : 'Sans dossier'}
+                    {segments.length === 0
+                      ? 'Sans dossier'
+                      : orphaned
+                        ? folder
+                        : segments[segments.length - 1]}
                     <span className="font-mono text-[10.5px] text-muted tnum">{items.length}</span>
                   </div>
                 )}
@@ -569,12 +581,32 @@ function groupByFolder(items: DocumentItem[]): [string | null, DocumentItem[]][]
     groups.set(key, [...(groups.get(key) ?? []), item])
   }
 
+  /*
+    Compared segment by segment, not as whole strings.
+
+    A path is a sequence of names and « / » is a boundary, but locale collation treats it as
+    punctuation and largely ignores it, so « Pièces/Draft » and « Adverse/Draft » sorted as though the
+    slash were not there. Two subfolders that happen to share a name then landed next to each other,
+    away from their parents, and since a heading shows only its last segment the screen displayed two
+    identical « Draft » groups with no way to tell which was which.
+
+    Comparing names one at a time puts a parent immediately before its own children and keeps siblings
+    together, which is what makes indentation readable.
+  */
   return [...groups.entries()].sort(([left], [right]) => {
     if (left === right) return 0
     if (left === null) return 1
     if (right === null) return -1
 
-    return left.localeCompare(right, 'fr')
+    const here = left.split('/')
+    const there = right.split('/')
+
+    for (let depth = 0; depth < Math.min(here.length, there.length); depth++) {
+      const order = here[depth]!.localeCompare(there[depth]!, 'fr')
+      if (order !== 0) return order
+    }
+
+    return here.length - there.length
   })
 }
 
