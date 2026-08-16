@@ -59,6 +59,8 @@ const messageOf = (failure: unknown) =>
  * Any file attached to the dossier. A document becomes a pièce when it is given a number and a
  * libellé written for the judge, so both live in one list and the distinction is legible at a glance.
  */
+import { DossierFolder } from './DossierFolder.js'
+
 export function Documents({ matterId, isOpen, onChanged }: {
   matterId: string
   isOpen: boolean
@@ -271,6 +273,10 @@ export function Documents({ matterId, isOpen, onChanged }: {
   return (
     <TabPanel className="relative">
       {toasts.view}
+
+      {/* Above the drop zone on purpose: opening the whole dossier is the gesture that replaces
+          uploading files one at a time, so it should be met first. */}
+      {isOpen && <DossierFolder matterId={matterId} onChanged={reload} />}
 
       {isOpen && (
         <div

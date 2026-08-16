@@ -136,6 +136,14 @@ app.whenReady().then(async () => {
       return result.canceled ? null : (result.filePaths[0] ?? null)
     })
 
+    // A folder someone has to go and find is a folder they will not use, so opening a dossier shows
+    // it. shell.openPath, not openExternal: a path is not a URL, and routing it through the URL
+    // handler is how a crafted string becomes something other than a folder.
+    ipcMain.handle('avocado:revealFolder', async (_event, folder: string) => {
+      const failure = await shell.openPath(folder)
+      return failure.length > 0 ? failure : null
+    })
+
     // Restoring accepts the sheet itself rather than only what is typed off it.
     ipcMain.handle('avocado:chooseFile', async (_event, title: string) => {
       const result = await dialog.showOpenDialog({
