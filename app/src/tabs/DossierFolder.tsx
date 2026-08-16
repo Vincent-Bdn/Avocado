@@ -31,7 +31,11 @@ interface Checkout {
   changes: Change[]
 }
 
-export function DossierFolder({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
+export function DossierFolder({ matterId, onChanged, onOpenChange }: {
+  matterId: string
+  onChanged: () => void
+  onOpenChange: (open: boolean) => void
+}) {
   const [checkout, setCheckout] = useState<Checkout | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +52,10 @@ export function DossierFolder({ matterId, onChanged }: { matterId: string; onCha
         const mine = open.find((entry) => entry.matterId === matterId) ?? null
         setCheckout(mine)
 
+        // While the folder exists it is the truth, and the tab below has to stop offering a second
+        // way to change the same documents.
+        onOpenChange(mine !== null)
+
         const signature = mine === null ? 'none' : `${mine.fileCount}:${mine.syncedAt ?? ''}`
 
         if (known.current !== null && known.current !== signature) {
@@ -57,7 +65,7 @@ export function DossierFolder({ matterId, onChanged }: { matterId: string; onCha
         known.current = signature
       })
       .catch(() => setCheckout(null))
-  }, [matterId, onChanged])
+  }, [matterId, onChanged, onOpenChange])
 
   useEffect(reload, [reload])
 
@@ -197,6 +205,15 @@ export function DossierFolder({ matterId, onChanged }: { matterId: string; onCha
         {checkout.fileCount} fichier{checkout.fileCount > 1 ? 's' : ''}
         {checkout.syncedAt && ` · réenregistré ${relative(checkout.syncedAt)}`}
       </div>
+
+      {/* Said here, next to the folder, rather than as a disabled tooltip on every row. Someone who
+          notices the buttons are gone should find the reason in the first place they look. */}
+      <p className="m-0 max-w-[76ch] text-[11px] leading-[16px] text-ink-secondary">
+        Tant que le dossier est ouvert, tout se fait dans le dossier : renommer, classer dans un
+        sous-dossier, ouvrir, ajouter, supprimer. Avocado suit et réenregistre. Les mêmes actions sont
+        retirées de la liste ci-dessous, parce qu’elles porteraient sur le coffre pendant que vous
+        travaillez sur les fichiers, et c’est le dossier qui l’emporte.
+      </p>
 
       {notable.length > 0 && <ChangeList changes={notable} />}
 

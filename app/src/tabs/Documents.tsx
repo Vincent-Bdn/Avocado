@@ -72,6 +72,17 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [dragging, setDragging] = useState(false)
   const [editing, setEditing] = useState<string | null>(null)
   const [workspace, setWorkspace] = useState<WorkspaceState>({ open: [], abandoned: [] })
+
+  /**
+   * True while the dossier is open as a folder. Everything that changes a document from here is then
+   * withdrawn: renaming, filing, opening, deleting, uploading.
+   *
+   * <p>Not a precaution, a correction. Two ways to change the same file cannot both be right, and the
+   * folder is the one that wins: renaming a document here left the file on disk under its old name,
+   * and the next thing done in Explorer overwrote the rename without a word. Offering an action that
+   * quietly loses is worse than not offering it, so the tab says where the work happens instead.</p>
+   */
+  const [folderOpen, setFolderOpen] = useState(false)
   const [templates, setTemplates] = useState<TemplateItem[]>([])
   const [generating, setGenerating] = useState(false)
   const [uploadFolder, setUploadFolder] = useState('')
@@ -275,7 +286,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
   const rowProps = (item: DocumentItem) => ({
     item,
-    isOpen,
+    isOpen: isOpen && !folderOpen,
     editing: editing === item.id,
     nextNumber: page?.nextExhibitNumber ?? 1,
     onEdit: () => setEditing(item.id),
@@ -296,9 +307,11 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
       {/* Above the drop zone on purpose: opening the whole dossier is the gesture that replaces
           uploading files one at a time, so it should be met first. */}
-      {isOpen && <DossierFolder matterId={matterId} onChanged={refreshQuietly} />}
-
       {isOpen && (
+        <DossierFolder matterId={matterId} onChanged={refreshQuietly} onOpenChange={setFolderOpen} />
+      )}
+
+      {isOpen && !folderOpen && (
         <div
           onDragOver={(event) => { event.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
