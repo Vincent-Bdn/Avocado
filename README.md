@@ -95,7 +95,6 @@ npx electron-builder --win --x64 --publish never
 | `src/` | `Avocado.Vault` (chiffrement, coffre), `Avocado.Server` (l'API), `Avocado.Cli` (le coffre en ligne de commande) |
 | `app/` | La coque Electron et l'interface React |
 | `site/` | Le site public, du HTML et une feuille de style, sans étape de compilation. Publié par `.github/workflows/pages.yml` |
-| `ds/` | Le design system et les maquettes d'écran |
 | `docs/` | La documentation technique |
 
 ### Ce que publie une version

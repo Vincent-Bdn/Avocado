@@ -13,7 +13,7 @@ electron/
 src/
   api.ts       fetch wrapper, bearer token, ProblemDetails -> French message
   App.tsx      connection proof
-  tokens.css   design tokens, copied from ds/
+  tokens.css   design tokens, copied from the design handoff
 ```
 
 ## Running it

@@ -58,3 +58,10 @@ avocado.db-shm
 /backups/
 *.blob
 
+#
+# The design system and the screen briefs. Kept on the machine, out of the repository: they are
+# unpublished handoffs from a designer, and the repository is public. They were removed from every
+# commit rather than only from the tip, so a clone carries no copy of them.
+#
+/ds/
+/docs/DESIGN-*.md

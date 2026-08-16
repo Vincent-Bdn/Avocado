@@ -127,7 +127,7 @@ correctly in the plain one.
 
 ### Design system fidelity
 
-`ds/` holds the handoffs, one folder per screen, each with a `README.md` that is the specification
+The design handoffs are held outside this repository, one folder per screen, each with its own specification
 and a `.dc.html` reference. Every colour, size, row height and padding in them is final. When
 implementation and handoff disagree, the handoff wins unless there is a stated reason; the reasons
 that exist are in the commit messages and in comments beside the code.
