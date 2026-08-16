@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, FolderOpen, Loader2, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Check, FolderOpen, Loader2, RefreshCw } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
@@ -27,6 +27,7 @@ interface Checkout {
   openedAt: string
   syncedAt: string | null
   fileCount: number
+  awaitingDecision: boolean
   changes: Change[]
 }
 
@@ -95,6 +96,53 @@ export function DossierFolder({ matterId, onChanged }: { matterId: string; onCha
   }
 
   const notable = checkout.changes
+
+  // Answered before anything else is offered. While this is pending the backend leaves the folder
+  // alone, so the question is real rather than asked after the fact.
+  if (checkout.awaitingDecision) {
+    return (
+      <div className="grid gap-2 border-b border-line-subtle bg-warning-bg px-4 py-2.5">
+        <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-warning">
+          <AlertTriangle size={14} strokeWidth={2} />
+          Ce dossier a changé pendant qu’Avocado était fermé
+        </div>
+
+        <p className="m-0 max-w-[76ch] text-[11.5px] leading-[17px] text-warning">
+          Le dossier était resté ouvert sur cet ordinateur, et son contenu n’est plus celui qu’Avocado
+          avait déposé. Rien n’a été enregistré : c’est à vous de dire ce qui fait foi.
+        </p>
+
+        <ChangeList changes={notable} />
+
+        {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => run(() => post(`/api/matters/${matterId}/checkout/resolve?keepFolder=true`, {}))}
+          >
+            Garder le travail fait dans le dossier
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy}
+            onClick={() => run(() => post(`/api/matters/${matterId}/checkout/resolve?keepFolder=false`, {}))}
+          >
+            Revenir à ce qui est dans le coffre
+          </Button>
+        </div>
+
+        <p className="m-0 max-w-[76ch] text-[11px] leading-[16px] text-warning opacity-90">
+          « Revenir au coffre » efface ces modifications et réécrit le dossier tel qu’Avocado l’avait.
+          Aucun document ne sera supprimé du coffre dans un cas comme dans l’autre : cela reste
+          réservé à « J’ai terminé », où la liste vous est présentée.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-2 border-b border-line-subtle bg-brand-subtle/40 px-4 py-2.5">

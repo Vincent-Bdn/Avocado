@@ -4,12 +4,17 @@ using Microsoft.EntityFrameworkCore;
 namespace Avocado.Server.Features.Documents.Checkout;
 
 /// <param name="Changes">Empty while nothing has moved. What the review shows at the end.</param>
+/// <param name="AwaitingDecision">
+/// The folder changed while Avocado was not running and she has not said what to do about it. The
+/// background sweep leaves it alone until she has.
+/// </param>
 public sealed record CheckoutView(
     Guid MatterId,
     string FolderPath,
     DateTimeOffset OpenedAt,
     DateTimeOffset? SyncedAt,
     int FileCount,
+    bool AwaitingDecision,
     IReadOnlyList<CheckoutChange> Changes);
 
 /// <param name="Resumption">Null unless this folder changed while Avocado was not running.</param>
@@ -24,6 +29,7 @@ public static class CheckoutEndpoints
         group.MapGet("/checkouts", ListAsync);
         group.MapPost("/matters/{matterId:guid}/checkout", OpenAsync);
         group.MapPost("/matters/{matterId:guid}/checkout/sync", SyncAsync);
+        group.MapPost("/matters/{matterId:guid}/checkout/resolve", ResolveAsync);
         group.MapDelete("/matters/{matterId:guid}/checkout", CloseAsync);
 
         return routes;
@@ -47,6 +53,7 @@ public static class CheckoutEndpoints
                 checkout.OpenedAt,
                 checkout.SyncedAt,
                 changes.Count,
+                checkout.AwaitingDecision,
                 CheckoutReconciler.Notable(changes)));
         }
 
@@ -76,6 +83,20 @@ public static class CheckoutEndpoints
         CancellationToken cancellationToken) =>
         Results.Ok(CheckoutReconciler.Notable(
             await checkouts.SyncAsync(matterId, applyDeletions: false, cancellationToken).ConfigureAwait(false)));
+
+    /// <summary>
+    /// Her answer after a restart found the folder changed. « keepFolder » writes what is on disk into
+    /// the vault; otherwise the folder is written again from the vault and what was in it is dropped.
+    /// </summary>
+    private static async Task<IResult> ResolveAsync(
+        Guid matterId,
+        bool keepFolder,
+        MatterCheckoutService checkouts,
+        CancellationToken cancellationToken)
+    {
+        await checkouts.ResolveAsync(matterId, keepFolder, cancellationToken).ConfigureAwait(false);
+        return Results.NoContent();
+    }
 
     /// <summary>« J'ai terminé »: last sync with deletions applied, then the folder goes.</summary>
     private static async Task<IResult> CloseAsync(

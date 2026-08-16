@@ -142,7 +142,7 @@ public sealed class MatterCheckoutService(
                 .FirstOrDefaultAsync(candidate => candidate.MatterId == matterId, cancellationToken)
                 .ConfigureAwait(false);
 
-            if (checkout is null || !Directory.Exists(checkout.FolderPath))
+            if (checkout is null || checkout.AwaitingDecision || !Directory.Exists(checkout.FolderPath))
             {
                 return [];
             }
@@ -218,9 +218,89 @@ public sealed class MatterCheckoutService(
         }
     }
 
-    /// <summary>« J'ai terminé »: a last sync, deletions included, then the folder goes.</summary>
+    /// <summary>
+    /// Her answer to « le contenu a changé pendant qu'Avocado était fermé ».
+    ///
+    /// <para><paramref name="keepFolder"/> takes what is on disk as the truth and writes it back,
+    /// which is what someone means when they worked in the folder with Avocado closed. Otherwise the
+    /// folder is thrown away and written again from the vault, which is what someone means when the
+    /// change was not theirs, or was a mistake.</para>
+    ///
+    /// <para>Deletions are not applied either way. Removing a pièce is a decision that belongs to
+    /// « J'ai terminé », where it is listed, and never to a recovery prompt answered in a hurry on a
+    /// morning that has already gone wrong.</para>
+    /// </summary>
+    public async Task ResolveAsync(Guid matterId, bool keepFolder, CancellationToken cancellationToken)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            var vault = vaults.Get(Guid.Empty);
+            await using var database = contexts.Create(vault.Id);
+
+            var checkout = await database.MatterCheckouts
+                .FirstOrDefaultAsync(candidate => candidate.MatterId == matterId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (checkout is null)
+            {
+                return;
+            }
+
+            checkout.AwaitingDecision = false;
+            await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        if (keepFolder)
+        {
+            // Clearing the flag is enough: the next sweep, moments away, writes it back.
+            await SyncAsync(matterId, applyDeletions: false, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        // Discarding means handing the folder back exactly as the vault has it, which is what Open
+        // does from scratch.
+        await using (var database = contexts.Create(vaults.Get(Guid.Empty).Id))
+        {
+            var checkout = await database.MatterCheckouts
+                .FirstOrDefaultAsync(candidate => candidate.MatterId == matterId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (checkout is not null && !TryRemove(checkout.FolderPath))
+            {
+                throw new VaultException(
+                    "Un fichier du dossier est encore ouvert dans une autre application. Fermez-le, puis réessayez.");
+            }
+        }
+
+        await OpenAsync(matterId, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// « J'ai terminé »: a last sync, deletions included, then the folder goes.
+    ///
+    /// <para>Refused while the folder is waiting on her answer about changes made offline. Closing
+    /// then would delete a folder whose contents were never written back, which is the one outcome
+    /// the whole resumption path exists to prevent.</para>
+    /// </summary>
     public async Task<IReadOnlyList<CheckoutChange>> CloseAsync(Guid matterId, CancellationToken cancellationToken)
     {
+        await using (var guard = contexts.Create(vaults.Get(Guid.Empty).Id))
+        {
+            if (await guard.MatterCheckouts
+                    .AnyAsync(candidate => candidate.MatterId == matterId && candidate.AwaitingDecision, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                throw new VaultException(
+                    "Ce dossier attend que vous disiez quoi faire des modifications faites hors d'Avocado.");
+            }
+        }
+
         var changes = await SyncAsync(matterId, applyDeletions: true, cancellationToken).ConfigureAwait(false);
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -268,7 +348,12 @@ public sealed class MatterCheckoutService(
         var vault = vaults.Get(Guid.Empty);
         await using var database = contexts.Create(vault.Id);
 
-        var open = await database.MatterCheckouts.Select(checkout => checkout.MatterId)
+        // Anything waiting on her answer is left exactly where it is. Closing it would run a sync
+        // that is deliberately held, find nothing to write, and then delete the folder, which is the
+        // work we held it for. Shutting down is not an answer to a question nobody read.
+        var open = await database.MatterCheckouts
+            .Where(checkout => !checkout.AwaitingDecision)
+            .Select(checkout => checkout.MatterId)
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var matterId in open)
@@ -311,6 +396,10 @@ public sealed class MatterCheckoutService(
                 database.MatterCheckouts.Remove(checkout);
                 continue;
             }
+
+            // Held until she answers. The sweep would otherwise write the folder into the vault within
+            // five seconds, which would make asking a formality performed after the fact.
+            checkout.AwaitingDecision = resumption.NeedsAsking;
 
             results.Add((checkout, resumption));
         }

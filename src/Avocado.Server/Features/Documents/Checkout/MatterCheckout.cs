@@ -31,4 +31,14 @@ public class MatterCheckout
 
     /// <summary>Last time the folder and the vault were reconciled, for the screen.</summary>
     public DateTimeOffset? SyncedAt { get; set; }
+
+    /// <summary>
+    /// Set at startup when the folder was found changed since Avocado last ran, and cleared when she
+    /// answers. While it is set the background sweep leaves this dossier alone.
+    ///
+    /// <para>Without it the prompt would be theatre: the sweep runs every five seconds, so it would
+    /// have written the folder into the vault before anyone read the question. Asking and then acting
+    /// regardless is worse than not asking.</para>
+    /// </summary>
+    public bool AwaitingDecision { get; set; }
 }
