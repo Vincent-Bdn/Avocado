@@ -11,6 +11,7 @@ using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
 using Avocado.Server.Features.Deadlines.Endpoints;
+using Avocado.Server.Features.Documents.Checkout;
 using Avocado.Server.Features.Documents.Endpoints;
 using Avocado.Server.Features.Documents.Workspace;
 using Avocado.Server.Features.Matters.Endpoints;
@@ -62,6 +63,8 @@ builder.Services.AddSingleton<VaultDbContextFactory>();
 builder.Services.AddSingleton(WorkingDirectory.Resolve(builder.Configuration));
 builder.Services.AddSingleton<DocumentWorkspace>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DocumentWorkspace>());
+builder.Services.AddSingleton<MatterCheckoutService>();
+builder.Services.AddHostedService<CheckoutSyncService>();
 builder.Services.AddSingleton<SinkFactory>();
 builder.Services.AddSingleton<BackupService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<BackupService>());
@@ -119,6 +122,7 @@ app.MapBilling();
 app.MapSettings();
 app.MapTemplates();
 app.MapBackups();
+app.MapCheckouts();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.
