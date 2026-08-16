@@ -32,6 +32,10 @@ public static class CheckoutEndpoints
         group.MapPost("/matters/{matterId:guid}/checkout/resolve", ResolveAsync);
         group.MapDelete("/matters/{matterId:guid}/checkout", CloseAsync);
 
+        // Called by the shell on the way out. On Windows the backend is terminated hard, so its own
+        // shutdown hook cannot be relied on to put the folders away.
+        group.MapPost("/checkouts/close-all", CloseAllAsync);
+
         return routes;
     }
 
@@ -95,6 +99,19 @@ public static class CheckoutEndpoints
         CancellationToken cancellationToken)
     {
         await checkouts.ResolveAsync(matterId, keepFolder, cancellationToken).ConfigureAwait(false);
+        return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Writes back and removes every open dossier folder. The shell calls this before killing the
+    /// process, because leaving a practice's documents decrypted on disk after the application has
+    /// visibly closed is not something to leave to the next launch.
+    /// </summary>
+    private static async Task<IResult> CloseAllAsync(
+        MatterCheckoutService checkouts,
+        CancellationToken cancellationToken)
+    {
+        await checkouts.CloseAllAsync(cancellationToken).ConfigureAwait(false);
         return Results.NoContent();
     }
 

@@ -263,8 +263,11 @@ public sealed class MatterCheckoutService(
 
         if (keepFolder)
         {
-            // Clearing the flag is enough: the next sweep, moments away, writes it back.
-            await SyncAsync(matterId, applyDeletions: false, cancellationToken).ConfigureAwait(false);
+            // Deletions included, and this is the one place besides « J'ai terminé » where they are.
+            // She was shown the list and answered that the folder is what counts; leaving the removed
+            // ones in the vault would mean the screen reporting them as « supprimé » on every pass
+            // afterwards, with no way to make it stop short of closing the dossier.
+            await SyncAsync(matterId, applyDeletions: true, cancellationToken).ConfigureAwait(false);
             return;
         }
 

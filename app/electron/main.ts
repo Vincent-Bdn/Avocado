@@ -244,4 +244,40 @@ app.on('activate', () => {
 
 // The backend holds the data encryption key in memory; it must not outlive the window that justified
 // unlocking it.
-app.on('before-quit', () => backend.stop())
+/**
+ * Closing the window has to put the dossiers away before the backend dies.
+ *
+ * On Windows the child is terminated hard, so `IHostedService.StopAsync` may never run, and the
+ * folders it would have removed stay on disk: a practice's documents, decrypted, sitting in Documents
+ * until something else notices. The next launch does recover them properly, but "until then" is the
+ * problem. Asking the backend over its own API first is the only point at which it can still answer.
+ */
+let closing = false
+
+app.on('before-quit', (event) => {
+  if (closing || handshake === null) {
+    return
+  }
+
+  closing = true
+  event.preventDefault()
+
+  const done = () => {
+    backend.stop()
+    app.quit()
+  }
+
+  // Five seconds, then go anyway. A quit that hangs on a stuck file handle is worse than a folder
+  // the next launch will reconcile.
+  const deadline = setTimeout(done, 5_000)
+
+  fetch(`${handshake.url}/api/checkouts/close-all`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${handshake.token}` },
+  })
+    .catch(() => undefined)
+    .finally(() => {
+      clearTimeout(deadline)
+      done()
+    })
+})

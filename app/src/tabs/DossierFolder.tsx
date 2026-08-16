@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Check, FolderOpen, Loader2, RefreshCw } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
@@ -37,21 +37,36 @@ export function DossierFolder({ matterId, onChanged }: { matterId: string; onCha
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
 
+  // What the list below was last told about. The sweep writes documents into the vault on its own
+  // schedule, so this panel is the only thing that knows the list has gone stale; without telling it,
+  // the header says « 10 fichiers » over « Aucun document » until something else forces a reload.
+  const known = useRef<string | null>(null)
+
   const reload = useCallback(() => {
     api<Checkout[]>('/api/checkouts')
-      .then((open) => setCheckout(open.find((entry) => entry.matterId === matterId) ?? null))
+      .then((open) => {
+        const mine = open.find((entry) => entry.matterId === matterId) ?? null
+        setCheckout(mine)
+
+        const signature = mine === null ? 'none' : `${mine.fileCount}:${mine.syncedAt ?? ''}`
+
+        if (known.current !== null && known.current !== signature) {
+          onChanged()
+        }
+
+        known.current = signature
+      })
       .catch(() => setCheckout(null))
-  }, [matterId])
+  }, [matterId, onChanged])
 
   useEffect(reload, [reload])
 
   // The backend writes changes back every five seconds; this is only the screen catching up with it,
   // so nothing here is the thing that makes a save happen.
   useEffect(() => {
-    if (!checkout) return
     const timer = setInterval(reload, 5_000)
     return () => clearInterval(timer)
-  }, [checkout, reload])
+  }, [reload])
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true)

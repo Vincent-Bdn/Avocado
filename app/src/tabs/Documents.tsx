@@ -108,11 +108,11 @@ export function Documents({ matterId, isOpen, onChanged }: {
     return () => clearInterval(timer)
   }, [workspace.open.length, reload, readWorkspace])
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setEditing(null)
     reload()
     onChanged()
-  }
+  }, [reload, onChanged])
 
   async function upload(files: FileList) {
     setBusy(true)
@@ -276,7 +276,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
       {/* Above the drop zone on purpose: opening the whole dossier is the gesture that replaces
           uploading files one at a time, so it should be met first. */}
-      {isOpen && <DossierFolder matterId={matterId} onChanged={reload} />}
+      {isOpen && <DossierFolder matterId={matterId} onChanged={refresh} />}
 
       {isOpen && (
         <div
@@ -399,27 +399,42 @@ export function Documents({ matterId, isOpen, onChanged }: {
       )}
 
       {/*
-        Folders are a grouping, not a tree. A folder exists exactly as long as a document names it,
-        which is what stops an empty hierarchy accumulating around three files, and « Sans dossier »
-        is always last rather than hidden: a file you have not filed is still a file you have.
+        A folder exists exactly as long as a document names it, which is what stops an empty hierarchy
+        accumulating around three files, and « Sans dossier » is always last rather than hidden: a file
+        you have not filed is still a file you have.
+
+        Nesting is shown rather than spelled out. Opening a dossier as a real folder means these paths
+        now come from directories someone made in Explorer, so « Tototo/Tata/Tutu » printed in full on
+        every heading reads as three unrelated groups. Sorting puts a parent before its children, so
+        indenting by depth and naming only the last segment renders the tree they actually built.
       */}
       {plain.length > 0 && (
         <div>
           <Caption>Documents · {plain.length}</Caption>
 
-          {groupByFolder(plain).map(([folder, items]) => (
-            <div key={folder ?? ''}>
-              {(folder !== null || groupByFolder(plain).length > 1) && (
-                <div className="flex items-center gap-1.5 pt-3 pb-1 text-[11.5px] font-medium text-ink-secondary">
-                  <Folder size={12} strokeWidth={2} className="text-muted" />
-                  {folder ?? 'Sans dossier'}
-                  <span className="font-mono text-[10.5px] text-muted tnum">{items.length}</span>
-                </div>
-              )}
+          {groupByFolder(plain).map(([folder, items]) => {
+            const segments = folder?.split('/') ?? []
+            const indent = segments.length > 0 ? (segments.length - 1) * 14 : 0
 
-              {items.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
-            </div>
-          ))}
+            return (
+              <div key={folder ?? ''}>
+                {(folder !== null || groupByFolder(plain).length > 1) && (
+                  <div
+                    style={{ paddingLeft: indent }}
+                    className="flex items-center gap-1.5 pt-3 pb-1 text-[11.5px] font-medium text-ink-secondary"
+                  >
+                    <Folder size={12} strokeWidth={2} className="text-muted" />
+                    {segments.length > 0 ? segments[segments.length - 1] : 'Sans dossier'}
+                    <span className="font-mono text-[10.5px] text-muted tnum">{items.length}</span>
+                  </div>
+                )}
+
+                <div style={{ paddingLeft: indent }}>
+                  {items.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

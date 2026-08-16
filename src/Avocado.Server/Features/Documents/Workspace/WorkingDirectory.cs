@@ -78,13 +78,24 @@ public sealed class WorkingDirectory
     /// open dossier was recursively deleted as an orphan the next time the application started,
     /// taking whatever had been dropped into it. Hence <see cref="DossiersFor"/>, one level up.</para>
     /// </summary>
-    public string For(Guid vaultId) => Path.Combine(Root, vaultId.ToString("N"));
+    /// <para>Not under <see cref="Root"/>: that folder is the one she chose and navigates to, and it
+    /// should contain dossiers she recognises rather than a tree of GUIDs. This is scratch, it is
+    /// never opened by hand, and it belongs in the application's own state folder.</para>
+    public string For(Guid vaultId) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Avocado",
+        "working",
+        vaultId.ToString("N"));
 
     /// <summary>
-    /// Where whole dossiers are opened. A sibling of <see cref="For"/> rather than a child, so the two
-    /// features cannot sweep each other's folders. Two roots, two owners, no shared parent.
+    /// Where whole dossiers are opened: straight into the folder she chose, one directory per dossier
+    /// and nothing else.
+    ///
+    /// <para>It used to interpose « dossiers » and the vault id. Both were structure for its own sake:
+    /// the folder is already called « Dossiers ouverts », and one practice has one coffre, so the id
+    /// bought nothing and cost every path she reads a line of hexadecimal.</para>
     /// </summary>
-    public string DossiersFor(Guid vaultId) => Path.Combine(Root, "dossiers", vaultId.ToString("N"));
+    public string DossiersFor(Guid vaultId) => Root;
 }
 
 /// <summary>
