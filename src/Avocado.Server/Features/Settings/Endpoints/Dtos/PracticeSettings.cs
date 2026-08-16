@@ -14,4 +14,7 @@ public sealed record PracticeSettings(long HourlyRateCents);
 public sealed record PracticeInfo(
     long HourlyRateCents,
     string VaultDirectory,
-    string WorkingDirectory);
+    string WorkingDirectory,
+
+    /// <summary>True when a command line fixed it, in which case Réglages shows it and cannot move it.</summary>
+    bool WorkingDirectoryIsFixed);

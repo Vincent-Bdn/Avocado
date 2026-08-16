@@ -13,6 +13,10 @@ public static class SettingEndpoints
         routes.MapGet("/api/settings", GetSettings.HandleAsync).WithTags("Settings");
         routes.MapPut("/api/settings", UpdateSettings.HandleAsync).WithTags("Settings");
 
+        // Its own route: this belongs to the computer, not to the practice, and is stored on the
+        // machine rather than in the vault.
+        routes.MapPut("/api/settings/working-directory", SetWorkingDirectory.HandleAsync).WithTags("Settings");
+
         return routes;
     }
 }
@@ -33,7 +37,10 @@ public static class GetSettings
         return Results.Ok(new PracticeInfo(
             ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents),
             vaultStore.Get(tenant.VaultId).Paths.Root,
-            workingDirectory.For(tenant.VaultId)));
+            // The folder she chose, not the per-vault subfolder inside it: that subfolder is an
+            // implementation detail and offering it as the thing to change would be misleading.
+            workingDirectory.Root,
+            workingDirectory.IsOverridden));
     }
 
     private static long ReadLong(IReadOnlyDictionary<string, string> stored, string key, long fallback) =>

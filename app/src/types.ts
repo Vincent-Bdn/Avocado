@@ -98,6 +98,7 @@ export interface PracticeSettings {
   hourlyRateCents: number
   vaultDirectory: string
   workingDirectory: string
+  workingDirectoryIsFixed: boolean
 }
 
 export interface ActivityListItem {

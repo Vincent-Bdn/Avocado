@@ -160,10 +160,44 @@ export function Settings() {
  */
 function Storage() {
   const [settings, setSettings] = useState<PracticeSettings | null>(null)
+  const [moving, setMoving] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
+
+  const reload = () =>
+    api<PracticeSettings>('/api/settings').then(setSettings).catch(() => setSettings(null))
 
   useEffect(() => {
-    api<PracticeSettings>('/api/settings').then(setSettings).catch(() => setSettings(null))
+    void reload()
   }, [])
+
+  /**
+   * Moving it is refused while any dossier is open, so nothing is ever carried between folders and
+   * no decrypted document moves behind her back. The backend says so in those words.
+   */
+  async function move() {
+    const chosen = await window.avocado.chooseFolder(
+      settings?.workingDirectory,
+      'Où ouvrir vos dossiers',
+    )
+
+    if (!chosen) return
+
+    setMoving(true)
+    setMoveError(null)
+
+    try {
+      await api('/api/settings/working-directory', {
+        method: 'PUT',
+        body: JSON.stringify({ path: chosen }),
+      })
+
+      await reload()
+    } catch (failure: unknown) {
+      setMoveError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setMoving(false)
+    }
+  }
 
   if (!settings) return null
 
@@ -182,15 +216,36 @@ function Storage() {
 
       <div className="grid gap-1">
         <span className="type-label text-ink-secondary">Le dossier de travail</span>
-        <code className="rounded-sm bg-sunken px-2 py-1.5 font-mono text-[11.5px] break-all">
-          {settings.workingDirectory}
-        </code>
+
+        <div className="flex items-center gap-1.5">
+          <code className="flex-1 rounded-sm bg-sunken px-2 py-1.5 font-mono text-[11.5px] break-all">
+            {settings.workingDirectory}
+          </code>
+
+          {!settings.workingDirectoryIsFixed && (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={moving}
+              onClick={() => void move()}
+            >
+              Changer…
+            </Button>
+          )}
+        </div>
+
+        {moveError && <p className="m-0 text-[11.5px] leading-[17px] text-danger">{moveError}</p>}
         <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-          Quand vous ouvrez un document, il y est déchiffré le temps que vous y travailliez, puis
-          remis au coffre et effacé. Il est propre à cet ordinateur et n’est jamais sauvegardé : le
-          supprimer ne coûte, au pire, que les dernières secondes de frappe. Il est en dehors du
-          coffre pour cette raison, et parce qu’un brouillon à moitié enregistré n’a rien à faire
-          dans une sauvegarde.
+          C’est là qu’un document s’ouvre le temps que vous y travailliez, et là qu’un dossier
+          entier apparaît quand vous cliquez « Ouvrir le dossier ». Vous vous y rendez donc pour de
+          vrai : c’est pourquoi vous choisissez l’endroit, comme pour le coffre.
+          <br />
+          <br />
+          Il est propre à cet ordinateur et n’est jamais sauvegardé. Le supprimer ne coûte, au pire,
+          que les dernières secondes de frappe. Il reste en dehors du coffre pour cette raison, et
+          parce qu’un brouillon à moitié enregistré n’a rien à faire dans une sauvegarde. Évitez un
+          dossier synchronisé : vos documents y seraient déchiffrés, donc envoyés en clair dans le
+          nuage. Avocado refuse les deux emplacements.
         </p>
       </div>
     </>
