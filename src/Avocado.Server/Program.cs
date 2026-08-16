@@ -142,6 +142,14 @@ app.Lifetime.ApplicationStarted.Register(() =>
         // is what resolves it, the backend is what must say where it is. The shell used to impose it,
         // which meant Réglages could never move it.
         workingDirectory = app.Services.GetRequiredService<WorkingDirectory>().Root,
+
+        // Where single documents are checked out, which is no longer inside the folder above: that
+        // one is hers and holds dossiers, this one is scratch and holds GUIDs. The shell guards
+        // openWorkingCopy against both, and a document opens from this one.
+        //
+        // Without the vault id, deliberately. This is emitted before the wizard has created a vault,
+        // so a path carrying the id would carry the empty one and refuse everything afterwards.
+        documentDirectory = WorkingDirectory.DocumentsRoot,
     }));
 });
 

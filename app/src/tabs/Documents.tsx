@@ -108,8 +108,28 @@ export function Documents({ matterId, isOpen, onChanged }: {
     return () => clearInterval(timer)
   }, [workspace.open.length, reload, readWorkspace])
 
+  /**
+   * After something the user did: the edited row has served its purpose and closes.
+   *
+   * Stable, because DossierFolder holds a refresh in a dependency list driving a five second
+   * interval; a new function each render would clear and re-arm it before it ever fired.
+   */
   const refresh = useCallback(() => {
     setEditing(null)
+    reload()
+    onChanged()
+  }, [reload, onChanged])
+
+  /**
+   * After the background sweep wrote something: the list is stale and reloads, but whatever she is
+   * typing stays open.
+   *
+   * <p>Sharing one refresh between the two closed the rename form every five seconds while a dossier
+   * was open, which made renaming a document from Avocado essentially impossible: the row vanished
+   * mid-edit, and what looked like a refresh that ate the change was the form being unmounted before
+   * it could be submitted.</p>
+   */
+  const refreshQuietly = useCallback(() => {
     reload()
     onChanged()
   }, [reload, onChanged])
@@ -276,7 +296,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
       {/* Above the drop zone on purpose: opening the whole dossier is the gesture that replaces
           uploading files one at a time, so it should be met first. */}
-      {isOpen && <DossierFolder matterId={matterId} onChanged={refresh} />}
+      {isOpen && <DossierFolder matterId={matterId} onChanged={refreshQuietly} />}
 
       {isOpen && (
         <div

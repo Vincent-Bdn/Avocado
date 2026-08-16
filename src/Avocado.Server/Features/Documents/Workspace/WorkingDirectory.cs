@@ -81,11 +81,19 @@ public sealed class WorkingDirectory
     /// <para>Not under <see cref="Root"/>: that folder is the one she chose and navigates to, and it
     /// should contain dossiers she recognises rather than a tree of GUIDs. This is scratch, it is
     /// never opened by hand, and it belongs in the application's own state folder.</para>
-    public string For(Guid vaultId) => Path.Combine(
+    public string For(Guid vaultId) => Path.Combine(DocumentsRoot, vaultId.ToString("N"));
+
+    /// <summary>
+    /// The parent of every per-vault scratch folder, with no vault id in it.
+    ///
+    /// <para>The shell guards file opens against this rather than against <see cref="For"/>: the
+    /// handshake is emitted before the setup wizard has created a vault, so a path carrying the id
+    /// would be the empty GUID's and would refuse every document opened afterwards.</para>
+    /// </summary>
+    public static string DocumentsRoot => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Avocado",
-        "working",
-        vaultId.ToString("N"));
+        "working");
 
     /// <summary>
     /// Where whole dossiers are opened: straight into the folder she chose, one directory per dossier
