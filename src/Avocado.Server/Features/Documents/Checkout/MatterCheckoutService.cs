@@ -26,7 +26,12 @@ public sealed class MatterCheckoutService(
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
 
-    private string RootFor(Guid vaultId) => Path.Combine(working.For(vaultId), "dossiers");
+    /// <summary>
+    /// Beside the per-document workspace, never inside it. DocumentWorkspace deletes any directory in
+    /// its own root whose name is not a document id, so a dossier folder living there was recursively
+    /// removed as an orphan at the next startup, along with everything dropped into it.
+    /// </summary>
+    private string RootFor(Guid vaultId) => working.DossiersFor(vaultId);
 
     /// <summary>
     /// Decrypts every document of a dossier into a folder and records what was written.

@@ -68,11 +68,23 @@ public sealed class WorkingDirectory
     }
 
     /// <summary>
-    /// One folder per vault, so a future multi-vault build cannot let two of them collide, and one
-    /// folder per document inside it: two dossiers both holding « conclusions.docx » must not land on
-    /// the same path.
+    /// Where single documents are checked out while they are open, one folder per document: two
+    /// dossiers both holding « conclusions.docx » must not land on the same path. One level per vault
+    /// so a future multi-vault build cannot let two collide.
+    ///
+    /// <para><b>Nothing else may live under here.</b> DocumentWorkspace sweeps this folder at startup
+    /// and treats every directory in it as a checked-out document, deleting any whose name is not a
+    /// document id. Putting dossier folders inside it, which is what the first version did, meant an
+    /// open dossier was recursively deleted as an orphan the next time the application started,
+    /// taking whatever had been dropped into it. Hence <see cref="DossiersFor"/>, one level up.</para>
     /// </summary>
     public string For(Guid vaultId) => Path.Combine(Root, vaultId.ToString("N"));
+
+    /// <summary>
+    /// Where whole dossiers are opened. A sibling of <see cref="For"/> rather than a child, so the two
+    /// features cannot sweep each other's folders. Two roots, two owners, no shared parent.
+    /// </summary>
+    public string DossiersFor(Guid vaultId) => Path.Combine(Root, "dossiers", vaultId.ToString("N"));
 }
 
 /// <summary>

@@ -107,18 +107,10 @@ app.whenReady().then(async () => {
     const vaultDirectory =
       process.env.AVOCADO_VAULT ?? path.join(app.getPath('documents'), 'Avocado')
 
-    // Working copies never go in the coffre, and never anywhere that synchronises. On Windows that
-    // rules out `userData` as well: Electron points it at Roaming, which a domain profile copies
-    // between machines. LOCALAPPDATA is the machine-local half of the same idea. On macOS and Linux
-    // `userData` already is local (~/Library/Application Support, ~/.config).
-    const localState =
-      process.platform === 'win32' && process.env.LOCALAPPDATA
-        ? path.join(process.env.LOCALAPPDATA, 'Avocado')
-        : app.getPath('userData')
-
-    const workingDirectory = path.join(localState, 'working')
-
-    handshake = await backend.start(vaultDirectory, workingDirectory)
+    // The working folder is deliberately not imposed here any more. The backend resolves it from the machine's own
+    // preference, which is what lets Réglages move it: a path forced in by the shell would have made
+    // that setting permanently read-only.
+    handshake = await backend.start(vaultDirectory)
 
     // Resolved before the window exists, so the renderer never has to ask twice or poll.
     ipcMain.handle('avocado:connection', () => handshake)
@@ -168,7 +160,7 @@ app.whenReady().then(async () => {
      * cannot turn this into « open any file on this machine ».
      */
     ipcMain.handle('avocado:openWorkingCopy', async (_event, target: string) => {
-      const working = workingDirectory
+      const working = handshake?.workingDirectory ?? ''
       const resolved = path.resolve(target)
 
       if (!resolved.startsWith(path.resolve(working) + path.sep)) {

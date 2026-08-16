@@ -10,6 +10,8 @@ export interface BackendHandshake {
   token: string
   /** Absent, Locked or Unlocked. The renderer decides between wizard and application from this. */
   vaultState: string
+  /** Where the backend decided to put working copies. The shell guards file opens against it. */
+  workingDirectory: string
 }
 
 const READY_PREFIX = 'AVOCADO_READY '
@@ -32,7 +34,7 @@ export class Backend {
    */
   private readonly token = randomBytes(32).toString('base64')
 
-  async start(vaultDirectory: string, workingDirectory: string): Promise<BackendHandshake> {
+  async start(vaultDirectory: string): Promise<BackendHandshake> {
     const executable = resolveExecutable()
 
     this.process = spawn(executable, [], {
@@ -41,7 +43,6 @@ export class Backend {
         AVOCADO_VAULT: vaultDirectory,
         // Machine-local, outside the coffre: it holds plaintext while a document is open, and the
         // coffre is the thing that gets backed up and may one day be remote.
-        AVOCADO_WORKING_DIR: workingDirectory,
         AVOCADO_API_TOKEN: this.token,
         // Port 0, the OS picks a free one and the handshake reports it back. A fixed port would
         // collide with whatever else the machine is running.

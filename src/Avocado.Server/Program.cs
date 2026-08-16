@@ -137,6 +137,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
         url = addresses.FirstOrDefault(),
         token = apiToken,
         vaultState = session.State.ToString(),
+
+        // The shell guards openWorkingCopy against paths outside this folder, and since the backend
+        // is what resolves it, the backend is what must say where it is. The shell used to impose it,
+        // which meant Réglages could never move it.
+        workingDirectory = app.Services.GetRequiredService<WorkingDirectory>().Root,
     }));
 });
 
