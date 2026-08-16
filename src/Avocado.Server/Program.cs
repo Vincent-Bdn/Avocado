@@ -63,6 +63,7 @@ builder.Services.AddSingleton<VaultDbContextFactory>();
 builder.Services.AddSingleton(WorkingDirectory.Resolve(builder.Configuration));
 builder.Services.AddSingleton<DocumentWorkspace>();
 builder.Services.AddHostedService(services => services.GetRequiredService<DocumentWorkspace>());
+builder.Services.AddSingleton<Avocado.Server.Features.Mails.Infrastructure.MailIngest>();
 builder.Services.AddSingleton<MatterCheckoutService>();
 builder.Services.AddHostedService<CheckoutSyncService>();
 builder.Services.AddSingleton<SinkFactory>();

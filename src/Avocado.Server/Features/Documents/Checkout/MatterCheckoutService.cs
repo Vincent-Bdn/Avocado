@@ -21,6 +21,7 @@ public sealed class MatterCheckoutService(
     IVaultStore vaults,
     VaultDbContextFactory contexts,
     WorkingDirectory working,
+    Mails.Infrastructure.MailIngest mails,
     ILogger<MatterCheckoutService> logger)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -180,6 +181,12 @@ public sealed class MatterCheckoutService(
                     case CheckoutChangeKind.Added:
                         var created = await AddAsync(vault, database, matterId, change, checkout.FolderPath, cancellationToken).ConfigureAwait(false);
                         manifest.Add(new BorrowedFile(created, change.RelativePath, change.Sha256!, change.SizeBytes));
+
+                        // Dragging a message out of Outlook into this folder is the whole email
+                        // feature. A dropped .msg becomes a journal entry rather than an opaque file,
+                        // and its attachments become pièces of their own.
+                        await IngestMailAsync(vault, database, matterId, created, checkout.FolderPath, change, cancellationToken)
+                            .ConfigureAwait(false);
                         break;
 
                     case CheckoutChangeKind.Deleted when applyDeletions:
@@ -351,6 +358,51 @@ public sealed class MatterCheckoutService(
         await using (stream.ConfigureAwait(false))
         {
             return Convert.ToHexString(await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
+        }
+    }
+
+    /// <summary>
+    /// Files a dropped message as a journal entry and stores each of its attachments as a document of
+    /// its own, so the client's PDF is findable in the dossier rather than sealed inside a container
+    /// only Outlook opens.
+    ///
+    /// <para>The attachments are written straight to the vault and never to the folder. Putting them
+    /// on disk would make them newcomers on the next pass, and the mail would grow a copy of its own
+    /// attachments every five seconds.</para>
+    /// </summary>
+    private async Task IngestMailAsync(
+        OpenVault vault,
+        AvocadoDbContext database,
+        Guid matterId,
+        Guid documentId,
+        string folder,
+        CheckoutChange change,
+        CancellationToken cancellationToken)
+    {
+        var path = Path.Combine(folder, change.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+
+        var attachments = await mails.RecordAsync(database, matterId, documentId, path, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (attachments is null)
+        {
+            return;
+        }
+
+        foreach (var attachment in attachments)
+        {
+            using var content = new MemoryStream(attachment.Content);
+            var reference = await vault.Blobs.PutAsync(content, cancellationToken).ConfigureAwait(false);
+
+            database.Documents.Add(new Document
+            {
+                MatterId = matterId,
+                BlobSha256 = reference.Sha256,
+                SizeBytes = reference.SizeBytes,
+                FileName = attachment.FileName,
+                MimeType = attachment.ContentType,
+                Folder = FolderOf(change.RelativePath),
+            });
         }
     }
 
