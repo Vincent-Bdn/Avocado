@@ -2,11 +2,12 @@
 #
 # The mark is « Jeton » from the design system: a brand-green rounded square with an avocado
 # cross-section knocked out of it, built from one rounded rect and three circles so it survives 16px.
-# Source of truth is ds/README.md; this script is the raster derivation, not a second design.
+# Source of truth is the design handoff, held outside this repository; this script is the raster
+# derivation of the mark, not a second design.
 #
 #   pwsh app/scripts/make-icons.ps1
 #
-# Committed output: app/public/icon.png (256) and app/build/icon.ico (multi-size).
+# Committed output: app/public/icon.png (512) and app/build/icon.ico (multi-size).
 
 Add-Type -AssemblyName System.Drawing
 
@@ -62,7 +63,10 @@ $root = Split-Path -Parent $PSScriptRoot
 New-Item -ItemType Directory -Force -Path "$root\public", "$root\build" | Out-Null
 
 # A single 256px PNG for the window icon, the favicon, and Linux/macOS packaging.
-$large = New-MarkBitmap 256
+# 512, not 256: electron-builder refuses anything smaller for the macOS and Linux icons, and it
+# refuses it at packaging time rather than here. The mark is drawn from a rounded rect and three
+# circles, so a larger raster costs nothing but the pixels.
+$large = New-MarkBitmap 512
 $large.Save("$root\public\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
 
 # Windows wants an .ico. PNG-compressed entries are understood from Vista onwards, so each size is
