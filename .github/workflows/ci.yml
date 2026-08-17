@@ -373,11 +373,33 @@ jobs:
           prerelease=""
           [ "${{ needs.version.outputs.prerelease }}" = "true" ] && prerelease=--prerelease
 
-          # --target and not --verify-tag: this creates the tag, on the commit this run built, at the
-          # same moment it publishes the release. Nothing tagged it earlier, deliberately, so that a
-          # build which fails halfway leaves no tag naming a release that never happened.
-          gh release create "${{ needs.version.outputs.tag }}" release/* \
-            --target "${{ github.sha }}" \
-            --title "${{ needs.version.outputs.tag }}" \
-            --generate-notes \
-            $prerelease
+          tag="${{ needs.version.outputs.tag }}"
+
+          # Retried, because this is the last thing that happens after twenty minutes of building on
+          # eleven runners, and GitHub's API answered 503 here once already. Losing the whole run to a
+          # transient on the final call is a poor trade for five lines of shell.
+          #
+          # Checking for the release first is what makes retrying safe: a 503 can be returned after
+          # the release was created, and blindly calling create again would then fail for a completely
+          # different reason. If it is already there, finish the job rather than start it over.
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists; uploading assets."
+              gh release upload "$tag" release/* --clobber && exit 0
+            else
+              # --target and not --verify-tag: this creates the tag, on the commit this run built, at
+              # the same moment it publishes the release. Nothing tagged it earlier, deliberately, so
+              # that a build which fails halfway leaves no tag naming a release that never happened.
+              gh release create "$tag" release/* \
+                --target "${{ github.sha }}" \
+                --title "$tag" \
+                --generate-notes \
+                $prerelease && exit 0
+            fi
+
+            echo "::warning::Attempt $attempt to publish $tag failed. Retrying."
+            sleep $((attempt * 15))
+          done
+
+          echo "::error::Could not publish $tag after 5 attempts."
+          exit 1
