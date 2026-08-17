@@ -373,8 +373,11 @@ jobs:
           prerelease=""
           [ "${{ needs.version.outputs.prerelease }}" = "true" ] && prerelease=--prerelease
 
+          # --target and not --verify-tag: this creates the tag, on the commit this run built, at the
+          # same moment it publishes the release. Nothing tagged it earlier, deliberately, so that a
+          # build which fails halfway leaves no tag naming a release that never happened.
           gh release create "${{ needs.version.outputs.tag }}" release/* \
+            --target "${{ github.sha }}" \
             --title "${{ needs.version.outputs.tag }}" \
             --generate-notes \
-            --verify-tag \
             $prerelease
