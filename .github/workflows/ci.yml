@@ -22,6 +22,10 @@ on:
           - patch
           - minor
           - major
+      version:
+        description: 'Numéro imposé, sans le v (laisser vide pour le calcul automatique)'
+        required: false
+        type: string
   pull_request:
 
 # Two releases at once would race for the next number and produce two tags claiming the same one. A
@@ -61,9 +65,13 @@ jobs:
 
       - run: dotnet test --no-build -c Release --verbosity normal
 
-  # Works out the next number, and creates the tag. After the tests, deliberately: a tag is what the
-  # release is named for and what people download, so one pointing at a commit whose tests failed is
-  # worse than no tag at all.
+  # Works out the next number and stops there. The tag is created at the very end, by the release job,
+  # once every platform has actually built.
+  #
+  # It used to be created here, and a run whose Windows arm64 job died downloading an action, a 429
+  # from GitHub before a line of our code ran, left a tag behind with no release and consumed a
+  # version number that nothing was ever published under. A number is cheap; a tag that names nothing
+  # is a lie in the history.
   #
   # Skipped on a pull request, which takes the publishing jobs with it: they need this one.
   version:
@@ -71,8 +79,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.event_name == 'workflow_dispatch'
-    permissions:
-      contents: write
     outputs:
       tag: ${{ steps.next.outputs.tag }}
       number: ${{ steps.next.outputs.number }}
@@ -130,17 +136,18 @@ jobs:
           number="$major.$minor.$patch"
           [ -n "$beta" ] && number="$number-beta.$beta"
 
+          # An imposed number wins. There is no bump that reaches v1.0.0-beta.1 from nothing, and
+          # this is also the way out of a numbering mistake without hand-tagging.
+          if [ -n "${{ inputs.version }}" ]; then
+            number="${{ inputs.version }}"
+            beta=""
+            case "$number" in *-*) beta="imposed" ;; esac
+          fi
+
           echo "tag=v$number" >> "$GITHUB_OUTPUT"
           echo "number=$number" >> "$GITHUB_OUTPUT"
           echo "prerelease=$([ -n "$beta" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "$latest -> v$number"
-
-      - name: Create the tag
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag ${{ steps.next.outputs.tag }}
-          git push origin ${{ steps.next.outputs.tag }}
 
   # Proves the "no runtime install required" promise for every platform we ship to, and that the
   # SQLCipher native libraries survive being bundled into a single file.

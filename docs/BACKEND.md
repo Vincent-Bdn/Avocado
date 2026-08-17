@@ -56,9 +56,15 @@ publish, and the run works out the number itself:
 | `minor` | `v1.1.0` | `v1.3.0` |
 | `major` | `v2.0.0` | `v2.0.0` |
 
-The tag is created by the run, **after the tests are green**, so a tag that exists is a tag that
-built. Cutting one by hand means it exists before anything is proved, and that whoever remembers the
-last number decides the next one.
+There is also a **Numéro imposé** field, which overrides the arithmetic. No sequence of bumps reaches
+`v1.0.0-beta.1` from an empty repository, and it is the way out of a numbering mistake without
+hand-tagging.
+
+The tag is created **at the very end**, by the release job, once every platform has built. Not up
+front, and that is not fussiness: a run whose Windows arm64 job died downloading an action, a 429 from
+GitHub before a line of our code ran, left a tag behind naming a release that never happened and
+consumed a version number nothing was published under. The tag and the release now appear together or
+not at all.
 
 That builds the six platforms, asserts each binary really bundled the runtime (a framework-dependent
 publish looks fine right up until someone without .NET runs it), smoke tests the three the runners can
