@@ -46,13 +46,19 @@ and the publish would quietly come out framework-dependent. Supported RIDs are i
 
 ### Cutting a version
 
-A tag is the release. Nothing else creates one, so the tag and what people download cannot describe
-different code.
+Releasing is a button, not a tag pushed from a laptop. **Actions → CI → Run workflow**, choose what to
+publish, and the run works out the number itself:
 
-```bash
-git tag v1.0.0-beta.1
-git push origin v1.0.0-beta.1
-```
+| Choice | From `v1.0.0-beta.3` | From `v1.2.3` |
+|---|---|---|
+| `beta` | `v1.0.0-beta.4` | `v1.2.4-beta.1` |
+| `patch` | `v1.0.0`, the betas were leading here | `v1.2.4` |
+| `minor` | `v1.1.0` | `v1.3.0` |
+| `major` | `v2.0.0` | `v2.0.0` |
+
+The tag is created by the run, **after the tests are green**, so a tag that exists is a tag that
+built. Cutting one by hand means it exists before anything is proved, and that whoever remembers the
+last number decides the next one.
 
 That builds the six platforms, asserts each binary really bundled the runtime (a framework-dependent
 publish looks fine right up until someone without .NET runs it), smoke tests the three the runners can
@@ -75,14 +81,15 @@ Nothing is signed. Windows SmartScreen and macOS Gatekeeper therefore object, an
 `site/installation.html` walks users through it. Adding signing later is credentials in the environment
 plus `identity` and `certificateFile` in `app/package.json`, not a different pipeline.
 
-A hyphen makes it a pre-release in the semantic-version sense, and GitHub is told as much, so
-`v1.0.0-beta.1` is not offered as the current version. Note that `/releases/latest/download/` skips
-pre-releases too, so the site keeps pointing at the last stable one, which is the intended behaviour.
-The tag patterns are version-shaped, so a scratch tag ships nothing.
+A beta is marked a pre-release on GitHub, which matters more than it looks:
+`/releases/latest/download/` skips pre-releases, so the site keeps pointing at the last stable build
+while a beta is out. That is the intended behaviour, and it only holds if the flag is right.
 
-CI otherwise runs on pull requests and on demand (`gh workflow run ci.yml`), not on every push to
-`main`. Publishing is skipped on pull requests: what it proves matters when a binary reaches somebody,
-and the tests already answer the question a proposed change asks.
+CI otherwise runs on pull requests, not on every push to `main`. A pull request runs the tests and
+nothing else: the version job is skipped, and everything downstream needs it, so no runner spends
+twenty minutes packaging installers for a change that is not being shipped.
+
+From a terminal, if you prefer: `gh workflow run ci.yml -f bump=beta`.
 
 ---
 
