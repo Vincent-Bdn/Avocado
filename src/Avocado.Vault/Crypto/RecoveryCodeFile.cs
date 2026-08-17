@@ -1,5 +1,5 @@
-using System.Buffers;
 using System.IO.Compression;
+using System.Text.RegularExpressions;
 using System.Text;
 
 namespace Avocado.Vault.Crypto;
@@ -13,11 +13,11 @@ namespace Avocado.Vault.Crypto;
 /// read, on the morning after they lost a computer. This is the second recovery path, and it is meant
 /// to be the one most people use.</para>
 ///
-/// <para><b>Why scanning is safe rather than reckless.</b> A recovery code carries a checksum, so
-/// <see cref="RecoveryCode.TryParse"/> rejects anything that is not one. That turns "find the key in
-/// this file" from a parsing problem into a search: pull out every run of alphabet characters and
-/// test each candidate. A false positive would have to be a checksum collision produced by accident,
-/// which is not a thing that happens.</para>
+/// <para><b>Why the search is bounded rather than exhaustive.</b> A recovery code carries a checksum,
+/// which is what lets a candidate be tested rather than merely parsed. It is two characters though,
+/// ten bits, so it turns away about 1023 wrong answers in 1024 and no more. Trying every position in
+/// a document would therefore find a valid-looking code in noise soon enough, and did. The search
+/// looks only where a code could actually be written: nine groups standing on their own.</para>
 ///
 /// <para>Nothing here is a PDF parser and nothing here should become one. Chromium's printToPDF puts
 /// the page's text in Flate-compressed content streams as parenthesised literals; inflating those and
@@ -56,29 +56,25 @@ public static class RecoveryCodeFile
     }
 
     /// <summary>
-    /// Slides over every run of alphabet characters and asks the parser. Separators are dropped
-    /// first, because the sheet renders the code as nine chips and a PDF may store each of them as
-    /// its own string with no dashes between them.
+    /// Finds a code in extracted text.
+    ///
+    /// <para><b>The match has to stand on its own.</b> An earlier version stripped every separator and
+    /// slid a 54-character window along, which was the only way it could think of to read a producer
+    /// that stores each group as its own string. That made false positives ordinary rather than
+    /// impossible: the checksum is two characters, ten bits, so about one window in a thousand accepts
+    /// by chance, and eight hundred characters of anything offer eight hundred windows. It duly
+    /// returned a key that was never on the page, on one macOS run, on one randomly generated key.</para>
+    ///
+    /// <para>The pattern below allows zero to three separators between groups, so it reads a code
+    /// written with dashes, with spaces, or with nothing at all between the nine. What it will not do
+    /// is match inside a longer run of letters and digits: the boundaries either side are what stop a
+    /// hash, an identifier or a base64 blob from being read as somebody's recovery key.</para>
     /// </summary>
     private static string? FindCode(string text)
     {
-        // The code is 54 characters plus its separators once stripped. Anything shorter cannot be one.
-        const int length = 54;
-
-        var condensed = new StringBuilder(text.Length);
-        foreach (var character in text)
+        foreach (Match match in Formatted.Matches(text))
         {
-            if (char.IsAsciiLetterOrDigit(character))
-            {
-                condensed.Append(char.ToUpperInvariant(character));
-            }
-        }
-
-        var candidates = condensed.ToString();
-
-        for (var start = 0; start + length <= candidates.Length; start++)
-        {
-            if (RecoveryCode.TryParse(candidates.Substring(start, length), out var key) && key is not null)
+            if (RecoveryCode.TryParse(match.Value, out var key) && key is not null)
             {
                 using (key)
                 {
@@ -91,27 +87,25 @@ public static class RecoveryCodeFile
     }
 
     /// <summary>
-    /// Everything between brackets in every stream we can inflate. Crude on purpose: the goal is to
-    /// surface character data, not to understand the document.
+    /// Nine groups of six, separated by at most three non-alphanumeric characters, and bounded on both
+    /// sides so it can never be a slice of something longer.
+    /// </summary>
+    private static readonly Regex Formatted = new(
+        @"(?<![0-9A-Za-z])[0-9A-Za-z]{6}(?:[^0-9A-Za-z]{0,3}[0-9A-Za-z]{6}){8}(?![0-9A-Za-z])",
+        RegexOptions.Compiled);
+
+    /// <summary>
+    /// Everything between brackets, taken from the parts of the file that are text and from the
+    /// streams we can inflate.
+    ///
+    /// <para>Stream bodies are deliberately skipped on the raw pass. Deflate output is effectively
+    /// random bytes, so scanning it for brackets harvests binary noise into the candidate text, and
+    /// noise plus a ten-bit checksum is how the scanner once returned a code that was never on the
+    /// page. Only what is genuinely text, or has been made into text by inflating it, is considered.</para>
     /// </summary>
     private static string ExtractPdfText(ReadOnlySpan<byte> content)
     {
         var text = new StringBuilder();
-
-        // Uncompressed literals first: some producers do not compress at all, and it costs one pass.
-        AppendLiterals(Decode(content), text);
-
-        foreach (var stream in InflateStreams(content))
-        {
-            AppendLiterals(stream, text);
-        }
-
-        return text.ToString();
-    }
-
-    private static IEnumerable<string> InflateStreams(ReadOnlySpan<byte> content)
-    {
-        var inflated = new List<string>();
         var raw = Decode(content);
 
         var cursor = 0;
@@ -123,42 +117,54 @@ public static class RecoveryCodeFile
                 break;
             }
 
-            var body = open + "stream".Length;
+            AppendLiterals(raw[cursor..open], text);
 
+            var body = open + "stream".Length;
             // The specification allows CRLF or LF after the keyword, and nothing else.
-            if (body < raw.Length && raw[body] == '\r') body++;
-            if (body < raw.Length && raw[body] == '\n') body++;
+            if (body < raw.Length && raw[body] == (char)13) body++;
+            if (body < raw.Length && raw[body] == (char)10) body++;
 
             var close = raw.IndexOf("endstream", body, StringComparison.Ordinal);
             if (close < 0)
             {
+                cursor = open + "stream".Length;
                 break;
             }
 
+            if (Inflate(raw[body..close]) is { } inflated)
+            {
+                AppendLiterals(inflated, text);
+            }
+
             cursor = close + "endstream".Length;
-
-            try
-            {
-                var bytes = new byte[close - body];
-                for (var index = 0; index < bytes.Length; index++)
-                {
-                    bytes[index] = (byte)raw[body + index];
-                }
-
-                using var source = new MemoryStream(bytes);
-                using var decompressor = new ZLibStream(source, CompressionMode.Decompress);
-                using var destination = new MemoryStream();
-
-                decompressor.CopyTo(destination);
-                inflated.Add(Decode(destination.ToArray()));
-            }
-            catch (InvalidDataException)
-            {
-                // Not Flate, or not a stream we can read. An image, a font. Skip it.
-            }
         }
 
-        return inflated;
+        AppendLiterals(raw[cursor..], text);
+        return text.ToString();
+    }
+
+    private static string? Inflate(string body)
+    {
+        try
+        {
+            var bytes = new byte[body.Length];
+            for (var index = 0; index < bytes.Length; index++)
+            {
+                bytes[index] = (byte)body[index];
+            }
+
+            using var source = new MemoryStream(bytes);
+            using var decompressor = new ZLibStream(source, CompressionMode.Decompress);
+            using var destination = new MemoryStream();
+
+            decompressor.CopyTo(destination);
+            return Decode(destination.ToArray());
+        }
+        catch (InvalidDataException)
+        {
+            // Not Flate, or not a stream we can read. An image, a font. Skip it.
+            return null;
+        }
     }
 
     private static void AppendLiterals(string source, StringBuilder text)
