@@ -99,6 +99,15 @@ function applyContentSecurityPolicy(): void {
 
 app.whenReady().then(async () => {
   try {
+    // Windows groups taskbar buttons, and picks their icon, by Application User Model ID. Without
+    // this Electron derives one from the executable path, which does not match the ID the NSIS
+    // installer stamps on the Start menu and desktop shortcuts, so the shortcut shows the right icon
+    // while the taskbar button falls back to a generic one. It has to be the appId from
+    // package.json, and it has to be set before any window exists.
+    if (process.platform === 'win32') {
+      app.setAppUserModelId('fr.avocado.app')
+    }
+
     // Electron's default menu is English and offers File/Edit/View/Window/Help, none of which this
     // application has. No design frame shows a menu bar; navigation is the rail and the ⌘K palette.
     // Chromium still handles the clipboard accelerators in text fields without it.

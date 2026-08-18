@@ -71,6 +71,7 @@
                 Télécharger pour Windows
               </a>
               <a href="#avertissement-windows">Windows va afficher un avertissement</a>
+              <a href="#antivirus">Votre antivirus peut le bloquer</a>
             </div>
             <p class="download__version">
               Fichier <code>Avocado-win-x64.exe</code>, environ 120 Mo. Toujours la dernière version
@@ -409,8 +410,10 @@
         <p>
           Ce que cet avertissement ne dit pas, il faut aussi le savoir :
           <strong>il ne signifie pas qu’un antivirus a trouvé quelque chose.</strong> Il signifie que
-          le fichier n’a pas de carte d’identité payante. Trois choses, à la place, sont
-          vérifiables :
+          le fichier n’a pas de carte d’identité payante. C’est aussi, pour la même raison, ce qui
+          pousse certains antivirus à bloquer l’installeur, Avast en particulier :
+          <a href="#antivirus">la marche à suivre est dans la section précédente</a>. Trois choses, à
+          la place, sont vérifiables :
         </p>
 
         <ul class="facts">
@@ -434,6 +437,78 @@
             <a href="qui-suis-je.html">Un nom, un parcours et un profil public</a>, pas un pseudonyme.
           </li>
         </ul>
+      </section>
+
+      <section id="antivirus">
+        <p class="eyebrow">Si votre antivirus s’en mêle</p>
+        <h2>Avast, et les autres, peuvent bloquer l’installation.</h2>
+
+        <p>
+          Avast est le cas le plus fréquent, et le plus insistant : il peut mettre l’installeur en
+          quarantaine sans rien demander, ou l’envoyer à l’analyse et refuser de le lancer pendant ce
+          temps. Norton, McAfee et Bitdefender font parfois la même chose.
+        </p>
+
+        <p>
+          La raison est celle de l’avertissement de Windows, et elle ne tient pas au contenu du
+          fichier : un programme récent, non signé, téléchargé par peu de monde n’a pas de
+          réputation. Les antivirus comptent les installations avant de faire confiance, et un
+          logiciel neuf n’en a aucune. Ce que le vôtre affiche est une présomption statistique, pas
+          une détection : il ne dit pas avoir trouvé quelque chose dans le fichier, il dit ne pas le
+          connaître.
+        </p>
+
+        <p>
+          <strong>Avant de passer outre, vérifiez l’empreinte du fichier.</strong> C’est la seule
+          chose qui distingue « mon antivirus ne connaît pas ce logiciel » de « ce fichier n’est pas
+          celui que je croyais télécharger ».
+          <a href="#empreintes">La marche à suivre est juste en dessous</a>, elle prend une minute.
+        </p>
+
+        <ol class="steps">
+          <li>
+            <h3>Si le fichier a disparu, il est en quarantaine</h3>
+            <p>
+              Avast le déplace sans prévenir. Ouvrez Avast, puis
+              <strong>Protection › Quarantaine</strong>. Le fichier
+              <code>Avocado-win-x64.exe</code> y figure : clic droit,
+              <strong>Restaurer et ajouter aux exceptions</strong>.
+            </p>
+          </li>
+
+          <li>
+            <h3>Sinon, ajoutez l’exception avant d’installer</h3>
+            <p>
+              Dans Avast : <strong>Menu › Paramètres › Général › Exceptions › Ajouter une
+              exception</strong>, et désignez le fichier téléchargé. Les autres antivirus ont la même
+              chose, sous le nom d’« exclusion » ou de « liste blanche ».
+            </p>
+          </li>
+
+          <li>
+            <h3>Une fois installé, ajoutez aussi le dossier du programme</h3>
+            <p>
+              Avocado lance un second programme, son moteur, qui ouvre le coffre chiffré. Certains
+              antivirus le bloquent alors que l’installation s’est bien passée. Si l’application
+              refuse de démarrer, ajoutez en exception le dossier
+              <code>%LOCALAPPDATA%\Programs\Avocado</code>.
+            </p>
+          </li>
+        </ol>
+
+        <p>
+          Ne désactivez pas votre antivirus pour installer un logiciel, celui-ci ou un autre. Une
+          exception visée sur un fichier dont vous avez vérifié l’empreinte est un choix précis ;
+          éteindre la protection de la machine le temps d’une installation en est un autre, beaucoup
+          plus large, et il vous expose à tout ce qui passera pendant ce temps.
+        </p>
+
+        <p>
+          Pour rendre service au suivant : Avast accepte les signalements de faux positifs sur
+          <a href="https://www.avast.com/false-positive-file-form.php">son formulaire dédié</a>.
+          Quelques signalements suffisent en général à faire disparaître le blocage pour tout le
+          monde.
+        </p>
       </section>
 
       <section id="empreintes">
