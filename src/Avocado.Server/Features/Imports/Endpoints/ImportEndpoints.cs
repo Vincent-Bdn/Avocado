@@ -16,6 +16,7 @@ public static class ImportEndpoints
         group.MapPost("/scan", Scan);
         group.MapPost("/run", RunAsync);
         group.MapGet("/progress", Progress);
+        group.MapPost("/templates", Templates);
 
         return routes;
     }
@@ -48,6 +49,39 @@ public static class ImportEndpoints
         }
 
         return Results.Ok(plan);
+    }
+
+    /// <summary>
+    /// Writes the two spreadsheets she fills in, one row per dossier, beside the export.
+    ///
+    /// <para>The export has no contacts and no billing, so those can only come from her. Handing over
+    /// an empty format to invent would be worse than not asking: the templates arrive with every
+    /// dossier already named, so the only thing left is what Avocado genuinely does not know.</para>
+    /// </summary>
+    private static IResult Templates(ScanInput input, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(input.Root) || !Directory.Exists(input.Root))
+        {
+            return Results.Problem(
+                title: "Dossier introuvable",
+                detail: "Ce dossier n'existe pas ou n'est pas accessible.",
+                statusCode: StatusCodes.Status400BadRequest,
+                extensions: new Dictionary<string, object?> { ["code"] = "source-missing" });
+        }
+
+        var plan = GestisoftScan.Read(input.Root, cancellationToken);
+        var written = ImportSidecars.WriteTemplates(input.Root, plan.Candidates);
+
+        return Results.Ok(new
+        {
+            written,
+            // Nothing is overwritten, so saying which already existed is the difference between
+            // "your work is safe" and a moment of panic.
+            kept = new[] { ImportSidecars.TiersFileName, ImportSidecars.FacturationFileName }
+                .Select(name => Path.Combine(input.Root, name))
+                .Where(path => !written.Contains(path))
+                .ToArray(),
+        });
     }
 
     /// <summary>
@@ -96,7 +130,9 @@ public static class ImportEndpoints
 
         // Not the request's cancellation token: that one is cancelled the moment this returns, which
         // is immediately, and would abort the import before it began.
-        _ = Task.Run(() => importer.RunAsync(candidates, CancellationToken.None), CancellationToken.None);
+        var sidecars = ImportSidecars.Read(input.Root);
+
+        _ = Task.Run(() => importer.RunAsync(candidates, sidecars, CancellationToken.None), CancellationToken.None);
 
         return Results.Accepted(value: new { dossiers = candidates.Count, files = candidates.Sum(c => c.Files) });
     }

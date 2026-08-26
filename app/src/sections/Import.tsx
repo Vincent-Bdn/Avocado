@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, FolderOpen, Loader2, Split } from 'lucide-react'
+import { AlertCircle, Check, FileSpreadsheet, FolderOpen, Loader2, Split } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
@@ -60,6 +60,7 @@ export function Import() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
+  const [templates, setTemplates] = useState<string[] | null>(null)
 
   const readProgress = useCallback(() => {
     api<Progress | undefined>('/api/imports/progress')
@@ -88,6 +89,26 @@ export function Import() {
       setSplit(new Set())
     } catch (failure) {
       setPlan(null)
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function writeTemplates() {
+    if (!plan) return
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      const result = await post<{ written: string[]; kept: string[] }>('/api/imports/templates', {
+        root: plan.root,
+      })
+
+      setTemplates([...result.written, ...result.kept])
+      await window.avocado.revealFolder(plan.root)
+    } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
       setBusy(false)
@@ -205,6 +226,30 @@ export function Import() {
               ))}
             </ul>
           )}
+
+          <div className="grid gap-1.5 rounded-sm border border-line-subtle px-2.5 py-2">
+            <span className="type-label text-ink-secondary">Tiers et facturation, si vous les avez</span>
+
+            <p className="m-0 max-w-[76ch] text-[11.5px] leading-[17px] text-muted">
+              L’export n’en contient pas, et Avocado n’en inventera pas. Ces deux tableaux arrivent avec
+              un nom de dossier par ligne : remplissez ce que vous voulez, laissez le reste vide, et
+              relancez l’import. Rien n’est obligatoire, et vous pouvez le faire plus tard dossier par
+              dossier.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="secondary" size="sm" onClick={() => void writeTemplates()} disabled={busy}>
+                <FileSpreadsheet size={13} strokeWidth={2} />
+                Préparer les deux tableaux
+              </Button>
+
+              {templates && (
+                <span className="font-mono text-[10.5px] text-muted">
+                  {templates.map((path) => path.split(/[/\\]/).pop()).join(' · ')}
+                </span>
+              )}
+            </div>
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={() => void run()} disabled={busy}>

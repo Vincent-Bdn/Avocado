@@ -30,6 +30,14 @@ using Avocado.Vault;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 
+// Before the host is built: an import is a command, not a service, and standing up Kestrel and the
+// background workers to run one would mean the backup scheduler and the folder sweeps firing against
+// a vault somebody is halfway through filling.
+if (ImportCommand.Requested(args))
+{
+    return await ImportCommand.RunAsync(args);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 var vaultDirectory =
@@ -158,6 +166,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
 });
 
 await app.RunAsync();
+return 0;
 
 /// <summary>Exposed so the integration tests can drive the real host.</summary>
 public partial class Program;

@@ -44,6 +44,47 @@ the project body, where `OutputType` has not been set yet, so the condition woul
 and the publish would quietly come out framework-dependent. Supported RIDs are in
 `.github/workflows/ci.yml`: `win-x64`, `win-arm64`, `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`.
 
+### Importing a Gestisoft export
+
+The same import as Réglages, without the window, for a practice with four hundred dossiers that would
+rather start it and go home:
+
+```bash
+Avocado.Server --import "D:\AVOCAT\Dossiers clients" --vault "C:\Users\me\Documents\Avocado"
+```
+
+`--templates` writes the two spreadsheets and stops. `--split "ANODEA"` breaks one client folder into a
+dossier per subfolder, repeatable. `--vault` defaults to `AVOCADO_VAULT`, then to `~/Documents/Avocado`.
+
+It runs migrations first, since the window normally does that at startup and a vault made by
+`avocado create` has no tables until it happens.
+
+**It is on the server binary, not on `avocado`.** `Avocado.Cli` is deliberately held to the vault
+library alone, so `avocado backup` still works on the day the application does not. Importing needs EF
+Core, MsgReader and the whole Documents slice; the server executable already carries all of it and
+already ships beside the app.
+
+### What the export does and does not contain
+
+Folders, and nothing else. `EN COURS` and `CLASSES` at the top, one folder per client under each. No
+contacts, no billing, no dates. So:
+
+- The client is a contact named after the folder, unless `avocado-tiers.csv` names a real one.
+- Which of the two top folders it sits in decides open or closed.
+- Dossiers are dated **from their correspondence**, not from the filesystem. The export stamps every
+  file with the moment it ran, so file times would put a decade of history on one afternoon; the
+  emails carry the dates they were really sent.
+- `.msg` and `.eml` become journal entries with their attachments filed as pièces of their own.
+- Billing stays empty unless `avocado-facturation.csv` says otherwise. An invented total is worse than
+  an absent one, because it looks like a fact.
+
+The two spreadsheets are semicolon-separated UTF-8 with a BOM, which is what a French Excel reads and
+writes without asking anything. Amounts are accepted in every shape it produces, `1 234,56 €`
+included, with the non-breaking space it uses for thousands. A row that cannot be read is named and
+the rest are kept.
+
+---
+
 ### Cutting a version
 
 Releasing is a button, not a tag pushed from a laptop. **Actions → CI → Run workflow**, choose what to
