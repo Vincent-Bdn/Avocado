@@ -7,6 +7,7 @@ import { Input } from './components/ui/input.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
 import { Backups } from './sections/Backups.js'
+import { Import } from './sections/Import.js'
 import { Templates } from './sections/Templates.js'
 import { cn } from './lib/utils.js'
 import { centsToAmount, parseAmountToCents } from './lib/amount.js'
@@ -77,6 +78,16 @@ export function Settings() {
           onToggle={toggle}
         >
           <Backups />
+        </Section>
+
+        <Section
+          id="import"
+          title="Importer depuis Gestisoft"
+          summary="Reprendre les dossiers exportés"
+          open={open === 'import'}
+          onToggle={toggle}
+        >
+          <Import />
         </Section>
 
         <Section

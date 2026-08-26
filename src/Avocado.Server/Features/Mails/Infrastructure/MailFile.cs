@@ -1,3 +1,4 @@
+using System.Text;
 using MimeKit;
 
 namespace Avocado.Server.Features.Mails.Infrastructure;
@@ -16,6 +17,15 @@ namespace Avocado.Server.Features.Mails.Infrastructure;
 /// </summary>
 public static class MailFile
 {
+    /// <summary>
+    /// .NET Core ships only Unicode and ASCII; every legacy code page lives in a provider that has to
+    /// be registered. Outlook messages are full of them, and MsgReader's RTF reader asks for
+    /// Windows-1252 the moment it touches a body, so without this every single .msg fails with « is
+    /// not a supported encoding name » and is filed as an opaque attachment instead of a journal
+    /// entry. Found on the first real export: 4,715 emails, none of them readable.
+    /// </summary>
+    static MailFile() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
     public static readonly string[] Extensions = [".eml", ".msg"];
 
     public static bool LooksLikeMail(string path) =>

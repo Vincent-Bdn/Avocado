@@ -63,13 +63,18 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var incoming = mail.From is { } from && !IsPractice(from.Address, contact);
-
         var activity = new Activity
         {
             MatterId = matterId,
             OccurredAt = mail.SentAt,
-            Type = incoming ? ActivityType.IncomingEmail : ActivityType.OutgoingEmail,
+            // Always incoming, until the practice's own address is something Avocado knows.
+            //
+            // The direction of a message is decided by whether the sender is her, and nothing in the
+            // vault records that yet. The previous attempt inferred it from whether the sender was in
+            // the carnet, which answers a different question entirely and got the same answer for
+            // every message anyway. A field that is wrong half the time and looks authoritative is
+            // worse than one that is consistently the common case and can be corrected in a click.
+            Type = ActivityType.IncomingEmail,
             ContactId = contact?.Id,
             Subject = mail.DisplayTitle,
             Body = Excerpt(mail.BodyText),
@@ -92,15 +97,6 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
 
         return mail.Attachments;
     }
-
-    /// <summary>
-    /// A message she sent has her as the sender. Nothing in the vault records the practice's own
-    /// address yet, so this leans on the carnet: if the sender is a known contact, it came from
-    /// outside. Wrong only for a mail from someone who is both a contact and the practice, which is
-    /// not a thing, and the entry's direction is editable either way.
-    /// </summary>
-    private static bool IsPractice(string address, Contact? contact) =>
-        contact is not null && string.Equals(contact.Email, address, StringComparison.OrdinalIgnoreCase) is false;
 
     /// <summary>
     /// Enough of the body to recognise the message in a timeline. The whole thing is in the document,
