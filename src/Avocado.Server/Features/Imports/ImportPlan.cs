@@ -6,6 +6,12 @@ namespace Avocado.Server.Features.Imports;
 /// <param name="IsOpen">EN COURS or CLASSES, which is the one piece of state the export does carry.</param>
 /// <param name="Files">How many documents will be created, emails included.</param>
 /// <param name="Emails">Of which .msg or .eml, which become journal entries rather than plain files.</param>
+/// <param name="Subfolders">
+/// How many directories sit at the top of it, so the screen can offer a split on any client rather
+/// than only the ones guessed at. JH TRANSPORT is 5,215 files across six affaires and is not
+/// suggested, because one of the six is named « 700119 » and a leading digit reads as a filing
+/// scheme. The suggestion is a hint; the choice belongs on every row.
+/// </param>
 public sealed record ImportCandidate(
     string SourcePath,
     string Client,
@@ -13,7 +19,8 @@ public sealed record ImportCandidate(
     bool IsOpen,
     int Files,
     int Emails,
-    long Bytes);
+    long Bytes,
+    int Subfolders);
 
 /// <param name="Splittable">
 /// Client folders holding what look like several affaires. Offered, never applied: see

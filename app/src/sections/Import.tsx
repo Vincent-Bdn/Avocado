@@ -23,6 +23,7 @@ interface Candidate {
   files: number
   emails: number
   bytes: number
+  subfolders: number
 }
 
 interface Suggestion {
@@ -208,7 +209,7 @@ export function Import() {
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" onClick={() => void run()} disabled={busy}>
               <Check size={13} strokeWidth={2.5} />
-              Importer {plan.candidates.length} dossiers
+              Importer {plan.candidates.reduce((total, c) => total + (split.has(c.sourcePath) ? c.subfolders : 1), 0)} dossiers
             </Button>
 
             <button
@@ -240,6 +241,33 @@ export function Import() {
                     {candidate.files} doc{candidate.files > 1 ? 's' : ''}
                     {candidate.emails > 0 && ` · ${candidate.emails} courriels`}
                   </span>
+
+                  {/* On every row with subfolders, not only the six guessed at. JH TRANSPORT is six
+                      affaires and 5,215 files and is never suggested, because one of them is called
+                      « 700119 » and a leading digit reads as a filing scheme. */}
+                  {candidate.subfolders > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSplit((current) => {
+                          const next = new Set(current)
+                          if (next.has(candidate.sourcePath)) next.delete(candidate.sourcePath)
+                          else next.add(candidate.sourcePath)
+                          return next
+                        })
+                      }
+                      className={cn(
+                        'shrink-0 rounded-sm border px-1.5 py-px text-[10px] leading-4',
+                        split.has(candidate.sourcePath)
+                          ? 'border-brand bg-brand-subtle text-brand-on-subtle'
+                          : 'border-line text-muted hover:bg-hover',
+                      )}
+                    >
+                      {split.has(candidate.sourcePath)
+                        ? `${candidate.subfolders} dossiers`
+                        : 'séparer'}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

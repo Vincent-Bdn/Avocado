@@ -58,7 +58,9 @@ public static class GestisoftScan
                     continue;
                 }
 
-                candidates.Add(new ImportCandidate(client, name, name, isOpen, files, emails, bytes));
+                candidates.Add(new ImportCandidate(
+                    client, name, name, isOpen, files, emails, bytes,
+                    Directory.EnumerateDirectories(client).Count()));
 
                 if (Affaires(client) is { Count: > 1 } affaires)
                 {
@@ -96,6 +98,7 @@ public static class GestisoftScan
                 Files = files,
                 Emails = emails,
                 Bytes = bytes,
+                Subfolders = 0,
             });
         }
 
@@ -104,7 +107,10 @@ public static class GestisoftScan
         var loose = MeasureShallow(candidate.SourcePath);
         if (loose.Files > 0)
         {
-            parts.Add(candidate with { Files = loose.Files, Emails = loose.Emails, Bytes = loose.Bytes });
+            parts.Add(candidate with
+            {
+                Files = loose.Files, Emails = loose.Emails, Bytes = loose.Bytes, Subfolders = 0,
+            });
         }
 
         return parts;
