@@ -53,10 +53,15 @@ function New-MarkBitmap([int]$size) {
     return $bitmap
 }
 
+# The leading comma is load-bearing, and this is the same hazard three times over in this script:
+# PowerShell enumerates a byte[] the moment it crosses a function boundary or a pipeline, and
+# recollects it as Object[]. BinaryWriter.Write then finds no byte[] overload to match and quietly
+# writes a single byte. That is how icon.ico came to hold a correct directory pointing at payloads
+# that were never written, and why Windows drew a generic icon for it.
 function Get-PngBytes($bitmap) {
     $stream = New-Object System.IO.MemoryStream
     $bitmap.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
-    return $stream.ToArray()
+    return , $stream.ToArray()
 }
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -72,7 +77,12 @@ $large.Save("$root\public\icon.png", [System.Drawing.Imaging.ImageFormat]::Png)
 # Windows wants an .ico. PNG-compressed entries are understood from Vista onwards, so each size is
 # embedded as a PNG rather than as a BMP with its own mask.
 $sizes = 16, 24, 32, 48, 64, 128, 256
-$images = $sizes | ForEach-Object { Get-PngBytes (New-MarkBitmap $_) }
+# The comma is load-bearing. Without it PowerShell unrolls each byte[] into the pipeline, so $images
+# becomes a flat list of bytes rather than a list of images: $images[$i] is then a single byte whose
+# .Length is 1, every directory entry claims a one-byte image, and Windows quietly renders none of
+# them. That is what a generic taskbar icon looked like. Wrapping in a single-element array keeps
+# each image whole.
+$images = $sizes | ForEach-Object { , (Get-PngBytes (New-MarkBitmap $_)) }
 
 $ico = New-Object System.IO.MemoryStream
 $writer = New-Object System.IO.BinaryWriter($ico)
@@ -95,10 +105,31 @@ for ($i = 0; $i -lt $sizes.Count; $i++) {
     $offset += $images[$i].Length
 }
 
-$images | ForEach-Object { $writer.Write($_) }
+# foreach rather than a pipeline, for the same reason, and the cast because being wrong here is
+# silent: the file comes out plausible and Windows simply refuses to draw it.
+foreach ($image in $images) { $writer.Write([byte[]]$image) }
 $writer.Flush()
 [System.IO.File]::WriteAllBytes("$root\build\icon.ico", $ico.ToArray())
 $writer.Dispose()
+
+# Read back and check every entry points at a real PNG inside the file. This whole class of bug is
+# silent: a malformed .ico builds, ships, installs, and shows a blank icon on somebody's taskbar with
+# nothing anywhere saying why. Two minutes of verification beats finding out from a screenshot.
+$check = [System.IO.File]::ReadAllBytes("$root\build\icon.ico")
+$entries = [System.BitConverter]::ToUInt16($check, 4)
+for ($i = 0; $i -lt $entries; $i++) {
+    $base = 6 + 16 * $i
+    $size = [System.BitConverter]::ToUInt32($check, $base + 8)
+    $offset = [System.BitConverter]::ToUInt32($check, $base + 12)
+
+    if ($offset + $size -gt $check.Length) {
+        throw "icon.ico entry $i runs past the end of the file. The image payloads were not written."
+    }
+
+    if ($check[$offset] -ne 0x89 -or $check[$offset + 1] -ne 0x50) {
+        throw "icon.ico entry $i does not point at a PNG. Check for PowerShell unrolling a byte[]."
+    }
+}
 
 Write-Output "public\icon.png  $((Get-Item "$root\public\icon.png").Length) bytes"
 Write-Output "build\icon.ico   $((Get-Item "$root\build\icon.ico").Length) bytes ($($sizes -join ', '))"
