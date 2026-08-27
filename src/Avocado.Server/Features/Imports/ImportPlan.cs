@@ -29,19 +29,11 @@ public sealed record ImportCandidate(
     string? ContactsFile = null,
     string? BillingFile = null);
 
-/// <param name="Splittable">
-/// Client folders holding what look like several affaires. Offered, never applied: see
-/// <see cref="Infrastructure.GestisoftScan"/> for why this is a suggestion and not a decision.
-/// </param>
 public sealed record ImportPlan(
     string Root,
     IReadOnlyList<ImportCandidate> Candidates,
-    IReadOnlyList<SplitSuggestion> Splittable,
     IReadOnlyList<string> Skipped)
 {
     public int Files => Candidates.Sum(candidate => candidate.Files);
     public long Bytes => Candidates.Sum(candidate => candidate.Bytes);
 }
-
-/// <param name="Affaires">What the client folder would become if split.</param>
-public sealed record SplitSuggestion(string SourcePath, string Client, IReadOnlyList<string> Affaires);

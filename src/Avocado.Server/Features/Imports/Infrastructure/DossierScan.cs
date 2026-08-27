@@ -56,7 +56,6 @@ public static class DossierScan
         return new ImportPlan(
             root,
             candidates.OrderBy(candidate => candidate.SourcePath, StringComparer.CurrentCulture).ToList(),
-            [],
             skipped);
     }
 
@@ -184,12 +183,89 @@ public static class DossierScan
     }
 
     /// <summary>
+    /// Expands one folder into a dossier per subfolder. Only ever called because the user asked for
+    /// it on that row: the scan decides where the dossiers are and is right most of the time, and this
+    /// is how she says it was wrong about one of them.
+    /// </summary>
+    public static IReadOnlyList<ImportCandidate> Split(
+        ImportCandidate candidate,
+        CancellationToken cancellationToken = default)
+    {
+        var parts = new List<ImportCandidate>();
+
+        foreach (var affaire in Directory.EnumerateDirectories(candidate.SourcePath)
+                     .OrderBy(Path.GetFileName, StringComparer.CurrentCulture))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var (files, emails, bytes, contacts, billing) = Measure(affaire, cancellationToken);
+
+            if (files == 0)
+            {
+                continue;
+            }
+
+            var name = Path.GetFileName(affaire) ?? candidate.Name;
+
+            parts.Add(candidate with
+            {
+                SourcePath = affaire,
+                Name = name,
+                Files = files,
+                Emails = emails,
+                Bytes = bytes,
+                Subfolders = 0,
+                GestisoftCode = GestisoftCode(name),
+                ContactsFile = contacts,
+                BillingFile = billing,
+            });
+        }
+
+        // Files sitting directly in the folder belong to no affaire, and a split would drop them
+        // silently. They stay together under its own name instead.
+        var loose = Directory.EnumerateFiles(candidate.SourcePath)
+            .Where(file => !IsNoise(Path.GetFileName(file)))
+            .ToList();
+
+        if (loose.Count > 0)
+        {
+            parts.Add(candidate with
+            {
+                Files = loose.Count,
+                Emails = loose.Count(MailFile.LooksLikeMail),
+                Bytes = loose.Sum(Size),
+                Subfolders = 0,
+            });
+        }
+
+        return parts;
+    }
+
+    private static long Size(string file)
+    {
+        try
+        {
+            return new FileInfo(file).Length;
+        }
+        catch (IOException)
+        {
+            // A file we cannot stat is still a file we will try to read. Its size is only cosmetic.
+            return 0;
+        }
+    }
+
+    /// <summary>
     /// Counts what is inside, and picks up the two files Gestisoft can export beside a dossier.
     ///
-    /// <para>Found by what they are rather than by where they sit: she filed them under « Contacts et
-    /// factu » and « Contact et factu », and named them contacts.PDF, contact.PDF and
-    /// « Contacts couleyre.PDF ». Matching folder names would have found five of seven. A PDF whose
-    /// name mentions contacts, and a spreadsheet, are the things themselves.</para>
+    /// <para>Both are scored rather than matched, and that is not fussiness. Taking any PDF whose name
+    /// mentions contacts chose, in COULEYRE, a letter called « pas de contact connu chez EDF OA » over
+    /// the actual list two folders further on, and taking any spreadsheet claimed fourteen billing
+    /// exports where seven exist, the others being a client's own workbooks.</para>
+    ///
+    /// <para>What tells the real ones apart is where they sit and how their name begins: in a folder
+    /// she called « Contacts et factu », named contacts.PDF or export.xlsx. The naming is hers and it is
+    /// inconsistent, « Contact et factu », « contact.PDF », « Contacts couleyre.PDF », so no single
+    /// rule catches them all. A score does, and the threshold asks a file to agree on two counts.</para>
     /// </summary>
     private static (int Files, int Emails, long Bytes, string? Contacts, string? Billing) Measure(
         string folder,
@@ -198,8 +274,8 @@ public static class DossierScan
         var files = 0;
         var emails = 0;
         long bytes = 0;
-        string? contacts = null;
-        string? billing = null;
+        (string Path, int Score)? contacts = null;
+        (string Path, int Score)? billing = null;
 
         foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
         {
@@ -219,15 +295,32 @@ public static class DossierScan
             }
 
             var lower = name.ToLowerInvariant();
+            var beside = IsSidecarFolder(file);
 
-            if (contacts is null && lower.EndsWith(".pdf", StringComparison.Ordinal) && lower.Contains("contact", StringComparison.Ordinal))
+            if (lower.EndsWith(".pdf", StringComparison.Ordinal))
             {
-                contacts = file;
+                var score =
+                    (lower.StartsWith("contact", StringComparison.Ordinal) ? 3 : 0)
+                    + (beside ? 2 : 0)
+                    + (lower.Contains("contact", StringComparison.Ordinal) ? 1 : 0);
+
+                if (score >= 3 && score > (contacts?.Score ?? 0))
+                {
+                    contacts = (file, score);
+                }
             }
 
-            if (billing is null && lower.EndsWith(".xlsx", StringComparison.Ordinal))
+            if (lower.EndsWith(".xlsx", StringComparison.Ordinal) || lower.EndsWith(".xls", StringComparison.Ordinal))
             {
-                billing = file;
+                var score =
+                    (lower.StartsWith("export", StringComparison.Ordinal) ? 3 : 0)
+                    + (beside ? 2 : 0)
+                    + (lower.Contains("factu", StringComparison.Ordinal) ? 1 : 0);
+
+                if (score >= 3 && score > (billing?.Score ?? 0))
+                {
+                    billing = (file, score);
+                }
             }
 
             try
@@ -239,7 +332,20 @@ public static class DossierScan
             }
         }
 
-        return (files, emails, bytes, contacts, billing);
+        return (files, emails, bytes, contacts?.Path, billing?.Path);
+    }
+
+    /// <summary>
+    /// Whether the file sits in the folder she keeps the Gestisoft exports in. She wrote « Contacts et
+    /// factu » in some dossiers and « Contact et factu » in others, so this asks what the folder name is
+    /// about rather than what it says.
+    /// </summary>
+    private static bool IsSidecarFolder(string file)
+    {
+        var parent = Path.GetFileName(Path.GetDirectoryName(file) ?? string.Empty).ToLowerInvariant();
+
+        return parent.Contains("contact", StringComparison.Ordinal)
+            || parent.Contains("factu", StringComparison.Ordinal);
     }
 
     /// <summary>

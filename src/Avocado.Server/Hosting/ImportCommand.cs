@@ -23,6 +23,7 @@ namespace Avocado.Server.Hosting;
 /// Avocado.Server --import "D:\AVOCAT\Dossiers clients" --vault "C:\Users\me\Documents\Avocado"
 /// Avocado.Server --import "D:\..." --vault "C:\..." --templates      writes the two spreadsheets
 /// Avocado.Server --import "D:\..." --vault "C:\..." --split "ANODEA" --split "DLT GROUP"
+/// Avocado.Server --import "D:\..." --vault "C:\..." --archived ARCHIVES --archived CLOS
 /// </code>
 /// </summary>
 public static class ImportCommand
@@ -38,14 +39,18 @@ public static class ImportCommand
 
         if (root is null || !Directory.Exists(root))
         {
-            return Fail("Usage: Avocado.Server --import <dossier exporté> [--vault <coffre>] [--templates] [--split <nom>]");
+            return Fail(
+                "Usage: Avocado.Server --import <dossier exporté> [--vault <coffre>] [--templates] " +
+                "[--split <nom>] [--archived <mot>]");
         }
 
-        var plan = GestisoftScan.Read(root);
+        // « CLASSES » is one practice's word for finished work, not a standard, so the caller can say
+        // what hers is. Nothing given falls back to the handful people actually use.
+        var plan = DossierScan.Read(root, Values(args, "--archived"));
 
         if (plan.Candidates.Count == 0)
         {
-            return Fail($"Aucun dossier trouvé dans « {root} ». Il doit contenir « EN COURS » et « CLASSES ».");
+            return Fail($"Aucun dossier reconnu dans « {root} ».");
         }
 
         if (args.Contains("--templates", StringComparer.Ordinal))
@@ -66,7 +71,7 @@ public static class ImportCommand
         {
             if (split.Any(name => name.Equals(candidate.Name, StringComparison.OrdinalIgnoreCase)))
             {
-                candidates.AddRange(GestisoftScan.Split(candidate));
+                candidates.AddRange(DossierScan.Split(candidate));
             }
             else
             {

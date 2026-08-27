@@ -2,10 +2,19 @@ using Avocado.Server.Features.Imports.Infrastructure;
 
 namespace Avocado.Server.Features.Imports.Endpoints;
 
-public sealed record ScanInput(string Root);
+/// <param name="ArchivedWords">
+/// Folder names that mean a dossier is finished. Sent by the caller rather than fixed here, because
+/// « CLASSES » is one practice's filing habit and not a standard: another says ARCHIVES, or CLOS, or
+/// nothing at all. Empty falls back to <see cref="DossierScan.DefaultArchivedWords"/>.
+/// </param>
+public sealed record ScanInput(string Root, IReadOnlyList<string>? ArchivedWords = null);
 
 /// <param name="Split">Source paths the user chose to break into one dossier per subfolder.</param>
-public sealed record RunInput(string Root, IReadOnlyList<string> Split, IReadOnlyList<string>? Only);
+public sealed record RunInput(
+    string Root,
+    IReadOnlyList<string> Split,
+    IReadOnlyList<string>? Only,
+    IReadOnlyList<string>? ArchivedWords = null);
 
 public static class ImportEndpoints
 {
@@ -36,14 +45,14 @@ public static class ImportEndpoints
                 extensions: new Dictionary<string, object?> { ["code"] = "source-missing" });
         }
 
-        var plan = GestisoftScan.Read(input.Root, cancellationToken);
+        var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
 
         if (plan.Candidates.Count == 0)
         {
             return Results.Problem(
                 title: "Rien à importer",
-                detail: "Ce dossier ne contient ni « EN COURS » ni « CLASSES ». Choisissez le dossier " +
-                        "qui contient ces deux-là, pas l'un des deux.",
+                detail: "Aucun dossier n'a été reconnu ici. Choisissez le dossier qui contient vos " +
+                        "dossiers clients, même s'ils sont rangés sur plusieurs niveaux.",
                 statusCode: StatusCodes.Status400BadRequest,
                 extensions: new Dictionary<string, object?> { ["code"] = "not-an-export" });
         }
@@ -69,7 +78,7 @@ public static class ImportEndpoints
                 extensions: new Dictionary<string, object?> { ["code"] = "source-missing" });
         }
 
-        var plan = GestisoftScan.Read(input.Root, cancellationToken);
+        var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
         var written = ImportSidecars.WriteTemplates(input.Root, plan.Candidates);
 
         return Results.Ok(new
@@ -103,7 +112,7 @@ public static class ImportEndpoints
                 extensions: new Dictionary<string, object?> { ["code"] = "already-running" });
         }
 
-        var plan = GestisoftScan.Read(input.Root, cancellationToken);
+        var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
         var split = new HashSet<string>(input.Split ?? [], StringComparer.OrdinalIgnoreCase);
         var only = input.Only is { Count: > 0 } chosen
             ? new HashSet<string>(chosen, StringComparer.OrdinalIgnoreCase)
@@ -120,7 +129,7 @@ public static class ImportEndpoints
 
             if (split.Contains(candidate.SourcePath))
             {
-                candidates.AddRange(GestisoftScan.Split(candidate, cancellationToken));
+                candidates.AddRange(DossierScan.Split(candidate, cancellationToken));
             }
             else
             {

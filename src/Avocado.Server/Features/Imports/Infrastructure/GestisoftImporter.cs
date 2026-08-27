@@ -32,10 +32,12 @@ public sealed record ImportProgress(
 /// files and thirteen gigabytes. Encrypting that takes a while, and a request that simply does not
 /// answer for twenty minutes is indistinguishable from one that has failed.</para>
 ///
-/// <para><b>Nothing here invents data.</b> The client is a contact named after the folder, which is
-/// the only name the export contains. Billing is left empty rather than filled with plausible
-/// figures: an invented total is worse than an absent one, since it looks like a fact. The hourly rate
-/// comes from Réglages, as it would for a dossier created by hand.</para>
+/// <para><b>Nothing here invents data.</b> Parties and money come from whatever real source the
+/// dossier has, in order: Gestisoft's own contacts list and export.xlsx where she printed them, then
+/// the two spreadsheets she filled in by hand. Only when neither names a client does the folder's own
+/// name stand in for one, and billing stays empty rather than being filled with plausible figures,
+/// since an invented total is worse than an absent one. The hourly rate comes from Réglages, as it
+/// would for a dossier created by hand.</para>
 /// </summary>
 public sealed class GestisoftImporter(
     IVaultStore vaults,
@@ -111,13 +113,15 @@ public sealed class GestisoftImporter(
     {
         await using var database = contexts.Create(vault.Id);
 
-        // The folder's name is a placeholder for the client, and only that. If she named the real
-        // client in avocado-tiers.csv, that one is used instead: a dossier carrying both « ANODEA »
-        // and « SARL Dupont » as clients is a carnet with a duplicate in it from the first day, and
-        // the folder name is the half we invented.
-        var named = sidecars.Tiers.Any(row => Matches(row.Dossier, candidate) && IsClient(row.Role));
+        var contacts = candidate.ContactsFile is { } list ? GestisoftContacts.Read(list) : null;
+        var parties = ImportRows.Parties(candidate, contacts, sidecars);
+        var money = ImportRows.Money(candidate, sidecars);
 
-        var client = named
+        // The folder's name is a placeholder for the client, and only that. If a real client is named,
+        // by the contacts list or by avocado-tiers.csv, that one is used instead: a dossier carrying
+        // both « ANODEA » and « SARL Dupont » as clients is a carnet with a duplicate in it from the
+        // first day, and the folder name is the half we invented.
+        var client = parties.Any(party => party.IsClient)
             ? (Guid?)null
             : await FindOrCreateClientAsync(database, candidate.Client, cancellationToken).ConfigureAwait(false);
 
@@ -125,8 +129,13 @@ public sealed class GestisoftImporter(
 
         var matter = new Matter
         {
-            Reference = await NextReferenceAsync(database, cancellationToken).ConfigureAwait(false),
-            Name = candidate.Name,
+            // Gestisoft's own number, when the export carries one. Reference is overridable precisely
+            // so that existing references carry over, and hers is the number on every facture and in
+            // every email she has already sent about the dossier.
+            Reference = await ReferenceAsync(database, candidate, contacts, cancellationToken).ConfigureAwait(false),
+            // « 700770 » is a folder name, not the name of an affaire. The contacts list heads itself
+            // with « COULEYRE / EDF ENR », which is what she would have typed.
+            Name = Named(candidate, contacts),
             // Provisional. The real dates are inside the emails and are only known once they are read,
             // so the matter is dated again at the end of this method.
             OpenedOn = today,
@@ -184,35 +193,59 @@ public sealed class GestisoftImporter(
         await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await DateFromCorrespondenceAsync(database, matter, cancellationToken).ConfigureAwait(false);
 
-        // Whatever she typed into the two spreadsheets, matched to this dossier by the folder's name.
-        await AddPartiesAsync(database, matter, candidate, sidecars, cancellationToken).ConfigureAwait(false);
-        await AddBillingAsync(database, matter, candidate, sidecars, cancellationToken).ConfigureAwait(false);
+        await AddPartiesAsync(database, matter, parties, cancellationToken).ConfigureAwait(false);
+        await AddBillingAsync(database, matter, money, cancellationToken).ConfigureAwait(false);
 
         return (files, emails);
     }
 
     /// <summary>
-    /// The parties she listed in avocado-tiers.csv, attached to this dossier as contacts.
-    ///
-    /// <para>Matched on the client folder's name, the only identifier the export and the spreadsheet
-    /// share. After a split the affaire's name is accepted too, so breaking a client into two dossiers
-    /// does not orphan the rows she typed against it.</para>
+    /// The affaire's name. The folder's, unless that is nothing but a Gestisoft number and the
+    /// contacts list heads itself with something a person wrote.
     /// </summary>
+    private static string Named(ImportCandidate candidate, ContactsList? contacts) =>
+        candidate.GestisoftCode is not null && ImportRows.Blank(contacts?.Label ?? string.Empty) is { } label
+            ? label
+            : candidate.Name;
+
+    /// <summary>
+    /// Gestisoft's number for the dossier, or the next one Avocado would have given out.
+    ///
+    /// <para>Taken from the folder's name or from the head of the contacts list, and only if nothing in
+    /// the vault carries it already: references are unique, and two dossiers exported under one number
+    /// would otherwise fail the whole import rather than the row.</para>
+    /// </summary>
+    private static async Task<string> ReferenceAsync(
+        AvocadoDbContext database,
+        ImportCandidate candidate,
+        ContactsList? contacts,
+        CancellationToken cancellationToken)
+    {
+        var code = candidate.GestisoftCode ?? ImportRows.Blank(contacts?.Code ?? string.Empty);
+
+        if (code is not null
+            && !await database.Matters
+                .AnyAsync(matter => matter.Reference == code, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return code;
+        }
+
+        return await NextReferenceAsync(database, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Writes the parties out, one contact each, reusing one already in the carnet.</summary>
     private static async Task AddPartiesAsync(
         AvocadoDbContext database,
         Matter matter,
-        ImportCandidate candidate,
-        Sidecars sidecars,
+        IReadOnlyList<ImportParty> parties,
         CancellationToken cancellationToken)
     {
-        foreach (var row in sidecars.Tiers.Where(row => Matches(row.Dossier, candidate)))
+        foreach (var row in parties)
         {
-            var organisation = row.Type.StartsWith("PM", StringComparison.OrdinalIgnoreCase)
-                || row.Type.StartsWith("mor", StringComparison.OrdinalIgnoreCase);
-
             var contact = await database.Contacts
                 .FirstOrDefaultAsync(
-                    existing => existing.LegalName == row.Nom || existing.LastName == row.Nom,
+                    existing => existing.LegalName == row.Name || existing.LastName == row.Name,
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -220,19 +253,19 @@ public sealed class GestisoftImporter(
             {
                 contact = new Contact
                 {
-                    Type = organisation ? ContactType.Organisation : ContactType.Individual,
-                    Email = Blank(row.Email),
-                    Phone = Blank(row.Telephone),
-                    Address = Blank(row.Adresse),
+                    Type = row.IsOrganisation ? ContactType.Organisation : ContactType.Individual,
+                    Email = row.Email,
+                    Phone = row.Phone,
+                    Address = row.Address,
                 };
 
-                if (organisation)
+                if (row.IsOrganisation)
                 {
-                    contact.LegalName = row.Nom;
+                    contact.LegalName = row.Name;
                 }
                 else
                 {
-                    contact.LastName = row.Nom;
+                    contact.LastName = row.Name;
                 }
 
                 database.Contacts.Add(contact);
@@ -255,8 +288,8 @@ public sealed class GestisoftImporter(
             {
                 MatterId = matter.Id,
                 ContactId = contact.Id,
-                IsClient = IsClient(row.Role),
-                Role = Blank(row.Role),
+                IsClient = row.IsClient,
+                Role = row.Role,
             });
         }
 
@@ -264,67 +297,47 @@ public sealed class GestisoftImporter(
     }
 
     /// <summary>
-    /// The invoices and movements she listed in avocado-facturation.csv.
+    /// Writes the money out: factures as invoices, everything else as a signed ledger movement.
     ///
-    /// <para>« facture » becomes an invoice, anything else a ledger movement: a débours when the type
-    /// says so, an encaissement otherwise. The amount is stored positive either way and the direction
-    /// comes from the kind, which is the rule the rest of the billing already follows and the reason a
+    /// <para>The ledger stores direction as the sign, negative for a débours advanced on the matter and
+    /// positive for money received. That is the rule the rest of the billing follows, and the reason a
     /// typo in a sign cannot turn a payment into a disbursement.</para>
     /// </summary>
     private static async Task AddBillingAsync(
         AvocadoDbContext database,
         Matter matter,
-        ImportCandidate candidate,
-        Sidecars sidecars,
+        IReadOnlyList<ImportMovement> money,
         CancellationToken cancellationToken)
     {
-        foreach (var row in sidecars.Facturation.Where(row => Matches(row.Dossier, candidate)))
+        foreach (var row in money)
         {
-            var kind = row.Type.ToLowerInvariant();
-
-            if (kind.StartsWith("fact", StringComparison.Ordinal))
+            if (row.IsInvoice)
             {
                 database.Invoices.Add(new BillingInvoice
                 {
                     MatterId = matter.Id,
                     Date = row.Date,
-                    AmountExclVatCents = Math.Abs(row.AmountCents),
-                    ExternalReference = Blank(row.Reference),
-                    IsPaid = row.Paye,
-                    PaidOn = row.Paye ? row.Date : null,
+                    AmountExclVatCents = row.AmountCents,
+                    ExternalReference = row.Reference,
+                    IsPaid = row.IsPaid,
+                    PaidOn = row.PaidOn,
                 });
 
                 continue;
             }
 
-            // The ledger stores the direction as the sign, so a débours is negative and an
-            // encaissement positive. The spreadsheet says which in words and the sign is derived from
-            // that, never read from the number: a stray minus in Excel must not turn a payment
-            // received into money advanced.
-            var disbursement = kind.Contains("bours", StringComparison.Ordinal)
-                || kind.StartsWith("deb", StringComparison.Ordinal);
-
             database.LedgerEntries.Add(new BillingLedgerEntry
             {
                 MatterId = matter.Id,
                 Date = row.Date,
-                AmountCents = disbursement ? -Math.Abs(row.AmountCents) : Math.Abs(row.AmountCents),
-                Label = Blank(row.Libelle) ?? "Repris de Gestisoft",
+                AmountCents = row.IsDisbursement ? -Math.Abs(row.AmountCents) : Math.Abs(row.AmountCents),
+                Label = row.Label,
             });
         }
 
         await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>« Client », « client », « Cliente ». Anything else is a party of some other kind.</summary>
-    private static bool IsClient(string role) =>
-        role.TrimStart().StartsWith("client", StringComparison.OrdinalIgnoreCase);
-
-    private static bool Matches(string dossier, ImportCandidate candidate) =>
-        dossier.Equals(candidate.Name, StringComparison.OrdinalIgnoreCase)
-        || dossier.Equals(candidate.Client, StringComparison.OrdinalIgnoreCase);
-
-    private static string? Blank(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     /// <summary>
     /// Dates the dossier from the correspondence it contains.
