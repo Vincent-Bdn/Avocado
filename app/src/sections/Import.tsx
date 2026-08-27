@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, FileSpreadsheet, FolderOpen, Loader2, Split } from 'lucide-react'
+import { AlertCircle, Check, FileSpreadsheet, FolderOpen, Loader2 } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
@@ -7,12 +7,14 @@ import { cn } from '../lib/utils.js'
 /**
  * Réglages → Importer depuis Gestisoft.
  *
- * <p>The export is folders: EN COURS and CLASSES, a folder per client, and no contacts, billing or
- * dates of any kind. So the import reads what is there and says what it will do before doing it,
- * because thirteen thousand files is not something anyone should start on trust.</p>
+ * <p>The export is folders, however deep she filed them, and the scan finds the dossiers by their
+ * shape. It says what it will do before doing it, because thirteen thousand files is not something
+ * anyone should start on trust.</p>
  *
- * <p>The one judgement it cannot make for her is which client folders hold several affaires. It
- * offers a guess, she answers, and the default never invents structure.</p>
+ * <p>Two things it can find beside a dossier and could not before: the contacts list Gestisoft
+ * prints, and export.xlsx. Both are shown per row, because « tiers » on a line is the difference
+ * between an evening of retyping and none, and because a row that is missing one is the row worth
+ * her looking at. Which folders hold several affaires stays her judgement, offered on every row.</p>
  */
 
 interface Candidate {
@@ -24,18 +26,17 @@ interface Candidate {
   emails: number
   bytes: number
   subfolders: number
-}
-
-interface Suggestion {
-  sourcePath: string
-  client: string
-  affaires: string[]
+  /** Gestisoft's own number for the dossier, when the folder is named after it. */
+  gestisoftCode: string | null
+  /** The « Liste des contacts » PDF found beside it, if there is one. */
+  contactsFile: string | null
+  /** export.xlsx, likewise. */
+  billingFile: string | null
 }
 
 interface Plan {
   root: string
   candidates: Candidate[]
-  splittable: Suggestion[]
   skipped: string[]
   files: number
   bytes: number
@@ -161,60 +162,17 @@ export function Import() {
               {plan.candidates.reduce((total, c) => total + c.emails, 0).toLocaleString('fr-FR')} courriels ·{' '}
               {(plan.bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go
             </div>
+            <div className="font-mono text-[12px] tnum">
+              {plan.candidates.filter((c) => c.contactsFile).length} listes de contacts ·{' '}
+              {plan.candidates.filter((c) => c.billingFile).length} exports de facturation
+            </div>
             <p className="m-0 max-w-[76ch] text-[11px] leading-[16px] text-muted">
-              Un client par dossier du même nom, l’arborescence conservée telle quelle, et chaque
-              courriel classé au journal avec ses pièces jointes. L’export ne contient ni tiers ni
-              facturation : rien ne sera inventé à leur place.
+              L’arborescence est conservée telle quelle et chaque courriel classé au journal avec ses
+              pièces jointes. Là où Gestisoft a exporté une liste de contacts ou une facturation, les
+              tiers et les factures sont repris ; ailleurs ils restent vides, et rien ne sera inventé
+              à leur place.
             </p>
           </div>
-
-          {plan.splittable.length > 0 && (
-            <div className="grid gap-2 rounded-sm border border-[#E8D5AE] bg-warning-bg px-2.5 py-2">
-              <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-warning">
-                <Split size={14} strokeWidth={2} />
-                Ces clients contiennent peut-être plusieurs affaires
-              </div>
-
-              <p className="m-0 max-w-[76ch] text-[11.5px] leading-[17px] text-warning">
-                Impossible de le deviner de façon fiable : un sous-dossier peut être une affaire à part
-                comme une simple façon de ranger. Par défaut tout reste groupé, ce qui ne perd rien.
-              </p>
-
-              {plan.splittable.map((suggestion) => (
-                <div key={suggestion.sourcePath} className="grid gap-1 border-t border-[#E8D5AE] pt-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[12px] font-medium text-warning">{suggestion.client}</span>
-                    <span className="ml-auto flex gap-1">
-                      <Choice
-                        chosen={!split.has(suggestion.sourcePath)}
-                        onClick={() =>
-                          setSplit((current) => {
-                            const next = new Set(current)
-                            next.delete(suggestion.sourcePath)
-                            return next
-                          })
-                        }
-                      >
-                        Un seul dossier
-                      </Choice>
-                      <Choice
-                        chosen={split.has(suggestion.sourcePath)}
-                        onClick={() =>
-                          setSplit((current) => new Set(current).add(suggestion.sourcePath))
-                        }
-                      >
-                        {suggestion.affaires.length} dossiers
-                      </Choice>
-                    </span>
-                  </div>
-
-                  <div className="font-mono text-[10.5px] text-warning opacity-80">
-                    {suggestion.affaires.join(' · ')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           {plan.skipped.length > 0 && (
             <ul className="m-0 grid list-none gap-0.5 p-0">
@@ -282,6 +240,27 @@ export function Import() {
                   >
                     {candidate.isOpen ? 'en cours' : 'clôturé'}
                   </span>
+                  {/* Only when found. A badge on every row would say « this one has nothing »
+                      ninety-four times, and the seven that do have something are what she is
+                      looking for. */}
+                  {candidate.contactsFile && (
+                    <span
+                      title={candidate.contactsFile}
+                      className="shrink-0 rounded-full bg-brand-subtle px-1.5 py-px font-mono text-[9.5px] leading-3 text-brand-on-subtle"
+                    >
+                      tiers
+                    </span>
+                  )}
+
+                  {candidate.billingFile && (
+                    <span
+                      title={candidate.billingFile}
+                      className="shrink-0 rounded-full bg-brand-subtle px-1.5 py-px font-mono text-[9.5px] leading-3 text-brand-on-subtle"
+                    >
+                      factu
+                    </span>
+                  )}
+
                   <span className="ml-auto shrink-0 font-mono text-[10.5px] text-muted tnum">
                     {candidate.files} doc{candidate.files > 1 ? 's' : ''}
                     {candidate.emails > 0 && ` · ${candidate.emails} courriels`}
@@ -320,27 +299,6 @@ export function Import() {
         </>
       )}
     </>
-  )
-}
-
-function Choice({ chosen, onClick, children }: {
-  chosen: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'rounded-sm border px-2 py-0.5 text-[11px] leading-4',
-        chosen
-          ? 'border-warning bg-warning text-on-brand'
-          : 'border-[#E8D5AE] text-warning hover:bg-warning-bg',
-      )}
-    >
-      {children}
-    </button>
   )
 }
 

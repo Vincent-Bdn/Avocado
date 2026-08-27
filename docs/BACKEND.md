@@ -53,8 +53,10 @@ rather start it and go home:
 Avocado.Server --import "D:\AVOCAT\Dossiers clients" --vault "C:\Users\me\Documents\Avocado"
 ```
 
-`--templates` writes the two spreadsheets and stops. `--split "ANODEA"` breaks one client folder into a
-dossier per subfolder, repeatable. `--vault` defaults to `AVOCADO_VAULT`, then to `~/Documents/Avocado`.
+`--templates` writes the two spreadsheets and stops. `--split "ANODEA"` breaks one folder into a
+dossier per subfolder, repeatable. `--archived ARCHIVES` says which folder names mean finished work,
+repeatable, defaulting to CLASSES and the handful of words people actually use. `--vault` defaults to
+`AVOCADO_VAULT`, then to `~/Documents/Avocado`.
 
 It runs migrations first, since the window normally does that at startup and a vault made by
 `avocado create` has no tables until it happens.
@@ -64,24 +66,73 @@ library alone, so `avocado backup` still works on the day the application does n
 Core, MsgReader and the whole Documents slice; the server executable already carries all of it and
 already ships beside the app.
 
+### How the dossiers are found
+
+Not by depth, and not by a fixed top level. The real export runs eight levels deep in places and one
+in others, and `EN COURS` / `CLASSES` is one practice's filing habit rather than anything Gestisoft
+does.
+
+**The shape is numbering.** A dossier is the folder whose children are its own filing: `01 Courriers`
+appears 37 times in the real export, `02 Actes` 24, while 606 of the 728 distinct folder names occur
+exactly once. So a folder whose subfolders are numbered, or carry one of the handful of names people
+write out, is a dossier; anything else is a container and is descended into. A folder with no
+subfolders at all is a flat dossier. Two leading digits, not one, because `01 Courriers` is a drawer
+and `2 RIDE` is a client. A name that is nothing but digits is not filing either: `700770` is
+Gestisoft's number for the dossier itself.
+
+**Archived is a property of the path.** A dossier anywhere under a folder named in `--archived` is
+closed. On the real export that gives 101 dossiers, 21 open and 80 closed.
+
+Where the scan gets it wrong, the screen offers a split on every row, and the import only ever splits
+the rows she asked for.
+
 ### What the export does and does not contain
 
-Folders, and nothing else. `EN COURS` and `CLASSES` at the top, one folder per client under each. No
-contacts, no billing, no dates. So:
+Folders, mostly. No dates, and contacts and billing only where Gestisoft agreed to export them,
+which on the real export is 7 dossiers out of 101. So:
 
-- The client is a contact named after the folder, unless `avocado-tiers.csv` names a real one.
-- Which of the two top folders it sits in decides open or closed.
 - Dossiers are dated **from their correspondence**, not from the filesystem. The export stamps every
   file with the moment it ran, so file times would put a decade of history on one afternoon; the
   emails carry the dates they were really sent.
 - `.msg` and `.eml` become journal entries with their attachments filed as pièces of their own.
-- Billing stays empty unless `avocado-facturation.csv` says otherwise. An invented total is worse than
+- Where a **`Liste des contacts` PDF** sits beside the dossier, every party is read from it with the
+  role Gestisoft gave it: client, interlocuteur, partie adverse, both sides' avocats, the juridiction.
+  Otherwise the client is a contact named after the folder, unless `avocado-tiers.csv` names a real
+  one.
+- Where an **`export.xlsx`** sits beside it, the factures and règlements are read from it. Otherwise
+  billing stays empty unless `avocado-facturation.csv` says otherwise. An invented total is worse than
   an absent one, because it looks like a fact.
+- Gestisoft's own number for the dossier becomes its référence, so every facture and email she has
+  already sent still matches.
+
+Both files are found by score rather than by name: how the file name begins and whether it sits in a
+folder about contacts or facturation. Matching any PDF mentioning contacts picked a letter called
+*« pas de contact connu chez EDF OA »* over the real list two folders away, and matching any
+spreadsheet claimed fourteen billing exports where seven exist.
+
+**A règlement is never recorded twice.** Gestisoft prints a facture and the payment settling it as two
+rows sharing a *pointage*: the payment settles the facture, and only a payment belonging to no facture
+becomes a ledger movement. Whether a facture is paid comes from its own *solde*, so one invoiced at
+7 581 € and part paid at 5 000 € stays open for the 2 581 € still owed.
 
 The two spreadsheets are semicolon-separated UTF-8 with a BOM, which is what a French Excel reads and
 writes without asking anything. Amounts are accepted in every shape it produces, `1 234,56 €`
 included, with the non-breaking space it uses for thousands. A row that cannot be read is named and
 the rest are kept.
+
+### Globalization is invariant, and it is not only about formatting
+
+`Directory.Build.props` sets `InvariantGlobalization`. Two consequences that both shipped as bugs:
+
+- `CultureInfo.GetCultureInfo("fr-FR")` **throws**, it does not fall back to the invariant culture.
+  Every template merge was doing exactly that. French dates and amounts are written out by hand in
+  `TemplateFields` instead.
+- `string.Normalize(NormalizationForm.FormD)` is a **no-op**. Folding accents by decomposing and
+  dropping combining marks silently stops working, so `Débit` never matched `debit` and every accented
+  money column in the billing export read as zero, without throwing or logging anything.
+
+Neither shows up on a development machine with a French locale. Both are pinned by tests, which run
+under the same setting.
 
 ---
 
