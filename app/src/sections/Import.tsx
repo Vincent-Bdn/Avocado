@@ -99,6 +99,17 @@ export function Import() {
 
     try {
       const scanned = await post<Plan>('/api/imports/scan', { root })
+
+      // The window and the server are two programs, and an installer that replaced one of them and
+      // not the other is a thing that happens. Reading an older server's answer as a tree gave
+      // « Cannot read properties of undefined », which tells her nothing she can act on.
+      if (!Array.isArray(scanned?.folders)) {
+        throw new Error(
+          'Le serveur d’Avocado ne renvoie pas ce que cet écran attend. Fermez puis rouvrez ' +
+          'Avocado ; si cela recommence, réinstallez la dernière version.',
+        )
+      }
+
       const suggested = pick(scanned.folders, (folder) => folder.suggested)
 
       // The first row is the folder she pointed at, and its path is the one the tree is written in.
@@ -386,21 +397,21 @@ const insideMark = (path: string, marks: Set<string>) =>
   [...marks].some((mark) => under(path, mark))
 
 /** Every folder path where the predicate holds, without descending into one that already matched. */
-function pick(folders: readonly Folder[], holds: (folder: Folder) => boolean): string[] {
-  return folders.flatMap((folder) =>
+function pick(folders: readonly Folder[] | undefined, holds: (folder: Folder) => boolean): string[] {
+  return (folders ?? []).flatMap((folder) =>
     holds(folder) ? [folder.path] : pick(folder.children, holds))
 }
 
 /** The folders she marked, in the order they appear in the tree. */
-function gather(folders: readonly Folder[], marks: Set<string>): Folder[] {
-  return folders.flatMap((folder) =>
+function gather(folders: readonly Folder[] | undefined, marks: Set<string>): Folder[] {
+  return (folders ?? []).flatMap((folder) =>
     marks.has(folder.path)
       ? (folder.totalFiles > 0 ? [folder] : [])
       : gather(folder.children, marks))
 }
 
-function flatten(folders: readonly Folder[]): Folder[] {
-  return folders.flatMap((folder) => [folder, ...flatten(folder.children)])
+function flatten(folders: readonly Folder[] | undefined): Folder[] {
+  return (folders ?? []).flatMap((folder) => [folder, ...flatten(folder.children)])
 }
 
 /** Every folder between the root and this one, so that unfolding them puts it on screen. */
@@ -428,7 +439,7 @@ function Tree({ folders, depth, expanded, row }: {
         <div key={folder.path}>
           {row(folder, depth)}
 
-          {expanded.has(folder.path) && folder.children.length > 0 && (
+          {expanded.has(folder.path) && (folder.children?.length ?? 0) > 0 && (
             <Tree folders={folder.children} depth={depth + 1} expanded={expanded} row={row} />
           )}
         </div>
@@ -466,7 +477,7 @@ function FolderRow({ folder, depth, marked, inside, open, onToggle, onMark }: {
         type="button"
         aria-label={open ? 'Replier' : 'Déplier'}
         onClick={onToggle}
-        disabled={folder.children.length === 0}
+        disabled={(folder.children?.length ?? 0) === 0}
         className="grid h-5 w-5 shrink-0 place-items-center rounded-[3px] hover:bg-hover disabled:opacity-0"
       >
         <ChevronRight
