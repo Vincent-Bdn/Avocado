@@ -71,6 +71,16 @@ export function Settings() {
         </Section>
 
         <Section
+          id="addresses"
+          title="Vos adresses électroniques"
+          summary="Ce qui distingue un courriel reçu d’un courriel envoyé"
+          open={open === 'addresses'}
+          onToggle={toggle}
+        >
+          <OwnAddresses />
+        </Section>
+
+        <Section
           id="backups"
           title="Sauvegarde"
           summary="Où vos dossiers sont copiés, et à quel rythme"
@@ -267,6 +277,90 @@ function Storage() {
  * The rate a new dossier starts from, and only that. It is copied onto the dossier at creation, so
  * changing it here prices tomorrow's work and leaves every hour already recorded exactly as it was.
  */
+/**
+ * Her own addresses, which is the whole of « reçu ou envoyé ».
+ *
+ * <p>Nothing in the vault used to say who she was, so every message went into the journal as reçu,
+ * 4 713 of them in the real import, including every one she had sent. There is no clever way to infer
+ * it: an earlier attempt asked whether the sender was in the carnet, which answers a different
+ * question. So it is asked, once.</p>
+ */
+function OwnAddresses() {
+  const [addresses, setAddresses] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    api<PracticeSettings>('/api/settings')
+      .then((settings) => setAddresses((settings.emailAddresses ?? []).join('\n')))
+      .catch((failure: unknown) =>
+        setError(failure instanceof ApiError ? failure.message : String(failure)),
+      )
+  }, [])
+
+  async function save() {
+    setBusy(true)
+    setError(null)
+
+    try {
+      await api('/api/settings', {
+        method: 'PUT',
+        // The rate travels with it because the endpoint takes the practice's settings whole. Reading
+        // it back first would race with her typing; sending what is on screen would need it on screen.
+        body: JSON.stringify({
+          hourlyRateCents: (await api<PracticeSettings>('/api/settings')).hourlyRateCents,
+          emailAddresses: addresses.split('\n'),
+        }),
+      })
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+        Une par ligne. Un courriel dont l’expéditeur est l’une d’elles est classé « envoyé » au
+        journal, les autres « reçu ». Sans rien ici, tout arrive en « reçu » et se corrige au coup par
+        coup.{' '}
+        <strong className="font-medium text-ink-secondary">
+          Écrivez @votre-cabinet.fr pour prendre tout le domaine d’un coup
+        </strong>{' '}
+        : c’est plus sûr que de lister vos confrères un par un, et cela vaudra encore pour le
+        prochain qui arrive.
+      </p>
+
+      <textarea
+        rows={3}
+        value={addresses}
+        aria-label="Vos adresses électroniques"
+        placeholder={'@mon-cabinet.fr\nmaitre@gmail.com'}
+        onChange={(event) => { setAddresses(event.target.value); setError(null) }}
+        className="w-full max-w-[52ch] rounded-sm border border-line-strong bg-sunken px-2 py-1.5 font-mono text-[12px] text-ink placeholder:text-muted focus-visible:border-[var(--focus-ring)]"
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={busy} onClick={() => void save()}>Enregistrer</Button>
+
+        {saved && (
+          <span className="flex items-center gap-1.5 text-[12.5px] text-success">
+            <Check size={13} strokeWidth={2.5} />
+            Enregistré
+          </span>
+        )}
+      </div>
+
+      {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+    </>
+  )
+}
+
 function HourlyRate() {
   const [rate, setRate] = useState('')
   const [saved, setSaved] = useState(false)

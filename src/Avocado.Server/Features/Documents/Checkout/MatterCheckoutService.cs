@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Avocado.Server.Data;
+using Avocado.Server.Features.Settings.Infrastructure;
 using Avocado.Server.Features.Documents.Workspace;
 using Avocado.Vault;
 using Avocado.Vault.Blobs;
@@ -479,7 +480,13 @@ public sealed class MatterCheckoutService(
     {
         var path = Path.Combine(folder, change.RelativePath.Replace('/', Path.DirectorySeparatorChar));
 
-        var attachments = await mails.RecordAsync(database, matterId, documentId, path, cancellationToken)
+        var attachments = await mails.RecordAsync(
+                database,
+                matterId,
+                documentId,
+                path,
+                cancellationToken,
+                await PracticeAddresses.ReadAsync(database, cancellationToken).ConfigureAwait(false))
             .ConfigureAwait(false);
 
         if (attachments is null)

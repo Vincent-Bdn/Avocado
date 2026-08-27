@@ -3,6 +3,7 @@ using Avocado.Server.Features.Activities;
 using Avocado.Server.Features.Activities.Enums;
 using Avocado.Server.Features.Contacts;
 using Avocado.Server.Features.Documents;
+using Avocado.Server.Features.Settings.Infrastructure;
 using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
 
@@ -28,12 +29,17 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
     /// caller can store them as documents of their own. Returns null when the file is not a message,
     /// or cannot be read as one, in which case it stays an ordinary document.
     /// </summary>
+    /// <param name="ownAddresses">
+    /// The practice's own addresses, from Réglages, read once by the caller. Given none, every message
+    /// is filed as reçu, which is what happened to all 4 713 of them before this existed.
+    /// </param>
     public async Task<IReadOnlyList<MailAttachment>?> RecordAsync(
         AvocadoDbContext database,
         Guid matterId,
         Guid documentId,
         string path,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyCollection<string>? ownAddresses = null)
     {
         if (!MailFile.LooksLikeMail(path))
         {
@@ -67,14 +73,7 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
         {
             MatterId = matterId,
             OccurredAt = mail.SentAt,
-            // Always incoming, until the practice's own address is something Avocado knows.
-            //
-            // The direction of a message is decided by whether the sender is her, and nothing in the
-            // vault records that yet. The previous attempt inferred it from whether the sender was in
-            // the carnet, which answers a different question entirely and got the same answer for
-            // every message anyway. A field that is wrong half the time and looks authoritative is
-            // worse than one that is consistently the common case and can be corrected in a click.
-            Type = ActivityType.IncomingEmail,
+            Type = Direction(mail, ownAddresses),
             ContactId = contact?.Id,
             Subject = mail.DisplayTitle,
             Body = Excerpt(mail.BodyText),
@@ -102,6 +101,25 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
     /// Enough of the body to recognise the message in a timeline. The whole thing is in the document,
     /// and a journal that renders three screens of quoted history is a journal nobody scrolls.
     /// </summary>
+    /// <summary>
+    /// Reçu or envoyé, which is decided by whether the sender is her.
+    ///
+    /// <para>Nothing in the vault used to record who she was, so every message was filed as reçu:
+    /// consistently the common case, correctable in a click, and wrong for every message she had ever
+    /// sent. An earlier attempt inferred it from whether the sender was in the carnet, which answers a
+    /// different question and gave the same answer for every message anyway.</para>
+    ///
+    /// <para>Still reçu when she has told Avocado nothing, and when the message carries no sender at
+    /// all, which happens on drafts and on some of Gestisoft's exports. Guessing in either case would
+    /// produce a field that looks authoritative and is wrong half the time.</para>
+    /// </summary>
+    private static ActivityType Direction(ParsedMail mail, IReadOnlyCollection<string>? ownAddresses) =>
+        ownAddresses is not null
+        && mail.From is { Address.Length: > 0 } sender
+        && PracticeAddresses.IsOwn(sender.Address, ownAddresses)
+            ? ActivityType.OutgoingEmail
+            : ActivityType.IncomingEmail;
+
     private static string? Excerpt(string body)
     {
         var trimmed = body.Trim();

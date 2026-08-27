@@ -1,5 +1,6 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Settings.Endpoints.Dtos;
+using Avocado.Server.Features.Settings.Infrastructure;
 using Avocado.Server.Features.Documents.Workspace;
 using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,7 @@ public static class GetSettings
 
         return Results.Ok(new PracticeInfo(
             ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents),
+            PracticeAddresses.Parse(stored.GetValueOrDefault(PracticeSettingKeys.EmailAddresses)),
             vaultStore.Get(tenant.VaultId).Paths.Root,
             // The folder she chose, not the per-vault subfolder inside it: that subfolder is an
             // implementation detail and offering it as the thing to change would be misleading.
@@ -62,11 +64,39 @@ public static class UpdateSettings
             });
         }
 
+        // Null is « the form did not send them », an empty list is « she cleared them ». The rate form
+        // sends only the rate, and conflating the two would wipe her addresses every time she changed
+        // it.
+        var addresses = input.EmailAddresses is null
+            ? null
+            : PracticeAddresses.Clean(input.EmailAddresses);
+
+        if (addresses is { Rejected.Count: > 0 })
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["settings"] =
+                [
+                    "Ceci ne ressemble pas à une adresse : "
+                    + string.Join(", ", addresses.Rejected),
+                ],
+            });
+        }
+
         await UpsertAsync(
             database,
             PracticeSettingKeys.HourlyRateCents,
             input.HourlyRateCents.ToString(),
             cancellationToken);
+
+        if (addresses is not null)
+        {
+            await UpsertAsync(
+                database,
+                PracticeSettingKeys.EmailAddresses,
+                string.Join('\n', addresses.Accepted),
+                cancellationToken);
+        }
 
         await database.SaveChangesAsync(cancellationToken);
 

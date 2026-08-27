@@ -5,6 +5,7 @@ using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Documents;
 using Avocado.Server.Features.Mails.Infrastructure;
 using Avocado.Server.Features.Matters;
+using Avocado.Server.Features.Settings.Infrastructure;
 using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
 
@@ -73,6 +74,19 @@ public sealed class GestisoftImporter(
         try
         {
             var vault = vaults.Get(Guid.Empty);
+
+            // Read once for the whole run: whether a message was sent by her cannot change while
+            // thirteen thousand files are being read, and asking per message would be 4 713 queries
+            // for one answer.
+            IReadOnlyCollection<string> ownAddresses;
+
+            await using (var settings = contexts.Create(vault.Id))
+            {
+                ownAddresses = await PracticeAddresses
+                    .ReadAsync(settings, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
             var done = 0;
             var emails = 0;
             var index = 0;
@@ -83,7 +97,8 @@ public sealed class GestisoftImporter(
 
                 Progress = Progress! with { Current = candidate.Name, DossiersDone = index };
 
-                var (files, mailsFiled) = await ImportOneAsync(vault, candidate, sidecars, warnings, cancellationToken)
+                var (files, mailsFiled) = await ImportOneAsync(
+                        vault, candidate, sidecars, ownAddresses, warnings, cancellationToken)
                     .ConfigureAwait(false);
 
                 done += files;
@@ -108,6 +123,7 @@ public sealed class GestisoftImporter(
         OpenVault vault,
         ImportCandidate candidate,
         Sidecars sidecars,
+        IReadOnlyCollection<string> ownAddresses,
         List<string> warnings,
         CancellationToken cancellationToken)
     {
@@ -165,7 +181,8 @@ public sealed class GestisoftImporter(
 
             try
             {
-                if (await ImportFileAsync(vault, database, matter.Id, candidate.SourcePath, file, cancellationToken)
+                if (await ImportFileAsync(
+                        vault, database, matter.Id, candidate.SourcePath, file, ownAddresses, cancellationToken)
                         .ConfigureAwait(false))
                 {
                     emails++;
@@ -387,6 +404,7 @@ public sealed class GestisoftImporter(
         Guid matterId,
         string root,
         string file,
+        IReadOnlyCollection<string> ownAddresses,
         CancellationToken cancellationToken)
     {
         var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
@@ -409,7 +427,8 @@ public sealed class GestisoftImporter(
         // The 4,710 .msg files in the real export are the reason this exists. Left as documents they
         // are opaque containers only Outlook opens; read, each becomes a dated journal entry and its
         // attachments become pièces of their own.
-        var attachments = await mails.RecordAsync(database, matterId, document.Id, file, cancellationToken)
+        var attachments = await mails
+            .RecordAsync(database, matterId, document.Id, file, cancellationToken, ownAddresses)
             .ConfigureAwait(false);
 
         if (attachments is null)

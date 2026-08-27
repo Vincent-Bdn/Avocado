@@ -28,4 +28,17 @@ public static class PracticeSettingKeys
 
     /// <summary>Default for a solo practice in droit des affaires, and a figure she can change.</summary>
     public const long DefaultHourlyRateCents = 24_000;
+
+    /// <summary>
+    /// Her own email addresses, one per line, lower-cased.
+    ///
+    /// <para>What decides whether a message in the journal reads « reçu » or « envoyé ». Until this
+    /// existed every imported message was filed as reçu, 4 713 of them in the real export, because the
+    /// direction of a message is whether the sender is her and nothing in the vault said who she
+    /// was.</para>
+    ///
+    /// <para>A list rather than one address, since a practice has an @cabinet and a @gmail and a
+    /// secretariat, and a message from any of them was sent by the cabinet.</para>
+    /// </summary>
+    public const string EmailAddresses = "practice.emailAddresses";
 }

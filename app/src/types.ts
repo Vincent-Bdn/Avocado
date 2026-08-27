@@ -96,6 +96,8 @@ export interface MatterDetail {
 
 export interface PracticeSettings {
   hourlyRateCents: number
+  /** Hers. What tells a courriel reçu from a courriel envoyé. */
+  emailAddresses: string[]
   vaultDirectory: string
   workingDirectory: string
   workingDirectoryIsFixed: boolean
