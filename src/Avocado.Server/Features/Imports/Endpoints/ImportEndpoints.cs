@@ -7,13 +7,22 @@ namespace Avocado.Server.Features.Imports.Endpoints;
 /// « CLASSES » is one practice's filing habit and not a standard: another says ARCHIVES, or CLOS, or
 /// nothing at all. Empty falls back to <see cref="DossierScan.DefaultArchivedWords"/>.
 /// </param>
-public sealed record ScanInput(string Root, IReadOnlyList<string>? ArchivedWords = null);
+public sealed record ScanInput(
+    string Root,
+    IReadOnlyList<string>? ArchivedWords = null,
+    IReadOnlyList<string>? Dossiers = null);
 
-/// <param name="Split">Source paths the user chose to break into one dossier per subfolder.</param>
+/// <param name="Dossiers">
+/// The folders she marked, absolute, each becoming one dossier holding everything beneath it.
+///
+/// <para>This replaced a pair of controls, one to leave a folder out and one to break it into its
+/// subfolders, and it replaced them by making both unnecessary: marking the children instead of the
+/// parent <em>is</em> the split, and marking nothing leaves it out. Null means she never chose, in
+/// which case the scan's own suggestions run.</para>
+/// </param>
 public sealed record RunInput(
     string Root,
-    IReadOnlyList<string> Split,
-    IReadOnlyList<string>? Only,
+    IReadOnlyList<string>? Dossiers = null,
     IReadOnlyList<string>? ArchivedWords = null);
 
 public static class ImportEndpoints
@@ -47,12 +56,11 @@ public static class ImportEndpoints
 
         var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
 
-        if (plan.Candidates.Count == 0)
+        if (plan.Files == 0)
         {
             return Results.Problem(
                 title: "Rien à importer",
-                detail: "Aucun dossier n'a été reconnu ici. Choisissez le dossier qui contient vos " +
-                        "dossiers clients, même s'ils sont rangés sur plusieurs niveaux.",
+                detail: "Ce dossier ne contient aucun fichier, à aucun niveau.",
                 statusCode: StatusCodes.Status400BadRequest,
                 extensions: new Dictionary<string, object?> { ["code"] = "not-an-export" });
         }
@@ -79,7 +87,8 @@ public static class ImportEndpoints
         }
 
         var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
-        var written = ImportSidecars.WriteTemplates(input.Root, plan.Candidates);
+        var written = ImportSidecars.WriteTemplates(
+            input.Root, DossierScan.Candidates(plan, input.Dossiers));
 
         return Results.Ok(new
         {
@@ -113,28 +122,15 @@ public static class ImportEndpoints
         }
 
         var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
-        var split = new HashSet<string>(input.Split ?? [], StringComparer.OrdinalIgnoreCase);
-        var only = input.Only is { Count: > 0 } chosen
-            ? new HashSet<string>(chosen, StringComparer.OrdinalIgnoreCase)
-            : null;
+        var candidates = DossierScan.Candidates(plan, input.Dossiers);
 
-        var candidates = new List<ImportCandidate>();
-
-        foreach (var candidate in plan.Candidates)
+        if (candidates.Count == 0)
         {
-            if (only is not null && !only.Contains(candidate.SourcePath))
-            {
-                continue;
-            }
-
-            if (split.Contains(candidate.SourcePath))
-            {
-                candidates.AddRange(DossierScan.Split(candidate, cancellationToken));
-            }
-            else
-            {
-                candidates.Add(candidate);
-            }
+            return Results.Problem(
+                title: "Aucun dossier sélectionné",
+                detail: "Marquez au moins un dossier avant de lancer l'import.",
+                statusCode: StatusCodes.Status400BadRequest,
+                extensions: new Dictionary<string, object?> { ["code"] = "nothing-chosen" });
         }
 
         // Not the request's cancellation token: that one is cancelled the moment this returns, which

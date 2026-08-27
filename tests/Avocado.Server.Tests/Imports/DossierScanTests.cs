@@ -6,6 +6,9 @@ namespace Avocado.Server.Tests.Imports;
 /// <summary>
 /// Finding the dossiers in somebody's filing. Every case here is one that occurs in the real export,
 /// which is the only reason to believe the rule generalises at all.
+///
+/// <para>The suggestion is now a starting point rather than a verdict, so most of these check what the
+/// screen arrives marked with. The ones at the bottom check what happens when she disagrees.</para>
 /// </summary>
 public class DossierScanTests : IDisposable
 {
@@ -20,7 +23,16 @@ public class DossierScanTests : IDisposable
         System.IO.File.WriteAllText(path, "x");
     }
 
-    private IReadOnlyList<ImportCandidate> Scan() => DossierScan.Read(_root).Candidates;
+    /// <summary>What the screen would arrive marked with, nobody having said anything yet.</summary>
+    private IReadOnlyList<ImportCandidate> Scan()
+    {
+        var plan = DossierScan.Read(_root);
+
+        return DossierScan.Candidates(plan);
+    }
+
+    private string At(string relative) =>
+        Path.Combine(_root, relative.Replace('/', Path.DirectorySeparatorChar));
 
     /// <summary>A client folder holding only files is one dossier. Forty of hers look like this.</summary>
     [Fact]
@@ -103,8 +115,8 @@ public class DossierScanTests : IDisposable
     {
         File_("ARCHIVES 2019/DUPONT/a.pdf");
 
-        Assert.True(Assert.Single(DossierScan.Read(_root, ["classes"]).Candidates).IsOpen);
-        Assert.False(Assert.Single(DossierScan.Read(_root, ["archives 2019"]).Candidates).IsOpen);
+        Assert.True(Assert.Single(DossierScan.Candidates(DossierScan.Read(_root, ["classes"]))).IsOpen);
+        Assert.False(Assert.Single(DossierScan.Candidates(DossierScan.Read(_root, ["archives 2019"]))).IsOpen);
     }
 
     /// <summary>
@@ -154,12 +166,32 @@ public class DossierScanTests : IDisposable
     /// a root full of loose files would otherwise look like.
     /// </summary>
     [Fact]
-    public void TheRootItselfIsNeverADossier()
+    public void TheRootItselfIsNeverSuggested()
     {
         File_("EN COURS/VATEL/a.pdf");
         System.IO.File.WriteAllText(Path.Combine(_root, "lisez-moi.txt"), "x");
 
-        Assert.Single(Scan());
+        var plan = DossierScan.Read(_root);
+
+        Assert.False(Assert.Single(plan.Folders).Suggested);
+        Assert.Equal("VATEL", Assert.Single(DossierScan.Candidates(plan)).Name);
+
+        // And the readme lying beside it is reported rather than quietly left out.
+        Assert.Equal(1, DossierScan.Orphans(plan, DossierScan.Candidates(plan)));
+    }
+
+    /// <summary>Pointing at one dossier to import just that one, which the old scan could not do.</summary>
+    [Fact]
+    public void TheRootCanBeMarkedLikeAnyOtherFolder()
+    {
+        File_("Tcom/Conclusions adv/b.pdf");
+        System.IO.File.WriteAllText(Path.Combine(_root, "note.pdf"), "x");
+
+        var plan = DossierScan.Read(_root);
+        var dossier = Assert.Single(DossierScan.Candidates(plan, [_root]));
+
+        Assert.Equal(2, dossier.Files);
+        Assert.Equal(0, DossierScan.Orphans(plan, [dossier]));
     }
 
     /// <summary>
@@ -210,6 +242,157 @@ public class DossierScanTests : IDisposable
 
         Assert.Equal(3, dossier.Files);
         Assert.Equal(2, dossier.Emails);
+    }
+
+    /// <summary>
+    /// CHANTERACOISE, and the reason the scan stopped being the last word.
+    ///
+    /// <para>It keeps CA, MED and Tcom. None of those reads as filing, so the scan walks past and
+    /// offers the leaves: « Assignation et nos conclusions » with three documents, « Conclusions adv »
+    /// with two. They are one affaire, and nothing about the shape of the tree says so.</para>
+    /// </summary>
+    [Fact]
+    public void SuggestsTheLeavesWhereNothingLooksLikeFiling()
+    {
+        File_("CLASSES/CHANTERACOISE/Tcom/Assignation et nos conclusions/a.pdf");
+        File_("CLASSES/CHANTERACOISE/Tcom/Conclusions adv/b.pdf");
+        File_("CLASSES/CHANTERACOISE/MED/c.pdf");
+
+        Assert.Equal(
+            ["Assignation et nos conclusions", "Conclusions adv", "MED"],
+            Scan().Select(dossier => dossier.Name).Order().ToList());
+    }
+
+    /// <summary>And she says no, the dossier is CHANTERACOISE, which takes everything below it.</summary>
+    [Fact]
+    public void MarkingAFolderTakesEverythingUnderneath()
+    {
+        File_("CLASSES/CHANTERACOISE/Tcom/Assignation et nos conclusions/a.pdf");
+        File_("CLASSES/CHANTERACOISE/Tcom/Conclusions adv/b.pdf");
+        File_("CLASSES/CHANTERACOISE/MED/c.pdf");
+
+        var plan = DossierScan.Read(_root);
+        var dossier = Assert.Single(DossierScan.Candidates(plan, [At("CLASSES/CHANTERACOISE")]));
+
+        Assert.Equal("CHANTERACOISE", dossier.Name);
+        Assert.Equal(3, dossier.Files);
+        Assert.False(dossier.IsOpen);
+    }
+
+    /// <summary>
+    /// The files sitting loose in a folder the scan walked past.
+    ///
+    /// <para>Six of them in CHANTERACOISE, one in Tcom, 81 across the real export, and every one was
+    /// imported nowhere and reported nowhere. A count that says so is the whole fix; marking the
+    /// folder above is what she does about it.</para>
+    /// </summary>
+    [Fact]
+    public void CountsTheFilesNoChosenDossierWouldTake()
+    {
+        File_("CLASSES/CHANTERACOISE/loose one.pdf");
+        File_("CLASSES/CHANTERACOISE/loose two.pdf");
+        File_("CLASSES/CHANTERACOISE/Tcom/Conclusions adv/b.pdf");
+
+        var plan = DossierScan.Read(_root);
+
+        Assert.Equal(2, DossierScan.Orphans(plan, DossierScan.Candidates(plan)));
+        Assert.Equal(0, DossierScan.Orphans(plan, DossierScan.Candidates(plan, [At("CLASSES/CHANTERACOISE")])));
+    }
+
+    /// <summary>
+    /// A dossier inside a dossier would import the same files twice, and a duplicate is the kind of
+    /// thing found a year later. The parent wins, since marking it is what said the child belongs to
+    /// it.
+    /// </summary>
+    [Fact]
+    public void DropsAMarkThatSitsInsideAnotherMark()
+    {
+        File_("CLASSES/CHANTERACOISE/Tcom/Conclusions adv/b.pdf");
+
+        var plan = DossierScan.Read(_root);
+
+        var dossier = Assert.Single(DossierScan.Candidates(
+            plan,
+            [At("CLASSES/CHANTERACOISE"), At("CLASSES/CHANTERACOISE/Tcom/Conclusions adv")]));
+
+        Assert.Equal("CHANTERACOISE", dossier.Name);
+        Assert.Equal(1, dossier.Files);
+    }
+
+    /// <summary>
+    /// Marking nothing is not the same as never having chosen. Running the suggestions because she had
+    /// emptied the list would import a hundred dossiers she had just said no to.
+    /// </summary>
+    [Fact]
+    public void MarkingNothingImportsNothing()
+    {
+        File_("EN COURS/VATEL/a.pdf");
+
+        var plan = DossierScan.Read(_root);
+
+        Assert.Single(DossierScan.Candidates(plan, chosen: null));
+        Assert.Empty(DossierScan.Candidates(plan, []));
+    }
+
+    /// <summary>
+    /// The whole tree is returned, containers included, because she cannot mark a folder the screen
+    /// never showed her. Counts carry up so a container says what marking it would take.
+    /// </summary>
+    [Fact]
+    public void ReturnsTheContainersTooWithTheirTotals()
+    {
+        File_("CLASSES/CHANTERACOISE/Tcom/Assignation et nos conclusions/a.pdf");
+        File_("CLASSES/CHANTERACOISE/Tcom/Conclusions adv/b.pdf");
+        File_("CLASSES/CHANTERACOISE/loose.pdf");
+
+        // The folder she pointed at is the first row, and CLASSES sits under it.
+        var top = Assert.Single(DossierScan.Read(_root).Folders);
+        var classes = Assert.Single(top.Children);
+        var chanteracoise = Assert.Single(classes.Children);
+        var tcom = Assert.Single(chanteracoise.Children);
+
+        Assert.Equal("CLASSES", classes.Name);
+        Assert.Equal(3, classes.TotalFiles);
+
+        Assert.Equal(1, chanteracoise.Files);
+        Assert.Equal(3, chanteracoise.TotalFiles);
+        Assert.False(chanteracoise.Suggested);
+
+        Assert.Equal(0, tcom.Files);
+        Assert.Equal(2, tcom.TotalFiles);
+    }
+
+    /// <summary>She has hundreds of empty folders and none of them is a row worth reading.</summary>
+    [Fact]
+    public void LeavesOutFoldersThatHoldNothingAnywhere()
+    {
+        File_("EN COURS/VATEL/a.pdf");
+        Directory.CreateDirectory(At("EN COURS/VATEL/Vide"));
+        Directory.CreateDirectory(At("EN COURS/Rien du tout/Vide aussi"));
+
+        var section = Assert.Single(Assert.Single(DossierScan.Read(_root).Folders).Children);
+
+        Assert.Equal("EN COURS", section.Name);
+        Assert.Equal("VATEL", Assert.Single(section.Children).Name);
+        Assert.Empty(Assert.Single(section.Children).Children);
+    }
+
+    /// <summary>
+    /// The contacts list sits in a folder beside the dossier, so marking the dossier has to find it
+    /// however deep it was filed.
+    /// </summary>
+    [Fact]
+    public void CarriesTheGestisoftExportsUpToWhicheverFolderIsMarked()
+    {
+        File_("CLASSES/CHANTERACOISE/Tcom/Contacts et factu/contacts.PDF");
+        File_("CLASSES/CHANTERACOISE/Tcom/Contacts et factu/export.xlsx");
+        File_("CLASSES/CHANTERACOISE/loose.pdf");
+
+        var plan = DossierScan.Read(_root);
+        var dossier = Assert.Single(DossierScan.Candidates(plan, [At("CLASSES/CHANTERACOISE")]));
+
+        Assert.EndsWith("contacts.PDF", dossier.ContactsFile);
+        Assert.EndsWith("export.xlsx", dossier.BillingFile);
     }
 
     public void Dispose()

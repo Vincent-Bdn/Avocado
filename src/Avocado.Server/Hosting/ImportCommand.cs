@@ -22,7 +22,7 @@ namespace Avocado.Server.Hosting;
 /// <code>
 /// Avocado.Server --import "D:\AVOCAT\Dossiers clients" --vault "C:\Users\me\Documents\Avocado"
 /// Avocado.Server --import "D:\..." --vault "C:\..." --templates      writes the two spreadsheets
-/// Avocado.Server --import "D:\..." --vault "C:\..." --split "ANODEA" --split "DLT GROUP"
+/// Avocado.Server --import "D:\..." --vault "C:\..." --dossier "D:\...\CLASSES\CHANTERACOISE"
 /// Avocado.Server --import "D:\..." --vault "C:\..." --archived ARCHIVES --archived CLOS
 /// </code>
 /// </summary>
@@ -41,42 +41,31 @@ public static class ImportCommand
         {
             return Fail(
                 "Usage: Avocado.Server --import <dossier exporté> [--vault <coffre>] [--templates] " +
-                "[--split <nom>] [--archived <mot>]");
+                "[--dossier <chemin>] [--archived <mot>]");
         }
 
         // « CLASSES » is one practice's word for finished work, not a standard, so the caller can say
         // what hers is. Nothing given falls back to the handful people actually use.
         var plan = DossierScan.Read(root, Values(args, "--archived"));
 
-        if (plan.Candidates.Count == 0)
+        // Nothing named means the scan's own suggestions, which is what the screen starts from too.
+        var named = Values(args, "--dossier");
+        var candidates = DossierScan.Candidates(plan, named.Count > 0 ? named : null);
+
+        if (candidates.Count == 0)
         {
             return Fail($"Aucun dossier reconnu dans « {root} ».");
         }
 
         if (args.Contains("--templates", StringComparer.Ordinal))
         {
-            foreach (var file in ImportSidecars.WriteTemplates(root, plan.Candidates))
+            foreach (var file in ImportSidecars.WriteTemplates(root, candidates))
             {
                 Console.WriteLine($"Écrit  {file}");
             }
 
-            Console.WriteLine($"{plan.Candidates.Count} dossiers. Remplissez ce qui vous intéresse, puis relancez sans --templates.");
+            Console.WriteLine($"{candidates.Count} dossiers. Remplissez ce qui vous intéresse, puis relancez sans --templates.");
             return 0;
-        }
-
-        var split = Values(args, "--split");
-        var candidates = new List<ImportCandidate>();
-
-        foreach (var candidate in plan.Candidates)
-        {
-            if (split.Any(name => name.Equals(candidate.Name, StringComparison.OrdinalIgnoreCase)))
-            {
-                candidates.AddRange(DossierScan.Split(candidate));
-            }
-            else
-            {
-                candidates.Add(candidate);
-            }
         }
 
         var sidecars = ImportSidecars.Read(root);
@@ -86,6 +75,15 @@ public static class ImportCommand
         Console.WriteLine(
             $"À importer  {candidates.Count} dossiers, {candidates.Sum(c => c.Files):N0} documents, " +
             $"{candidates.Sum(c => c.Emails):N0} courriels, {candidates.Sum(c => c.Bytes) / 1e9:N1} Go");
+
+        // Files under the root that no chosen dossier takes. Said out loud, because the old scan
+        // dropped 81 of them without a word.
+        if (DossierScan.Orphans(plan, candidates) is > 0 and var orphans)
+        {
+            Console.WriteLine(
+                $"Hors dossier  {orphans:N0} fichiers ne seront pas importés, faute d'être sous " +
+                "l'un des dossiers retenus.");
+        }
 
         if (sidecars.Tiers.Count > 0 || sidecars.Facturation.Count > 0)
         {

@@ -53,10 +53,11 @@ rather start it and go home:
 Avocado.Server --import "D:\AVOCAT\Dossiers clients" --vault "C:\Users\me\Documents\Avocado"
 ```
 
-`--templates` writes the two spreadsheets and stops. `--split "ANODEA"` breaks one folder into a
-dossier per subfolder, repeatable. `--archived ARCHIVES` says which folder names mean finished work,
-repeatable, defaulting to CLASSES and the handful of words people actually use. `--vault` defaults to
-`AVOCADO_VAULT`, then to `~/Documents/Avocado`.
+`--templates` writes the two spreadsheets and stops. `--dossier "D:\...\CLASSES\CHANTERACOISE"` says
+that one folder is a dossier, repeatable, and given none the scan's own suggestions run.
+`--archived ARCHIVES` says which folder names mean finished work, repeatable, defaulting to CLASSES and
+the handful of words people actually use. `--vault` defaults to `AVOCADO_VAULT`, then to
+`~/Documents/Avocado`.
 
 It runs migrations first, since the window normally does that at startup and a vault made by
 `avocado create` has no tables until it happens.
@@ -66,25 +67,33 @@ library alone, so `avocado backup` still works on the day the application does n
 Core, MsgReader and the whole Documents slice; the server executable already carries all of it and
 already ships beside the app.
 
-### How the dossiers are found
+### Which folders are dossiers
 
-Not by depth, and not by a fixed top level. The real export runs eight levels deep in places and one
-in others, and `EN COURS` / `CLASSES` is one practice's filing habit rather than anything Gestisoft
-does.
+**She says.** The scan reads the whole tree, marks what it would have chosen, and the marks are a
+starting point. Marking a folder makes it one dossier holding everything beneath it, so choosing the
+children instead of the parent is the split and choosing nothing leaves it out. Those two gestures
+replaced a pair of controls that did the same job worse.
 
-**The shape is numbering.** A dossier is the folder whose children are its own filing: `01 Courriers`
-appears 37 times in the real export, `02 Actes` 24, while 606 of the 728 distinct folder names occur
-exactly once. So a folder whose subfolders are numbered, or carry one of the handful of names people
-write out, is a dossier; anything else is a container and is descended into. A folder with no
-subfolders at all is a flat dossier. Two leading digits, not one, because `01 Courriers` is a drawer
-and `2 RIDE` is a client. A name that is nothing but digits is not filing either: `700770` is
-Gestisoft's number for the dossier itself.
+The suggestion is still the same rule and it is still right about most of a real export: a dossier is
+the folder whose children are its own filing. `01 Courriers` appears 37 times, `02 Actes` 24, while 606
+of the 728 distinct folder names occur exactly once. Two leading digits and not one, because
+`01 Courriers` is a drawer and `2 RIDE` is a client; a name that is nothing but digits is not filing
+either, since `700770` is Gestisoft's number for the dossier itself.
+
+**Where it is wrong it is wrong invisibly, which is why it stopped deciding.** CHANTERACOISE keeps CA,
+MED and Tcom. None of those reads as filing, so the scan walked past it and offered the leaves:
+« Assignation et nos conclusions » with three documents and « Conclusions adv » with two, five bogus
+dossiers where there is one affaire. Nothing on screen said whose they were. Worse, the six files
+sitting loose in CHANTERACOISE belonged to no candidate at all, and would have been dropped without a
+word: **81 files across the real export**, which is why the count of what no chosen dossier takes is
+now on screen and in the CLI's output.
+
+The folder she points at is itself a row, and markable. Pointing at one dossier to import just that one
+is a thing people do, and files lying loose in it were otherwise counted nowhere.
 
 **Archived is a property of the path.** A dossier anywhere under a folder named in `--archived` is
-closed. On the real export that gives 101 dossiers, 21 open and 80 closed.
-
-Where the scan gets it wrong, the screen offers a split on every row, and the import only ever splits
-the rows she asked for.
+closed. On the real export the suggestion gives 101 dossiers, 21 open and 80 closed, from a tree of
+1 071 folders.
 
 ### What the export does and does not contain
 

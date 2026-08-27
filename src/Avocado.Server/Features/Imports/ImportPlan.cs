@@ -1,17 +1,49 @@
 namespace Avocado.Server.Features.Imports;
 
+/// <param name="Path">Absolute, and the identity of the row: what the screen sends back when she marks it.</param>
+/// <param name="Client">
+/// Whose affaire this is, read from the shape of the tree: the folder's own name near the top, the
+/// name of the folder above it further down. Overridden by the contacts list wherever there is one.
+/// </param>
+/// <param name="Files">Directly inside this folder, nowhere else. The number that says whether marking
+/// the parent instead of the children would leave anything behind.</param>
+/// <param name="TotalFiles">Everything underneath, which is what gets imported if this is a dossier.</param>
+/// <param name="Suggested">
+/// What the scan would have chosen on its own. A starting point for the marks and nothing more: the
+/// shape of a folder tree does not always say where one affaire ends and the next begins.
+/// </param>
+public sealed record ImportFolder(
+    string Path,
+    string Name,
+    string Client,
+    bool IsOpen,
+    int Files,
+    int Emails,
+    int TotalFiles,
+    int TotalEmails,
+    long TotalBytes,
+    bool Suggested,
+    string? GestisoftCode,
+    string? ContactsFile,
+    string? BillingFile,
+    IReadOnlyList<ImportFolder> Children);
+
+/// <param name="Folders">The source tree, in full, for her to walk and mark.</param>
+public sealed record ImportPlan(
+    string Root,
+    IReadOnlyList<ImportFolder> Folders,
+    IReadOnlyList<string> Skipped)
+{
+    public int Files => Folders.Sum(folder => folder.TotalFiles);
+    public long Bytes => Folders.Sum(folder => folder.TotalBytes);
+}
+
 /// <param name="SourcePath">Absolute, so the run does not have to re-derive it and cannot drift.</param>
-/// <param name="Client">The client's name, taken from the folder. The only name the export gives us.</param>
-/// <param name="Name">What the dossier will be called. The client, or the affaire under it.</param>
-/// <param name="IsOpen">EN COURS or CLASSES, which is the one piece of state the export does carry.</param>
+/// <param name="Client">The client's name, from the tree or from the contacts list.</param>
+/// <param name="Name">What the dossier will be called.</param>
+/// <param name="IsOpen">Decided by the path: a folder under CLASSES holds finished work.</param>
 /// <param name="Files">How many documents will be created, emails included.</param>
 /// <param name="Emails">Of which .msg or .eml, which become journal entries rather than plain files.</param>
-/// <param name="Subfolders">
-/// How many directories sit at the top of it, so the screen can offer a split on any client rather
-/// than only the ones guessed at. JH TRANSPORT is 5,215 files across six affaires and is not
-/// suggested, because one of the six is named « 700119 » and a leading digit reads as a filing
-/// scheme. The suggestion is a hint; the choice belongs on every row.
-/// </param>
 /// <param name="GestisoftCode">« 700770 », when the folder is named after it. The one identifier the
 /// folder, the contacts list and the billing export all share.</param>
 /// <param name="ContactsFile">A contacts PDF found inside, if Gestisoft managed to export one.</param>
@@ -28,12 +60,3 @@ public sealed record ImportCandidate(
     string? GestisoftCode = null,
     string? ContactsFile = null,
     string? BillingFile = null);
-
-public sealed record ImportPlan(
-    string Root,
-    IReadOnlyList<ImportCandidate> Candidates,
-    IReadOnlyList<string> Skipped)
-{
-    public int Files => Candidates.Sum(candidate => candidate.Files);
-    public long Bytes => Candidates.Sum(candidate => candidate.Bytes);
-}

@@ -3,32 +3,31 @@ using Avocado.Server.Features.Mails.Infrastructure;
 namespace Avocado.Server.Features.Imports.Infrastructure;
 
 /// <summary>
-/// Finds the dossiers in a folder tree, wherever they happen to sit.
+/// Reads a folder tree so that somebody can say which folders are dossiers.
 ///
-/// <para>The first version expected EN COURS and CLASSES at the top and one folder per client under
-/// each. That is not Gestisoft's doing, it is how one practice filed things, and building it into the
-/// scanner made the importer useless to anyone who filed differently. This walks whatever it is given
-/// and recognises dossiers by their shape.</para>
+/// <para><b>It used to decide, and deciding is what went wrong.</b> The rule was a good one, a dossier
+/// is the folder whose children are its own filing, and it is right for most of a real export. Where
+/// it is wrong it is wrong invisibly. CHANTERACOISE keeps CA, MED and Tcom, none of which reads as
+/// filing, so the scan walked past it and offered « Assignation et nos conclusions » and
+/// « Conclusions adv » as two separate affaires with three and two documents in them. Nothing on the
+/// screen said which client they came from, and there was no way to say « no, the dossier is
+/// CHANTERACOISE ». Worse: the six files sitting loose in CHANTERACOISE itself belonged to no
+/// candidate at all and would have been dropped in silence, 81 files across the real export.</para>
 ///
-/// <para><b>The shape is numbering.</b> A dossier is the folder whose children are its own filing:
-/// « 01 Courriers » appears 37 times in the real export, « 02 Actes » 24, « 04 Réception de pièces »
-/// 18. Affaire names, by contrast, are unique, 606 of the 728 distinct folder names in that export
-/// occur exactly once. So a folder whose subfolders are numbered, or carry one of the handful of
-/// names people use for filing, is a dossier; anything else is a container and is descended into. A
-/// folder with no subfolders at all is a flat dossier.</para>
+/// <para>So this returns the tree with its counts, and marks what it would have chosen. The choice
+/// belongs to the person who knows what the affaires were. Marking a folder takes everything below it,
+/// which is also what replaced the old split-a-client control: choosing the children instead of the
+/// parent <em>is</em> the split.</para>
 ///
-/// <para>Depth cannot be the rule, tempting as « last but one » sounds: that tree runs eight levels
-/// deep in places and one level in others.</para>
-///
-/// <para><b>Archived is a property of the path, not of the structure.</b> A dossier filed anywhere
-/// under a folder called CLASSES is closed. The words are configurable because they are somebody's
-/// filing habit rather than a standard, and getting them wrong should be a setting rather than a
-/// rebuild.</para>
+/// <para><b>Archived is a property of the path.</b> A folder anywhere under one called CLASSES holds
+/// finished work. The words are configurable because they are somebody's filing habit rather than a
+/// standard, and getting them wrong should be a setting rather than a rebuild.</para>
 /// </summary>
 public static class DossierScan
 {
     /// <summary>What a folder is called when it holds finished work. Hers says CLASSES.</summary>
-    public static readonly string[] DefaultArchivedWords = ["classes", "classés", "classes", "archives", "archivés", "clos", "cloturés", "clôturés"];
+    public static readonly string[] DefaultArchivedWords =
+        ["classes", "classés", "archives", "archivés", "clos", "cloturés", "clôturés"];
 
     /// <summary>
     /// Folder names that mean « this is how one dossier is organised », rather than naming an affaire.
@@ -48,24 +47,106 @@ public static class DossierScan
         CancellationToken cancellationToken = default)
     {
         var words = archivedWords is { Count: > 0 } ? archivedWords : DefaultArchivedWords;
-        var candidates = new List<ImportCandidate>();
+        var full = Path.GetFullPath(root);
         var skipped = new List<string>();
 
-        Walk(Path.GetFullPath(root), Path.GetFullPath(root), null, 0, words, candidates, skipped, cancellationToken);
+        var tree = Walk(full, full, null, 0, words, skipped, cancellationToken);
 
-        return new ImportPlan(
-            root,
-            candidates.OrderBy(candidate => candidate.SourcePath, StringComparer.CurrentCulture).ToList(),
-            skipped);
+        // The folder she pointed at is a row like any other, and markable like any other. It used to be
+        // held back, on the grounds that nobody means to import their whole archive as one matter, and
+        // that was right while the scan decided on its own. Now that she marks them, holding it back
+        // only hid things: files lying loose in the folder she chose were counted nowhere and imported
+        // nowhere, and pointing at a single dossier to import just that one was impossible.
+        return new ImportPlan(root, tree is null ? [] : [Project(tree)], skipped);
     }
 
-    private static void Walk(
+    /// <summary>
+    /// The dossiers to import: the folders she marked, or what the scan suggested if she marked
+    /// nothing.
+    ///
+    /// <para>Pure, because the tree already carries every number an import needs. Nothing is read from
+    /// disk twice, and what she saw on screen is exactly what runs.</para>
+    ///
+    /// <para>A dossier inside a dossier is dropped rather than refused. Marking a parent takes
+    /// everything below it, so a child left marked would import its files a second time, and a
+    /// duplicate is the kind of thing found a year later.</para>
+    /// </summary>
+    public static IReadOnlyList<ImportCandidate> Candidates(
+        ImportPlan plan,
+        IReadOnlyList<string>? chosen = null)
+    {
+        // Null is « she has not chosen », an empty list is « she chose nothing ». Not the same thing,
+        // and conflating them would run a whole import she had just emptied.
+        var marks = chosen is null ? null : new HashSet<string>(chosen, StringComparer.OrdinalIgnoreCase);
+
+        var candidates = new List<ImportCandidate>();
+
+        void Gather(ImportFolder folder)
+        {
+            if (marks is null ? folder.Suggested : marks.Contains(folder.Path))
+            {
+                if (folder.TotalFiles > 0)
+                {
+                    candidates.Add(new ImportCandidate(
+                        folder.Path,
+                        folder.Client,
+                        folder.Name,
+                        folder.IsOpen,
+                        folder.TotalFiles,
+                        folder.TotalEmails,
+                        folder.TotalBytes,
+                        folder.Children.Count,
+                        folder.GestisoftCode,
+                        folder.ContactsFile,
+                        folder.BillingFile));
+                }
+
+                // Everything below belongs to this one now.
+                return;
+            }
+
+            foreach (var child in folder.Children)
+            {
+                Gather(child);
+            }
+        }
+
+        foreach (var folder in plan.Folders)
+        {
+            Gather(folder);
+        }
+
+        return candidates;
+    }
+
+    /// <summary>Files under the root that no marked folder would take. Zero is the goal, not a given.</summary>
+    public static int Orphans(ImportPlan plan, IReadOnlyList<ImportCandidate> candidates) =>
+        plan.Files - candidates.Sum(candidate => candidate.Files);
+
+    private sealed class Node
+    {
+        public required string Path;
+        public required string Name;
+        public required string Client;
+        public required bool IsOpen;
+        public required bool Suggested;
+        public int Files;
+        public int Emails;
+        public long Bytes;
+        public int TotalFiles;
+        public int TotalEmails;
+        public long TotalBytes;
+        public (string Path, int Score)? Contacts;
+        public (string Path, int Score)? Billing;
+        public List<Node> Children = [];
+    }
+
+    private static Node? Walk(
         string folder,
         string root,
         string? client,
         int depth,
         IReadOnlyList<string> archivedWords,
-        List<ImportCandidate> candidates,
         List<string> skipped,
         CancellationToken cancellationToken)
     {
@@ -75,48 +156,65 @@ public static class DossierScan
 
         try
         {
-            subfolders = Directory.EnumerateDirectories(folder).ToList();
+            subfolders = Directory.EnumerateDirectories(folder)
+                .OrderBy(Path.GetFileName, StringComparer.CurrentCulture)
+                .ToList();
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             skipped.Add($"« {Path.GetFileName(folder)} » n'a pas pu être lu : {exception.Message}");
-            return;
+            return null;
         }
 
-        // The root itself is never a dossier, however it is shaped: someone pointing at their whole
-        // archive would otherwise import it as one matter containing everything.
-        var atRoot = string.Equals(folder, root, StringComparison.OrdinalIgnoreCase);
+        var name = Path.GetFileName(folder) is { Length: > 0 } own ? own : folder;
 
-        if (!atRoot && IsDossier(subfolders))
+        // The root and the section beneath it, EN COURS or CLASSES, name nobody; the level below that
+        // is the client. Working it out on the way down is what stops « EN COURS » from becoming a
+        // client with thirteen affaires under it.
+        var childClient = depth < 2 ? null : client ?? name;
+
+        var node = new Node
         {
-            var candidate = Describe(folder, root, client, archivedWords, subfolders.Count, cancellationToken);
-
-            if (candidate.Files == 0)
-            {
-                skipped.Add($"« {candidate.Name} » ne contient aucun fichier.");
-            }
-            else
-            {
-                candidates.Add(candidate);
-            }
-
-            return;
-        }
-
-        // This folder is not a dossier, so it is a level of filing, and which level decides what it
-        // means. The root and the section beneath it, EN COURS or CLASSES, name nobody; the level
-        // below that is the client. Working it out here, on the way down, is what stops « EN COURS »
-        // from becoming a client with thirteen affaires under it.
-        var childClient = depth < 2 ? null : client ?? Path.GetFileName(folder);
+            Path = folder,
+            Name = name,
+            Client = client ?? name,
+            IsOpen = !IsArchived(folder, root, archivedWords),
+            Suggested = depth > 0 && IsDossier(subfolders),
+        };
 
         foreach (var subfolder in subfolders)
         {
-            Walk(subfolder, root, childClient, depth + 1, archivedWords, candidates, skipped, cancellationToken);
+            if (Walk(subfolder, root, childClient, depth + 1, archivedWords, skipped, cancellationToken)
+                is { } child)
+            {
+                node.Children.Add(child);
+            }
         }
+
+        Measure(node, cancellationToken);
+
+        node.TotalFiles = node.Files + node.Children.Sum(child => child.TotalFiles);
+        node.TotalEmails = node.Emails + node.Children.Sum(child => child.TotalEmails);
+        node.TotalBytes = node.Bytes + node.Children.Sum(child => child.TotalBytes);
+
+        // The best sidecar anywhere below, carried up one level at a time. She files them in a folder
+        // beside the dossier, so the dossier is where they have to arrive.
+        foreach (var child in node.Children)
+        {
+            if (Better(child.Contacts, node.Contacts)) node.Contacts = child.Contacts;
+            if (Better(child.Billing, node.Billing)) node.Billing = child.Billing;
+        }
+
+        // A folder with nothing in it and nothing below is not a row worth showing. She has hundreds.
+        return node.TotalFiles == 0 && depth > 0 ? null : node;
     }
 
+    private static bool Better((string Path, int Score)? candidate, (string Path, int Score)? standing) =>
+        candidate is { } offered && offered.Score > (standing?.Score ?? 0);
+
     /// <summary>
-    /// A folder is a dossier when it has no subfolders, or when any of them is filing.
+    /// A folder is what the scan would call a dossier when it has no subfolders, or when any of them
+    /// is filing.
     ///
     /// <para>Any, rather than most, because a dossier files what it happens to have: « Vivre Greffé »
     /// keeps Docs client, Droit de la santé, Gestion and Modeles données perso, and only two of those
@@ -124,8 +222,7 @@ public static class DossierScan
     ///
     /// <para>What makes « any » safe is that a filing name is narrow. The danger is a client folder
     /// that happens to look like one and drags its fifty-eight siblings into a single dossier, which
-    /// is exactly what a client called « 2 RIDE » did while one leading digit counted as numbering.
-    /// Two digits is the answer: drawers are numbered 01, 02, 03, and clients are not.</para>
+    /// is exactly what a client called « 2 RIDE » did while one leading digit counted as numbering.</para>
     /// </summary>
     private static bool IsDossier(List<string> subfolders) =>
         subfolders.Count == 0
@@ -155,147 +252,59 @@ public static class DossierScan
             || FilingNames.Contains(trimmed);
     }
 
-    private static ImportCandidate Describe(
-        string folder,
-        string root,
-        string? client,
-        IReadOnlyList<string> archivedWords,
-        int subfolders,
-        CancellationToken cancellationToken)
-    {
-        var name = Path.GetFileName(folder) ?? folder;
-        var relative = Path.GetRelativePath(root, folder).Split(Path.DirectorySeparatorChar);
-
-        // Archived is decided by the whole path, so « CLASSES » anywhere above it closes the dossier
-        // wherever it sits in the tree.
-        var archived = relative.Any(segment => archivedWords.Any(word =>
-            segment.Trim().Equals(word, StringComparison.OrdinalIgnoreCase)));
-
-        // A dossier nobody grouped under a client stands for its own: forty of hers are a client
-        // folder with the files straight inside it.
-        client ??= name;
-
-        var (files, emails, bytes, contacts, billing) = Measure(folder, cancellationToken);
-
-        return new ImportCandidate(
-            folder, client, name, !archived, files, emails, bytes, subfolders,
-            GestisoftCode(name), contacts, billing);
-    }
+    private static bool IsArchived(string folder, string root, IReadOnlyList<string> archivedWords) =>
+        Path.GetRelativePath(root, folder)
+            .Split(Path.DirectorySeparatorChar)
+            .Any(segment => archivedWords.Any(word =>
+                segment.Trim().Equals(word, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>
-    /// Expands one folder into a dossier per subfolder. Only ever called because the user asked for
-    /// it on that row: the scan decides where the dossiers are and is right most of the time, and this
-    /// is how she says it was wrong about one of them.
+    /// What sits directly in this folder, and the two files Gestisoft can export beside a dossier.
+    ///
+    /// <para>Directly, and not recursively, because every folder is measured exactly once and the
+    /// totals are summed on the way back up. Measuring each node's whole subtree would read the real
+    /// export's 13 937 files once per level of nesting, seven deep in places.</para>
+    ///
+    /// <para>Both sidecars are scored rather than matched. Taking any PDF whose name mentions contacts
+    /// chose, in COULEYRE, a letter called « pas de contact connu chez EDF OA » over the real list two
+    /// folders away, and taking any spreadsheet claimed fourteen billing exports where seven exist.
+    /// What tells the real ones apart is how the name begins and whether the folder is about contacts
+    /// or facturation.</para>
     /// </summary>
-    public static IReadOnlyList<ImportCandidate> Split(
-        ImportCandidate candidate,
-        CancellationToken cancellationToken = default)
+    private static void Measure(Node node, CancellationToken cancellationToken)
     {
-        var parts = new List<ImportCandidate>();
+        IEnumerable<string> files;
 
-        foreach (var affaire in Directory.EnumerateDirectories(candidate.SourcePath)
-                     .OrderBy(Path.GetFileName, StringComparer.CurrentCulture))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var (files, emails, bytes, contacts, billing) = Measure(affaire, cancellationToken);
-
-            if (files == 0)
-            {
-                continue;
-            }
-
-            var name = Path.GetFileName(affaire) ?? candidate.Name;
-
-            parts.Add(candidate with
-            {
-                SourcePath = affaire,
-                Name = name,
-                Files = files,
-                Emails = emails,
-                Bytes = bytes,
-                Subfolders = 0,
-                GestisoftCode = GestisoftCode(name),
-                ContactsFile = contacts,
-                BillingFile = billing,
-            });
-        }
-
-        // Files sitting directly in the folder belong to no affaire, and a split would drop them
-        // silently. They stay together under its own name instead.
-        var loose = Directory.EnumerateFiles(candidate.SourcePath)
-            .Where(file => !IsNoise(Path.GetFileName(file)))
-            .ToList();
-
-        if (loose.Count > 0)
-        {
-            parts.Add(candidate with
-            {
-                Files = loose.Count,
-                Emails = loose.Count(MailFile.LooksLikeMail),
-                Bytes = loose.Sum(Size),
-                Subfolders = 0,
-            });
-        }
-
-        return parts;
-    }
-
-    private static long Size(string file)
-    {
         try
         {
-            return new FileInfo(file).Length;
+            files = Directory.EnumerateFiles(node.Path).ToList();
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            // A file we cannot stat is still a file we will try to read. Its size is only cosmetic.
-            return 0;
+            return;
         }
-    }
 
-    /// <summary>
-    /// Counts what is inside, and picks up the two files Gestisoft can export beside a dossier.
-    ///
-    /// <para>Both are scored rather than matched, and that is not fussiness. Taking any PDF whose name
-    /// mentions contacts chose, in COULEYRE, a letter called « pas de contact connu chez EDF OA » over
-    /// the actual list two folders further on, and taking any spreadsheet claimed fourteen billing
-    /// exports where seven exist, the others being a client's own workbooks.</para>
-    ///
-    /// <para>What tells the real ones apart is where they sit and how their name begins: in a folder
-    /// she called « Contacts et factu », named contacts.PDF or export.xlsx. The naming is hers and it is
-    /// inconsistent, « Contact et factu », « contact.PDF », « Contacts couleyre.PDF », so no single
-    /// rule catches them all. A score does, and the threshold asks a file to agree on two counts.</para>
-    /// </summary>
-    private static (int Files, int Emails, long Bytes, string? Contacts, string? Billing) Measure(
-        string folder,
-        CancellationToken cancellationToken)
-    {
-        var files = 0;
-        var emails = 0;
-        long bytes = 0;
-        (string Path, int Score)? contacts = null;
-        (string Path, int Score)? billing = null;
+        var beside = IsSidecarFolder(node.Name);
 
-        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        foreach (var file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var name = Path.GetFileName(file);
+
             if (IsNoise(name))
             {
                 continue;
             }
 
-            files++;
+            node.Files++;
 
             if (MailFile.LooksLikeMail(file))
             {
-                emails++;
+                node.Emails++;
             }
 
             var lower = name.ToLowerInvariant();
-            var beside = IsSidecarFolder(file);
 
             if (lower.EndsWith(".pdf", StringComparison.Ordinal))
             {
@@ -304,9 +313,9 @@ public static class DossierScan
                     + (beside ? 2 : 0)
                     + (lower.Contains("contact", StringComparison.Ordinal) ? 1 : 0);
 
-                if (score >= 3 && score > (contacts?.Score ?? 0))
+                if (score >= 3 && score > (node.Contacts?.Score ?? 0))
                 {
-                    contacts = (file, score);
+                    node.Contacts = (file, score);
                 }
             }
 
@@ -317,35 +326,33 @@ public static class DossierScan
                     + (beside ? 2 : 0)
                     + (lower.Contains("factu", StringComparison.Ordinal) ? 1 : 0);
 
-                if (score >= 3 && score > (billing?.Score ?? 0))
+                if (score >= 3 && score > (node.Billing?.Score ?? 0))
                 {
-                    billing = (file, score);
+                    node.Billing = (file, score);
                 }
             }
 
             try
             {
-                bytes += new FileInfo(file).Length;
+                node.Bytes += new FileInfo(file).Length;
             }
             catch (IOException)
             {
             }
         }
-
-        return (files, emails, bytes, contacts?.Path, billing?.Path);
     }
 
     /// <summary>
-    /// Whether the file sits in the folder she keeps the Gestisoft exports in. She wrote « Contacts et
-    /// factu » in some dossiers and « Contact et factu » in others, so this asks what the folder name is
-    /// about rather than what it says.
+    /// Whether this is the folder she keeps the Gestisoft exports in. She wrote « Contacts et factu »
+    /// in some dossiers and « Contact et factu » in others, so this asks what the name is about rather
+    /// than what it says.
     /// </summary>
-    private static bool IsSidecarFolder(string file)
+    private static bool IsSidecarFolder(string name)
     {
-        var parent = Path.GetFileName(Path.GetDirectoryName(file) ?? string.Empty).ToLowerInvariant();
+        var lower = name.ToLowerInvariant();
 
-        return parent.Contains("contact", StringComparison.Ordinal)
-            || parent.Contains("factu", StringComparison.Ordinal);
+        return lower.Contains("contact", StringComparison.Ordinal)
+            || lower.Contains("factu", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -365,4 +372,20 @@ public static class DossierScan
         || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)
         || name.Equals(".DS_Store", StringComparison.Ordinal)
         || name.StartsWith("~$", StringComparison.Ordinal);
+
+    private static ImportFolder Project(Node node) => new(
+        node.Path,
+        node.Name,
+        node.Client,
+        node.IsOpen,
+        node.Files,
+        node.Emails,
+        node.TotalFiles,
+        node.TotalEmails,
+        node.TotalBytes,
+        node.Suggested,
+        GestisoftCode(node.Name),
+        node.Contacts?.Path,
+        node.Billing?.Path,
+        node.Children.Select(Project).ToList());
 }
