@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using Avocado.Server.Features.Contacts;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Matters;
@@ -24,7 +26,7 @@ public static class TemplateFields
         ("dossier.juridiction", "TC Lyon"),
         ("dossier.rg", "24/01187"),
         ("dossier.ouvertLe", "04/11/2025"),
-        ("dossier.tauxHoraire", "240,00 €"),
+        ("dossier.tauxHoraire", "240,00 €"),
         ("client.nom", "SAS Berthier Négoce"),
         ("client.civilite", "Mme"),
         ("client.adresse", "14 rue Duquesne, 69003 Lyon"),
@@ -38,8 +40,6 @@ public static class TemplateFields
 
     public static Dictionary<string, string> For(Matter matter, Contact? client, DateOnly today)
     {
-        var culture = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
-
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["dossier.reference"] = matter.Reference,
@@ -48,7 +48,7 @@ public static class TemplateFields
             ["dossier.nature"] = matter.Classification ?? string.Empty,
             ["dossier.juridiction"] = matter.Court ?? string.Empty,
             ["dossier.rg"] = matter.CourtCaseNumber ?? string.Empty,
-            ["dossier.ouvertLe"] = matter.OpenedOn.ToString("dd/MM/yyyy", culture),
+            ["dossier.ouvertLe"] = Short(matter.OpenedOn),
             ["dossier.tauxHoraire"] = Euros(matter.HourlyRateCents),
             ["client.nom"] = client?.DisplayName ?? string.Empty,
             ["client.civilite"] = client?.Civility ?? string.Empty,
@@ -59,16 +59,56 @@ public static class TemplateFields
             ["client.telephone"] = client?.Phone ?? string.Empty,
             // « 6 août 2026 » in prose, JJ/MM/AAAA in a reference line: both, because a letter uses
             // one and a header uses the other.
-            ["date.aujourdhui"] = today.ToString("d MMMM yyyy", culture),
-            ["date.aujourdhuiCourt"] = today.ToString("dd/MM/yyyy", culture),
+            ["date.aujourdhui"] = Long(today),
+            ["date.aujourdhuiCourt"] = Short(today),
         };
     }
 
-    /// <summary>Non-breaking space before the euro sign, as French typography requires.</summary>
-    public static string Euros(long cents) =>
-        string.Create(
-            System.Globalization.CultureInfo.GetCultureInfo("fr-FR"),
-            $"{cents / 100m:N2} €");
+    /// <summary>
+    /// The month names, written out here rather than asked of a French culture, and the same goes for
+    /// the two date formats and for <see cref="Euros"/> below.
+    ///
+    /// <para>Avocado publishes with InvariantGlobalization, where the invariant culture is the only one
+    /// that exists and <c>GetCultureInfo("fr-FR")</c> throws CultureNotFoundException rather than
+    /// falling back to it. Every template merge was doing exactly that. It cannot show up on a
+    /// development machine with a French locale, only in the built application, which is the only place
+    /// she uses it.</para>
+    /// </summary>
+    private static readonly string[] Months =
+    [
+        "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    ];
+
+    /// <summary>« 6 août 2026 », and « 1er septembre » when it falls on the first.</summary>
+    private static string Long(DateOnly date) =>
+        $"{(date.Day == 1 ? "1er" : date.Day.ToString(CultureInfo.InvariantCulture))} {Months[date.Month - 1]} {date.Year}";
+
+    /// <summary>« 06/08/2026 ».</summary>
+    private static string Short(DateOnly date) => $"{date.Day:00}/{date.Month:00}/{date.Year:0000}";
+
+    /// <summary>
+    /// « 1 234,56 € », with a non-breaking space before the euro sign and between the thousands, as
+    /// French typography requires and as no culture available here would produce.
+    /// </summary>
+    public static string Euros(long cents)
+    {
+        var absolute = Math.Abs(cents);
+        var units = (absolute / 100).ToString(CultureInfo.InvariantCulture);
+        var grouped = new StringBuilder(cents < 0 ? "-" : string.Empty);
+
+        for (var index = 0; index < units.Length; index++)
+        {
+            if (index > 0 && (units.Length - index) % 3 == 0)
+            {
+                grouped.Append(' ');
+            }
+
+            grouped.Append(units[index]);
+        }
+
+        return $"{grouped},{absolute % 100:00} €";
+    }
 
     public static bool IsOrganisation(Contact? contact) => contact?.Type == ContactType.Organisation;
 }
