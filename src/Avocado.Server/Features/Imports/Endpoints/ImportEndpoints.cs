@@ -1,5 +1,6 @@
 using Avocado.Server.Features.Imports.Infrastructure;
 
+
 namespace Avocado.Server.Features.Imports.Endpoints;
 
 /// <param name="ArchivedWords">
@@ -10,7 +11,8 @@ namespace Avocado.Server.Features.Imports.Endpoints;
 public sealed record ScanInput(
     string Root,
     IReadOnlyList<string>? ArchivedWords = null,
-    IReadOnlyList<string>? Dossiers = null);
+    IReadOnlyList<string>? Dossiers = null,
+    ImportChoices? Choices = null);
 
 /// <param name="Dossiers">
 /// The folders she marked, absolute, each becoming one dossier holding everything beneath it.
@@ -23,7 +25,8 @@ public sealed record ScanInput(
 public sealed record RunInput(
     string Root,
     IReadOnlyList<string>? Dossiers = null,
-    IReadOnlyList<string>? ArchivedWords = null);
+    IReadOnlyList<string>? ArchivedWords = null,
+    ImportChoices? Choices = null);
 
 public static class ImportEndpoints
 {
@@ -88,7 +91,7 @@ public static class ImportEndpoints
 
         var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
         var written = ImportSidecars.WriteTemplates(
-            input.Root, DossierScan.Candidates(plan, input.Dossiers));
+            input.Root, DossierScan.Candidates(plan, input.Dossiers, input.Choices));
 
         return Results.Ok(new
         {
@@ -122,7 +125,7 @@ public static class ImportEndpoints
         }
 
         var plan = DossierScan.Read(input.Root, input.ArchivedWords, cancellationToken);
-        var candidates = DossierScan.Candidates(plan, input.Dossiers);
+        var candidates = DossierScan.Candidates(plan, input.Dossiers, input.Choices);
 
         if (candidates.Count == 0)
         {

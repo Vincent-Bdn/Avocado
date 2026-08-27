@@ -39,6 +39,9 @@ interface Folder {
   gestisoftCode: string | null
   contactsFile: string | null
   billingFile: string | null
+  /** Everything that could be the contacts list, best first, so she can pick another. */
+  contactsCandidates: string[]
+  billingCandidates: string[]
   children: Folder[]
 }
 
@@ -65,11 +68,27 @@ interface Progress {
 /** How many folders to draw when she is filtering, before asking for another word. */
 const RESULTS = 120
 
+/** The « choisir un fichier » entry. Not a path, so it can never collide with one. */
+const BROWSE = '\u0000parcourir'
+
 export function Import() {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [marks, setMarks] = useState<Set<string>>(new Set())
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
+
+  /**
+   * Only where she disagreed with the tree.
+   *
+   * <p>« Sous CLASSES veut dire clôturé » is right for almost all of hers and wrong for a few, and the
+   * best-scoring PDF is the contacts list in seven dossiers and a letter in an eighth. Keeping the
+   * corrections rather than the whole state means everything she did not touch still comes from one
+   * place, and the screen and the scan cannot quietly drift apart.</p>
+   */
+  const [closed, setClosed] = useState<Set<string>>(new Set())
+  const [reopened, setReopened] = useState<Set<string>>(new Set())
+  const [contacts, setContacts] = useState<Record<string, string>>({})
+  const [billing, setBilling] = useState<Record<string, string>>({})
   const [progress, setProgress] = useState<Progress | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -124,6 +143,10 @@ export function Import() {
       setExpanded(new Set([top, ...suggested.flatMap((path) => ancestors(path, top))]))
       setQuery('')
       setTemplates(null)
+      setClosed(new Set())
+      setReopened(new Set())
+      setContacts({})
+      setBilling({})
     } catch (failure) {
       setPlan(null)
       setError(failure instanceof ApiError ? failure.message : String(failure))
@@ -180,6 +203,13 @@ export function Import() {
       needles.every((needle) => fold(folder.path).includes(needle)))
   }, [plan, query])
 
+  const corrections = () => ({
+    open: [...reopened],
+    closed: [...closed],
+    contacts,
+    billing,
+  })
+
   async function writeTemplates() {
     if (!plan) return
 
@@ -190,6 +220,7 @@ export function Import() {
       const result = await post<{ written: string[]; kept: string[] }>('/api/imports/templates', {
         root: plan.root,
         dossiers: [...marks],
+        choices: corrections(),
       })
 
       setTemplates([...result.written, ...result.kept])
@@ -208,7 +239,11 @@ export function Import() {
     setError(null)
 
     try {
-      await post('/api/imports/run', { root: plan.root, dossiers: [...marks] })
+      await post('/api/imports/run', {
+        root: plan.root,
+        dossiers: [...marks],
+        choices: corrections(),
+      })
       readProgress()
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
@@ -221,6 +256,24 @@ export function Import() {
     return <Running progress={progress} />
   }
 
+  const isOpen = (folder: Folder) =>
+    reopened.has(folder.path) ? true : closed.has(folder.path) ? false : folder.isOpen
+
+  const setStatus = (folder: Folder, open: boolean) => {
+    const [add, remove] = open ? [setReopened, setClosed] : [setClosed, setReopened]
+
+    add((current) => new Set(current).add(folder.path))
+    remove((current) => {
+      const next = new Set(current)
+      next.delete(folder.path)
+      return next
+    })
+  }
+
+  const setSidecar = (which: 'contacts' | 'billing') => (folder: Folder, file: string) =>
+    (which === 'contacts' ? setContacts : setBilling)((current) =>
+      ({ ...current, [folder.path]: file }))
+
   const row = (folder: Folder, depth: number) => (
     <FolderRow
       key={folder.path}
@@ -229,8 +282,14 @@ export function Import() {
       marked={marks.has(folder.path)}
       inside={insideMark(folder.path, marks)}
       open={expanded.has(folder.path)}
+      isOpen={isOpen(folder)}
+      contactsFile={contacts[folder.path] ?? folder.contactsFile ?? ''}
+      billingFile={billing[folder.path] ?? folder.billingFile ?? ''}
       onToggle={() => toggle(folder.path)}
       onMark={() => mark(folder)}
+      onStatus={(open) => setStatus(folder, open)}
+      onContacts={(file) => setSidecar('contacts')(folder, file)}
+      onBilling={(file) => setSidecar('billing')(folder, file)}
     />
   )
 
@@ -265,8 +324,9 @@ export function Import() {
             </div>
 
             <div className="font-mono text-[12px] tnum">
-              {chosen.filter((f) => f.contactsFile).length} listes de contacts ·{' '}
-              {chosen.filter((f) => f.billingFile).length} exports de facturation
+              {chosen.filter((f) => (contacts[f.path] ?? f.contactsFile)).length} listes de contacts ·{' '}
+              {chosen.filter((f) => (billing[f.path] ?? f.billingFile)).length} exports de facturation ·{' '}
+              {chosen.filter((f) => !isOpen(f)).length} clôturés
             </div>
 
             {/* The number the old screen never showed. Eighty-one files sat in folders it had walked
@@ -449,20 +509,35 @@ function Tree({ folders, depth, expanded, row }: {
 }
 
 /**
- * One folder, and the one question asked of it.
+ * One folder, and the questions asked of it.
  *
  * <p>Three states rather than a checkbox: it is the dossier, it is inside one, or it is neither and
- * she may still say. The middle one carries no control at all, because « inside CHANTERACOISE » is not
- * a thing she decides, it is what marking CHANTERACOISE meant.</p>
+ * she may still say. The middle one carries no controls at all, because « inside CHANTERACOISE » is
+ * not a thing she decides, it is what marking CHANTERACOISE meant.</p>
+ *
+ * <p>Everything a marked row shows is a correction waiting to happen. Whether it is closed was read
+ * off the path and the path is somebody's filing habit; which file holds the tiers was read off a
+ * name, and a letter called « pas de contact connu chez EDF OA » is a PDF with contact in its name
+ * too. So each of them is the control that changes it, in place, rather than a fact.</p>
  */
-function FolderRow({ folder, depth, marked, inside, open, onToggle, onMark }: {
+function FolderRow({
+  folder, depth, marked, inside, open, isOpen, contactsFile, billingFile,
+  onToggle, onMark, onStatus, onContacts, onBilling,
+}: {
   folder: Folder
   depth: number
   marked: boolean
   inside: boolean
+  /** Unfolded in the tree. Nothing to do with the dossier being en cours. */
   open: boolean
+  isOpen: boolean
+  contactsFile: string
+  billingFile: string
   onToggle: () => void
   onMark: () => void
+  onStatus: (open: boolean) => void
+  onContacts: (file: string) => void
+  onBilling: (file: string) => void
 }) {
   return (
     <div
@@ -495,57 +570,151 @@ function FolderRow({ folder, depth, marked, inside, open, onToggle, onMark }: {
 
       {marked && (
         <>
-          <span
+          {/* Read off the path, and the path is her filing habit rather than a fact, so it is a
+              button. Everything under CLASSES arrives clôturé and any of them can be put back. */}
+          <button
+            type="button"
+            onClick={() => onStatus(!isOpen)}
+            title={isOpen
+              ? 'Dossier en cours. Cliquer pour le marquer clôturé.'
+              : 'Dossier clôturé. Cliquer pour le marquer en cours.'}
             className={cn(
               'shrink-0 rounded-full px-1.5 py-px font-mono text-[9.5px] leading-3',
-              folder.isOpen ? 'bg-success-bg text-success' : 'bg-sunken text-muted',
+              isOpen
+                ? 'bg-success-bg text-success hover:brightness-95'
+                : 'bg-sunken text-muted hover:bg-hover',
             )}
           >
-            {folder.isOpen ? 'en cours' : 'clôturé'}
-          </span>
+            {isOpen ? 'en cours' : 'clôturé'}
+          </button>
 
-          {/* Only when found. A badge on every row would say « this one has nothing » ninety-four
-              times, and the seven that do have something are what she is looking for. */}
-          {folder.contactsFile && <Pill title={folder.contactsFile}>tiers</Pill>}
-          {folder.billingFile && <Pill title={folder.billingFile}>factu</Pill>}
+          <FilePick
+            label="tiers"
+            empty="tiers ?"
+            title="Le PDF « Liste des contacts » de ce dossier"
+            folder={folder.path}
+            extensions={['pdf']}
+            chosen={contactsFile}
+            candidates={folder.contactsCandidates}
+            onPick={onContacts}
+          />
+
+          <FilePick
+            label="factu"
+            empty="factu ?"
+            title="L’export Excel de la facturation de ce dossier"
+            folder={folder.path}
+            extensions={['xlsx', 'xls']}
+            chosen={billingFile}
+            candidates={folder.billingCandidates}
+            onPick={onBilling}
+          />
         </>
       )}
 
-      <span className="ml-auto shrink-0 pl-2 font-mono text-[10.5px] text-muted tnum">
-        {/* Both numbers only where they differ, which is exactly where marking the parent instead of
-            the children would change what gets imported. */}
-        {folder.files > 0 && folder.files !== folder.totalFiles && `${folder.files} ici · `}
-        {folder.totalFiles.toLocaleString('fr-FR')}
+      {/* « 2 ici · 40 » said nothing about what was being counted. Both numbers only where they
+          differ, which is exactly where marking the parent instead of the children changes what gets
+          imported. */}
+      <span
+        className="ml-auto shrink-0 pl-2 font-mono text-[10.5px] text-muted tnum"
+        title={`${folder.totalFiles} document${folder.totalFiles > 1 ? 's' : ''} en tout`
+          + (folder.files > 0 && folder.files !== folder.totalFiles
+            ? `, dont ${folder.files} directement dans ce dossier`
+            : '')}
+      >
+        {folder.files > 0 && folder.files !== folder.totalFiles
+          ? `${folder.files} doc ici · ${folder.totalFiles.toLocaleString('fr-FR')} en tout`
+          : `${folder.totalFiles.toLocaleString('fr-FR')} doc`}
       </span>
 
       {inside ? (
-        <span className="w-[74px] shrink-0 text-right font-mono text-[9.5px] text-muted">inclus</span>
+        <span className="w-[152px] shrink-0 text-right font-mono text-[9.5px] text-muted">inclus</span>
       ) : (
         <button
           type="button"
           onClick={onMark}
+          title={marked
+            ? 'Ce dossier sera importé avec tout ce qu’il contient. Cliquer pour annuler.'
+            : 'Importer ce dossier, avec tout ce qu’il contient'}
           className={cn(
-            'w-[74px] shrink-0 rounded-sm border px-1.5 py-px text-[10px] leading-4',
+            'w-[152px] shrink-0 rounded-sm border px-1.5 py-px text-[10px] leading-4',
             marked
               ? 'border-brand bg-brand text-on-brand'
               : 'border-line text-muted hover:bg-hover',
           )}
         >
-          {marked ? 'Dossier' : 'En faire un'}
+          {marked ? 'Dossier' : 'Définir comme dossier'}
         </button>
       )}
     </div>
   )
 }
 
-const Pill = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <span
-    title={title}
-    className="shrink-0 rounded-full bg-brand-subtle px-1.5 py-px font-mono text-[9.5px] leading-3 text-brand-on-subtle"
-  >
-    {children}
-  </span>
-)
+/**
+ * The file she says holds the tiers, or the facturation.
+ *
+ * <p>A badge with a native select laid over it: the same trick the documents tab uses for « classer
+ * dans », and it keeps a row that is already busy to one chip. The guess is pre-selected and « aucun »
+ * is one of the options, because sometimes the answer is that Gestisoft exported nothing and the file
+ * it found is a letter.</p>
+ *
+ * <p>What is offered is only what a name gave away, so the list stays short: every facture she filed
+ * in « Contacts et factu » would otherwise be offered as a contacts list, and COULEYRE's real one came
+ * back behind eleven invoices. Anything named neither is reached through « Choisir un fichier… »,
+ * which opens where the dossier is.</p>
+ */
+function FilePick({ label, empty, title, folder, extensions, chosen, candidates, onPick }: {
+  label: string
+  empty: string
+  title: string
+  /** Where the picker opens, so she is not dropped in her home directory. */
+  folder: string
+  extensions: string[]
+  chosen: string
+  candidates: string[]
+  onPick: (file: string) => void
+}) {
+  const options = chosen !== '' && !candidates.includes(chosen) ? [chosen, ...candidates] : candidates
+
+  return (
+    <span className="relative shrink-0">
+      <span
+        title={`${title}${chosen === '' ? '' : `\n${chosen}`}`}
+        className={cn(
+          'block rounded-full px-1.5 py-px font-mono text-[9.5px] leading-3',
+          chosen === ''
+            ? 'border border-dashed border-line text-muted'
+            : 'bg-brand-subtle text-brand-on-subtle',
+        )}
+      >
+        {chosen === '' ? empty : label}
+      </span>
+
+      <select
+        aria-label={title}
+        value={chosen}
+        onChange={(event) => {
+          if (event.target.value === BROWSE) {
+            void window.avocado
+              .chooseFile(title, folder, extensions)
+              .then((file) => { if (file) onPick(file) })
+
+            return
+          }
+
+          onPick(event.target.value)
+        }}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        <option value="">aucun</option>
+        {options.map((file) => (
+          <option key={file} value={file}>{file.split(/[/\\]/).pop()}</option>
+        ))}
+        <option value={BROWSE}>Choisir un fichier…</option>
+      </select>
+    </span>
+  )
+}
 
 /** The only screen there is while it runs, so it says what is happening rather than just spinning. */
 function Running({ progress }: { progress: Progress }) {

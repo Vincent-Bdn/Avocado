@@ -71,9 +71,15 @@ public static class DossierScan
     /// everything below it, so a child left marked would import its files a second time, and a
     /// duplicate is the kind of thing found a year later.</para>
     /// </summary>
+    /// <param name="chosen">Absolute paths she marked. Null means she never chose, and the suggestions run.</param>
+    /// <param name="choices">
+    /// Where she disagreed with what was read off the tree: whether a dossier is still open, and which
+    /// file holds its tiers and its facturation. Absent means the tree was right.
+    /// </param>
     public static IReadOnlyList<ImportCandidate> Candidates(
         ImportPlan plan,
-        IReadOnlyList<string>? chosen = null)
+        IReadOnlyList<string>? chosen = null,
+        ImportChoices? choices = null)
     {
         // Null is « she has not chosen », an empty list is « she chose nothing ». Not the same thing,
         // and conflating them would run a whole import she had just emptied.
@@ -91,14 +97,16 @@ public static class DossierScan
                         folder.Path,
                         folder.Client,
                         folder.Name,
-                        folder.IsOpen,
+                        choices?.IsOpen(folder) ?? folder.IsOpen,
                         folder.TotalFiles,
                         folder.TotalEmails,
                         folder.TotalBytes,
                         folder.Children.Count,
                         folder.GestisoftCode,
-                        folder.ContactsFile,
-                        folder.BillingFile));
+                        // Not « ?? the guess »: clearing a pick answers null on purpose, and falling
+                        // back would hand her back the file she had just rejected.
+                        choices is null ? folder.ContactsFile : choices.ContactsFor(folder),
+                        choices is null ? folder.BillingFile : choices.BillingFor(folder)));
                 }
 
                 // Everything below belongs to this one now.
@@ -136,8 +144,8 @@ public static class DossierScan
         public int TotalFiles;
         public int TotalEmails;
         public long TotalBytes;
-        public (string Path, int Score)? Contacts;
-        public (string Path, int Score)? Billing;
+        public List<(string Path, int Score)> Contacts = [];
+        public List<(string Path, int Score)> Billing = [];
         public List<Node> Children = [];
     }
 
@@ -197,20 +205,30 @@ public static class DossierScan
         node.TotalEmails = node.Emails + node.Children.Sum(child => child.TotalEmails);
         node.TotalBytes = node.Bytes + node.Children.Sum(child => child.TotalBytes);
 
-        // The best sidecar anywhere below, carried up one level at a time. She files them in a folder
-        // beside the dossier, so the dossier is where they have to arrive.
+        // Every possible sidecar anywhere below, carried up one level at a time. She files them in a
+        // folder beside the dossier, so the dossier is where they have to arrive, and the best guess is
+        // only a guess: « Contacts couleyre.PDF » and « pas de contact connu chez EDF OA.pdf » are both
+        // PDFs with contact in the name, and only she can say which is the list.
         foreach (var child in node.Children)
         {
-            if (Better(child.Contacts, node.Contacts)) node.Contacts = child.Contacts;
-            if (Better(child.Billing, node.Billing)) node.Billing = child.Billing;
+            node.Contacts.AddRange(child.Contacts);
+            node.Billing.AddRange(child.Billing);
         }
 
         // A folder with nothing in it and nothing below is not a row worth showing. She has hundreds.
         return node.TotalFiles == 0 && depth > 0 ? null : node;
     }
 
-    private static bool Better((string Path, int Score)? candidate, (string Path, int Score)? standing) =>
-        candidate is { } offered && offered.Score > (standing?.Score ?? 0);
+    /// <summary>
+    /// Best score first, then by path so the order never depends on which folder was walked first.
+    /// Capped, because a dossier with forty spreadsheets in it is a list nobody reads.
+    /// </summary>
+    private static List<string> Ranked(List<(string Path, int Score)> found) =>
+        found.OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Path, StringComparer.CurrentCulture)
+            .Select(candidate => candidate.Path)
+            .Take(12)
+            .ToList();
 
     /// <summary>
     /// A folder is what the scan would call a dossier when it has no subfolders, or when any of them
@@ -306,19 +324,19 @@ public static class DossierScan
 
             var lower = name.ToLowerInvariant();
 
-            if (lower.EndsWith(".pdf", StringComparison.Ordinal))
+            // Offered only when the name says so. Every facture she filed in « Contacts et factu »
+            // scores for sitting there, and COULEYRE's list came back behind eleven invoices. What is
+            // named neither is reached through « Choisir un fichier… » instead.
+            if (lower.EndsWith(".pdf", StringComparison.Ordinal)
+                && lower.Contains("contact", StringComparison.Ordinal))
             {
-                var score =
-                    (lower.StartsWith("contact", StringComparison.Ordinal) ? 3 : 0)
-                    + (beside ? 2 : 0)
-                    + (lower.Contains("contact", StringComparison.Ordinal) ? 1 : 0);
-
-                if (score >= 3 && score > (node.Contacts?.Score ?? 0))
-                {
-                    node.Contacts = (file, score);
-                }
+                node.Contacts.Add((
+                    file,
+                    (lower.StartsWith("contact", StringComparison.Ordinal) ? 3 : 1) + (beside ? 2 : 0)));
             }
 
+            // A spreadsheet is rarer than a PDF, so one sitting in that folder is worth offering even
+            // when its name says nothing.
             if (lower.EndsWith(".xlsx", StringComparison.Ordinal) || lower.EndsWith(".xls", StringComparison.Ordinal))
             {
                 var score =
@@ -326,9 +344,9 @@ public static class DossierScan
                     + (beside ? 2 : 0)
                     + (lower.Contains("factu", StringComparison.Ordinal) ? 1 : 0);
 
-                if (score >= 3 && score > (node.Billing?.Score ?? 0))
+                if (score >= 1)
                 {
-                    node.Billing = (file, score);
+                    node.Billing.Add((file, score));
                 }
             }
 
@@ -373,19 +391,34 @@ public static class DossierScan
         || name.Equals(".DS_Store", StringComparison.Ordinal)
         || name.StartsWith("~$", StringComparison.Ordinal);
 
-    private static ImportFolder Project(Node node) => new(
-        node.Path,
-        node.Name,
-        node.Client,
-        node.IsOpen,
-        node.Files,
-        node.Emails,
-        node.TotalFiles,
-        node.TotalEmails,
-        node.TotalBytes,
-        node.Suggested,
-        GestisoftCode(node.Name),
-        node.Contacts?.Path,
-        node.Billing?.Path,
-        node.Children.Select(Project).ToList());
+    private static ImportFolder Project(Node node)
+    {
+        var contacts = Ranked(node.Contacts);
+        var billing = Ranked(node.Billing);
+
+        return new ImportFolder(
+            node.Path,
+            node.Name,
+            node.Client,
+            node.IsOpen,
+            node.Files,
+            node.Emails,
+            node.TotalFiles,
+            node.TotalEmails,
+            node.TotalBytes,
+            node.Suggested,
+            GestisoftCode(node.Name),
+            // Three is the threshold a file has to reach to be taken without being asked: it has to
+            // agree on two counts, its name and its folder. Everything from one up is offered.
+            Best(node.Contacts),
+            Best(node.Billing),
+            contacts,
+            billing,
+            node.Children.Select(Project).ToList());
+    }
+
+    private static string? Best(List<(string Path, int Score)> found) =>
+        found.Count == 0 ? null : found.MaxBy(candidate => candidate.Score) is { Score: >= 3 } winner
+            ? winner.Path
+            : null;
 }

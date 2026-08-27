@@ -26,6 +26,10 @@ public sealed record ImportFolder(
     string? GestisoftCode,
     string? ContactsFile,
     string? BillingFile,
+    /// <summary>Everything that could be a contacts list, best first, so she can pick another.</summary>
+    IReadOnlyList<string> ContactsCandidates,
+    /// <summary>Likewise for the billing export.</summary>
+    IReadOnlyList<string> BillingCandidates,
     IReadOnlyList<ImportFolder> Children);
 
 /// <param name="Folders">The source tree, in full, for her to walk and mark.</param>

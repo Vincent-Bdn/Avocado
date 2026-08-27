@@ -395,6 +395,98 @@ public class DossierScanTests : IDisposable
         Assert.EndsWith("export.xlsx", dossier.BillingFile);
     }
 
+    /// <summary>
+    /// « Sous CLASSES veut dire clôturé » is her filing habit, right almost always and wrong
+    /// sometimes, so it is a button rather than a fact.
+    /// </summary>
+    [Fact]
+    public void SheCanSayADossierIsStillOpenWhateverThePathSays()
+    {
+        File_("CLASSES/BERTANI/a.pdf");
+        File_("EN COURS/VATEL/b.pdf");
+
+        var plan = DossierScan.Read(_root);
+        var marks = new[] { At("CLASSES/BERTANI"), At("EN COURS/VATEL") };
+
+        var byThePath = DossierScan.Candidates(plan, marks);
+
+        Assert.False(byThePath.Single(d => d.Name == "BERTANI").IsOpen);
+        Assert.True(byThePath.Single(d => d.Name == "VATEL").IsOpen);
+
+        var corrected = DossierScan.Candidates(plan, marks, new ImportChoices(
+            Open: [At("CLASSES/BERTANI")],
+            Closed: [At("EN COURS/VATEL")]));
+
+        Assert.True(corrected.Single(d => d.Name == "BERTANI").IsOpen);
+        Assert.False(corrected.Single(d => d.Name == "VATEL").IsOpen);
+    }
+
+    /// <summary>
+    /// COULEYRE holds « Contacts couleyre.PDF » and a letter called « pas de contact connu chez EDF
+    /// OA ». Both are PDFs with contact in the name, so both are offered and the better-named one is
+    /// taken until she says otherwise.
+    /// </summary>
+    [Fact]
+    public void OffersEveryPlausibleContactsListAndTakesTheBestNamed()
+    {
+        File_("EN COURS/COULEYRE/Contacts et factu/Contacts couleyre.PDF");
+        File_("EN COURS/COULEYRE/01 Courriers/pas de contact connu chez EDF OA.pdf");
+
+        var plan = DossierScan.Read(_root);
+        var folder = Assert.Single(Assert.Single(Assert.Single(plan.Folders).Children).Children);
+
+        Assert.Equal(2, folder.ContactsCandidates.Count);
+        Assert.EndsWith("Contacts couleyre.PDF", folder.ContactsFile);
+
+        var corrected = Assert.Single(DossierScan.Candidates(
+            plan,
+            [folder.Path],
+            new ImportChoices(Contacts: new Dictionary<string, string>
+            {
+                [folder.Path] = folder.ContactsCandidates.Last(),
+            })));
+
+        Assert.EndsWith("pas de contact connu chez EDF OA.pdf", corrected.ContactsFile);
+    }
+
+    /// <summary>
+    /// Everything filed in « Contacts et factu » used to be offered as a contacts list, so the real
+    /// one came back behind eleven invoices. A name has to say so.
+    /// </summary>
+    [Fact]
+    public void DoesNotOfferEveryFactureFiledBesideTheContactsList()
+    {
+        File_("EN COURS/COULEYRE/Contacts et factu/contacts.PDF");
+        File_("EN COURS/COULEYRE/Contacts et factu/Facture CVS Detaillee n° 202615624.pdf");
+        File_("EN COURS/COULEYRE/Contacts et factu/Avoir n° 202511472.pdf");
+
+        var folder = Assert.Single(Assert.Single(Assert.Single(DossierScan.Read(_root).Folders).Children).Children);
+
+        Assert.EndsWith("contacts.PDF", Assert.Single(folder.ContactsCandidates));
+    }
+
+    /// <summary>
+    /// Clearing a pick means she looked and there is none. Falling back to the guess would hand her
+    /// back the file she had just rejected.
+    /// </summary>
+    [Fact]
+    public void ClearingAPickLeavesItEmptyRatherThanRestoringTheGuess()
+    {
+        File_("EN COURS/COULEYRE/Contacts et factu/contacts.PDF");
+        File_("EN COURS/COULEYRE/Contacts et factu/export.xlsx");
+
+        var plan = DossierScan.Read(_root);
+        var path = At("EN COURS/COULEYRE");
+
+        var cleared = Assert.Single(DossierScan.Candidates(plan, [path], new ImportChoices(
+            Contacts: new Dictionary<string, string> { [path] = string.Empty })));
+
+        Assert.Null(cleared.ContactsFile);
+
+        // And what she said nothing about is still whatever the scan found.
+        Assert.EndsWith("export.xlsx", cleared.BillingFile);
+    }
+
     public void Dispose()
     {
         try

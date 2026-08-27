@@ -145,15 +145,30 @@ app.whenReady().then(async () => {
       return failure.length > 0 ? failure : null
     })
 
-    // Restoring accepts the sheet itself rather than only what is typed off it.
-    ipcMain.handle('avocado:chooseFile', async (_event, title: string) => {
+    /**
+     * Restoring accepts the sheet itself rather than only what is typed off it, and the import wizard
+     * uses the same dialog to point at the contacts list Gestisoft exported under a name nobody could
+     * have guessed. Hence the two optional arguments; given neither, this is what it always was.
+     */
+    ipcMain.handle('avocado:chooseFile', async (
+      _event,
+      title: string,
+      startIn?: string,
+      extensions?: string[],
+    ) => {
       const result = await dialog.showOpenDialog({
         title,
+        defaultPath: startIn,
         properties: ['openFile'],
-        filters: [
-          { name: 'Fiche de récupération', extensions: ['pdf', 'txt'] },
-          { name: 'Tous les fichiers', extensions: ['*'] },
-        ],
+        filters: extensions && extensions.length > 0
+          ? [
+              { name: 'Fichiers acceptés', extensions },
+              { name: 'Tous les fichiers', extensions: ['*'] },
+            ]
+          : [
+              { name: 'Fiche de récupération', extensions: ['pdf', 'txt'] },
+              { name: 'Tous les fichiers', extensions: ['*'] },
+            ],
         buttonLabel: 'Utiliser ce fichier',
       })
 
