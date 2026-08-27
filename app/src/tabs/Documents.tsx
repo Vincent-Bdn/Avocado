@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
-  Check, Download, FilePlus2, FileText, Folder, FolderInput, Paperclip, Pencil,
-  SquareArrowOutUpRight, Trash2, Undo2, X,
+  Check, ChevronRight, Download, File, FilePlus2, FileSpreadsheet, FileText, Folder, FolderInput,
+  FolderOpen, Image as ImageIcon, Mail, Paperclip, Pencil, Search, SquareArrowOutUpRight, Trash2,
+  Undo2, X,
 } from 'lucide-react'
 import { ApiError, api, download, post } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
@@ -86,6 +88,9 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [templates, setTemplates] = useState<TemplateItem[]>([])
   const [generating, setGenerating] = useState(false)
   const [uploadFolder, setUploadFolder] = useState('')
+  const [query, setQuery] = useState('')
+  const [showExhibits, setShowExhibits] = useState(true)
+  const [showRecent, setShowRecent] = useState(false)
   const toasts = useToasts()
   const input = useRef<HTMLInputElement>(null)
 
@@ -282,7 +287,75 @@ export function Documents({ matterId, isOpen, onChanged }: {
   }
 
   const exhibits = page?.items.filter((item) => item.exhibitNumber !== null) ?? []
-  const plain = page?.items.filter((item) => item.exhibitNumber === null) ?? []
+
+  /**
+   * The folders standing open, by path, or null while she has not chosen.
+   *
+   * <p><b>Null rather than a default</b>, so that the default is derived from whatever dossier is on
+   * screen instead of being settled once. This component is not remounted when she moves to another
+   * dossier, only handed a new matterId, and its list arrives a moment later: anything computed the
+   * instant the id changed would be computed from the previous dossier's folders.</p>
+   *
+   * <p>The default itself is: shut. The reason this screen was rebuilt is a dossier of 1 878
+   * documents across 104 folders seven deep, and drawing all of it was the whole problem. A small one
+   * opens flat instead, since 68 of her 101 dossiers have no folders at all and a handful of files,
+   * and making her unfold something to see seven documents would be worse than what was here
+   * before.</p>
+   *
+   * <p>Kept for the session, because switching tabs unmounts this. Not kept longer: where she was
+   * last month is not where she is now.</p>
+   */
+  const [chosen, setChosen] = useState<Set<string> | null>(null)
+
+  useEffect(() => setChosen(read(`documents-open:${matterId}`)), [matterId])
+
+  const expanded = useMemo(
+    () => chosen
+      ?? new Set(page && page.total <= FLAT_ENOUGH ? page.folders.flatMap(ancestors) : []),
+    [chosen, page],
+  )
+
+  const settle = useCallback((next: Set<string>) => {
+    setChosen(next)
+    write(`documents-open:${matterId}`, next)
+  }, [matterId])
+
+  const toggleFolder = useCallback((path: string) => {
+    const next = new Set(expanded)
+    if (!next.delete(path)) next.add(path)
+    settle(next)
+  }, [expanded, settle])
+
+  const tree = useMemo(() => build(page?.items ?? []), [page])
+
+  /**
+   * The last thirty touched, rather than everything from the last thirty days.
+   *
+   * <p>A count and not a window, because the Gestisoft export stamps every file with the moment it
+   * ran: a fresh import would put all 4 559 documents in « les trente derniers jours » and keep them
+   * there for a month. A count is bounded whatever the dates say, and once she works in the dossier
+   * the things she actually touched float to the top on their own.</p>
+   */
+  const recent = useMemo(
+    () => [...(page?.items ?? [])].sort((left, right) => touched(right) - touched(left)).slice(0, RECENT),
+    [page],
+  )
+
+  const found = useMemo(() => {
+    const needles = fold(query).split(/\s+/).filter(Boolean)
+
+    if (needles.length === 0) return []
+
+    // Every word has to match, anywhere: « facture couleyre » finds it whichever order she typed and
+    // whichever of the name, the libellé or the folder each word came from.
+    return (page?.items ?? []).filter((item) => {
+      const haystack = fold(
+        `${item.fileName} ${item.exhibitLabel ?? ''} ${item.folder ?? ''} ${item.type ?? ''}`,
+      )
+
+      return needles.every((needle) => haystack.includes(needle))
+    })
+  }, [page, query])
 
   const rowProps = (item: DocumentItem) => ({
     item,
@@ -424,63 +497,105 @@ export function Documents({ matterId, isOpen, onChanged }: {
         </EmptyState>
       )}
 
-      {exhibits.length > 0 && (
-        <div>
-          <Caption>Pièces · {exhibits.length}</Caption>
-          {exhibits.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
-        </div>
-      )}
+      {page && page.total > 0 && (
+        <>
+          {/* Above everything, because past a few hundred documents the answer to « où est ce
+              courrier » is typing three letters, not walking a tree. */}
+          <span className="flex items-center gap-1.5">
+            <Search size={13} strokeWidth={1.75} className="shrink-0 text-muted" />
+            <Input
+              inputSize="sm"
+              className="flex-1"
+              value={query}
+              placeholder={`Rechercher parmi ${page.total.toLocaleString('fr-FR')} documents…`}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            {query !== '' && (
+              <RowAction label="Effacer la recherche" onClick={() => setQuery('')}>
+                <X size={13} strokeWidth={2} />
+              </RowAction>
+            )}
+          </span>
 
-      {/*
-        A folder exists exactly as long as a document names it, which is what stops an empty hierarchy
-        accumulating around three files, and « Sans dossier » is always last rather than hidden: a file
-        you have not filed is still a file you have.
+          {/* A search answers across the whole dossier, so it replaces the tree rather than filtering
+              it: a folder half emptied by a filter still reads as a folder, and she would take what
+              is left for everything it holds. */}
+          {query.trim() !== '' ? (
+            <div>
+              <Caption>
+                {found.length === 0
+                  ? 'Aucun résultat'
+                  : `${found.length.toLocaleString('fr-FR')} résultat${found.length > 1 ? 's' : ''}`}
+              </Caption>
 
-        Nesting is shown rather than spelled out. Opening a dossier as a real folder means these paths
-        now come from directories someone made in Explorer, so « Tototo/Tata/Tutu » printed in full on
-        every heading reads as three unrelated groups. Sorting puts a parent before its children, so
-        indenting by depth and naming only the last segment renders the tree they actually built.
-      */}
-      {plain.length > 0 && (
-        <div>
-          <Caption>Documents · {plain.length}</Caption>
+              {found.slice(0, RESULTS).map((item) => (
+                <DocumentRow key={item.id} {...rowProps(item)} context={item.folder} />
+              ))}
 
-          {groupByFolder(plain).map(([folder, items], index, groups) => {
-            const segments = folder?.split('/') ?? []
-            const indent = segments.length > 0 ? (segments.length - 1) * 14 : 0
+              {found.length > RESULTS && (
+                <Micro>
+                  Les {RESULTS} premiers sur {found.length.toLocaleString('fr-FR')}. Ajoutez un mot
+                  pour resserrer.
+                </Micro>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Pièces stay pinned above the tree and also appear in the folder they are filed in.
+                  Both are true, and a folder that hid its own pièces would report a count nobody
+                  could reconcile with the folder on disk. */}
+              {exhibits.length > 0 && (
+                <Section
+                  label="Pièces"
+                  count={exhibits.length}
+                  open={showExhibits}
+                  onToggle={() => setShowExhibits((current) => !current)}
+                >
+                  {exhibits.map((item) => (
+                    <DocumentRow key={item.id} {...rowProps(item)} context={item.folder} />
+                  ))}
+                </Section>
+              )}
 
-            // A folder exists only as long as a document names it, so a parent holding nothing
-            // directly has no heading of its own and its child would appear indented under nothing.
-            // When the group above is not this one's parent, the heading says the whole path rather
-            // than a bare « Draft » floating at depth two.
-            const parent = segments.slice(0, -1).join('/')
-            const above = index > 0 ? groups[index - 1]?.[0] ?? null : null
-            const orphaned = parent.length > 0 && above !== parent && !(above ?? '').startsWith(parent + '/')
+              {/* Only where it says something the list below does not. A dossier of seven documents
+                  shows all seven either way, and « Récents · 7 » above them is a row of noise. */}
+              {page.total > RECENT && (
+                <Section
+                  label="Récents"
+                  count={recent.length}
+                  open={showRecent}
+                  onToggle={() => setShowRecent((current) => !current)}
+                >
+                  {recent.map((item) => (
+                    <DocumentRow key={item.id} {...rowProps(item)} context={item.folder} />
+                  ))}
+                </Section>
+              )}
 
-            return (
-              <div key={folder ?? ''}>
-                {(folder !== null || groupByFolder(plain).length > 1) && (
-                  <div
-                    style={{ paddingLeft: indent }}
-                    className="flex items-center gap-1.5 pt-3 pb-1 text-[11.5px] font-medium text-ink-secondary"
+              <div className="flex items-baseline gap-2">
+                <Caption>Documents · {page.total.toLocaleString('fr-FR')}</Caption>
+
+                {tree.children.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => settle(expanded.size > 0 ? new Set() : new Set(paths(tree)))}
+                    className="ml-auto text-[11px] text-ink-secondary underline-offset-2 hover:underline"
                   >
-                    <Folder size={12} strokeWidth={2} className="text-muted" />
-                    {segments.length === 0
-                      ? 'Sans dossier'
-                      : orphaned
-                        ? folder
-                        : segments[segments.length - 1]}
-                    <span className="font-mono text-[10.5px] text-muted tnum">{items.length}</span>
-                  </div>
+                    {expanded.size > 0 ? 'Tout replier' : 'Tout déplier'}
+                  </button>
                 )}
-
-                <div style={{ paddingLeft: indent }}>
-                  {items.map((item) => <DocumentRow key={item.id} {...rowProps(item)} />)}
-                </div>
               </div>
-            )
-          })}
-        </div>
+
+              <Tree
+                node={tree}
+                depth={0}
+                expanded={expanded}
+                onToggle={toggleFolder}
+                row={(item) => <DocumentRow key={item.id} {...rowProps(item)} />}
+              />
+            </>
+          )}
+        </>
       )}
 
       {page && page.freeExhibitNumbers.length > 0 && (
@@ -572,52 +687,235 @@ function GenerateDialog({ matterId, templates, folders, onCancel, onGenerated }:
   )
 }
 
-/** Filed folders first and alphabetical, then everything not yet filed. */
-function groupByFolder(items: DocumentItem[]): [string | null, DocumentItem[]][] {
-  const groups = new Map<string | null, DocumentItem[]>()
+/** A dossier this size or smaller opens with everything already unfolded. */
+const FLAT_ENOUGH = 40
 
-  for (const item of items) {
-    const key = item.folder ?? null
-    groups.set(key, [...(groups.get(key) ?? []), item])
-  }
+/** How many of the last-touched to keep. */
+const RECENT = 30
 
-  /*
-    Compared segment by segment, not as whole strings.
+/** How many search results to draw before asking for another word. */
+const RESULTS = 200
 
-    A path is a sequence of names and « / » is a boundary, but locale collation treats it as
-    punctuation and largely ignores it, so « Pièces/Draft » and « Adverse/Draft » sorted as though the
-    slash were not there. Two subfolders that happen to share a name then landed next to each other,
-    away from their parents, and since a heading shows only its last segment the screen displayed two
-    identical « Draft » groups with no way to tell which was which.
+/** One folder, built from the flat path each document carries. */
+interface Branch {
+  path: string
+  name: string
+  children: Branch[]
+  files: DocumentItem[]
+  /** Including everything underneath, which is what says where the mass of a dossier sits. */
+  total: number
+}
 
-    Comparing names one at a time puts a parent immediately before its own children and keeps siblings
-    together, which is what makes indentation readable.
-  */
-  return [...groups.entries()].sort(([left], [right]) => {
-    if (left === right) return 0
-    if (left === null) return 1
-    if (right === null) return -1
+/**
+ * The folder tree of a dossier.
+ *
+ * <p>A document carries its folder as one string, « 00 Missions/02 API-SC/01 Courriers », and no
+ * folder exists on its own: it exists exactly as long as a document names it. So the tree is built
+ * from the paths every time, which is also what stops an empty hierarchy accumulating around three
+ * files. Intermediate folders holding nothing directly still get a node, since something below them
+ * does.</p>
+ */
+function build(items: DocumentItem[]): Branch {
+  const root: Branch = { path: '', name: '', children: [], files: [], total: 0 }
 
-    const here = left.split('/')
-    const there = right.split('/')
+  const reach = (path: string) => {
+    let node = root
+    let walked = ''
 
-    for (let depth = 0; depth < Math.min(here.length, there.length); depth++) {
-      const order = here[depth]!.localeCompare(there[depth]!, 'fr')
-      if (order !== 0) return order
+    for (const segment of path.split('/')) {
+      if (segment === '') continue
+
+      walked = walked === '' ? segment : `${walked}/${segment}`
+
+      let next = node.children.find((child) => child.name === segment)
+
+      if (next === undefined) {
+        next = { path: walked, name: segment, children: [], files: [], total: 0 }
+        node.children.push(next)
+      }
+
+      node = next
     }
 
-    return here.length - there.length
-  })
+    return node
+  }
+
+  for (const item of items) reach(item.folder?.trim() ?? '').files.push(item)
+
+  // Numeric collation, because she numbers her drawers: « 2 Actes » belongs before « 10 Pièces » and
+  // sorts after it on the strings alone.
+  const settle = (node: Branch): number => {
+    node.children.sort((left, right) => left.name.localeCompare(right.name, 'fr', { numeric: true }))
+    node.files.sort((left, right) =>
+      left.fileName.localeCompare(right.fileName, 'fr', { numeric: true }))
+
+    node.total = node.files.length + node.children.reduce((sum, child) => sum + settle(child), 0)
+    return node.total
+  }
+
+  settle(root)
+  return root
+}
+
+/** Every folder path in the tree, for « Tout déplier ». */
+function paths(node: Branch): string[] {
+  return node.children.flatMap((child) => [child.path, ...paths(child)])
+}
+
+/** « a/b/c » needs a, a/b and a/b/c open for its files to be on screen. */
+function ancestors(path: string): string[] {
+  const segments = path.split('/')
+
+  return segments.map((_, index) => segments.slice(0, index + 1).join('/'))
+}
+
+/** Accent- and case-blind, so « procedure » finds « Procédure ». */
+const fold = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+
+const touched = (item: DocumentItem) =>
+  Math.max(Date.parse(item.updatedAt), Date.parse(item.addedAt))
+
+/** Session storage is a convenience and never load-bearing, so every access can fail quietly. */
+function read(key: string): Set<string> | null {
+  try {
+    const stored = sessionStorage.getItem(key)
+    return stored === null ? null : new Set(JSON.parse(stored) as string[])
+  } catch {
+    return null
+  }
+}
+
+function write(key: string, value: Set<string>) {
+  try {
+    sessionStorage.setItem(key, JSON.stringify([...value]))
+  } catch {
+    // A private window, or storage turned off. The tree simply forgets between visits.
+  }
+}
+
+/** A group that opens and shuts, so everything on this screen behaves the same way. */
+function Section({ label, count, open, onToggle, children }: {
+  label: string
+  count: number
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center gap-1.5 pt-3.5 pb-1 font-mono text-[10px] tracking-[0.05em] uppercase text-muted hover:text-ink-secondary"
+      >
+        <ChevronRight
+          size={11}
+          strokeWidth={2.5}
+          className={cn('shrink-0 transition-transform', open && 'rotate-90')}
+        />
+        {label} · <span className="tnum">{count.toLocaleString('fr-FR')}</span>
+      </button>
+
+      {open && children}
+    </div>
+  )
+}
+
+/**
+ * Subfolders first, then this folder's own files.
+ *
+ * <p>Which is the answer to a folder holding both: it is how any file manager lists one, and it is
+ * why the tree carries the files rather than a second pane. A dossier is full of folders that hold
+ * four documents and two subfolders, and a layout that put them in different places would make her
+ * look twice for one folder's contents.</p>
+ */
+function Tree({ node, depth, expanded, onToggle, row }: {
+  node: Branch
+  depth: number
+  expanded: Set<string>
+  onToggle: (path: string) => void
+  row: (item: DocumentItem) => ReactNode
+}) {
+  return (
+    <>
+      {node.children.map((child) => {
+        const open = expanded.has(child.path)
+
+        return (
+          <div key={child.path}>
+            <button
+              type="button"
+              onClick={() => onToggle(child.path)}
+              style={{ paddingLeft: 8 + depth * 15 }}
+              className="flex min-h-[30px] w-full items-center gap-1.5 border-t border-line-subtle pr-2 text-left text-[12px] hover:bg-hover"
+            >
+              <ChevronRight
+                size={13}
+                strokeWidth={2}
+                className={cn('shrink-0 text-muted transition-transform', open && 'rotate-90')}
+              />
+
+              {open
+                ? <FolderOpen size={14} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />
+                : <Folder size={14} strokeWidth={1.75} className="shrink-0 text-ink-secondary" />}
+
+              <span className="min-w-0 flex-1 truncate font-medium">{child.name}</span>
+
+              <span className="shrink-0 font-mono text-[10.5px] text-muted tnum">
+                {child.total.toLocaleString('fr-FR')}
+              </span>
+            </button>
+
+            {open && (
+              <Tree
+                node={child}
+                depth={depth + 1}
+                expanded={expanded}
+                onToggle={onToggle}
+                row={row}
+              />
+            )}
+          </div>
+        )
+      })}
+
+      <div style={{ paddingLeft: depth * 15 }}>{node.files.map(row)}</div>
+    </>
+  )
+}
+
+/**
+ * What kind of file this is, at a glance.
+ *
+ * <p>Worth the mapping in a dossier that is half correspondence: 4 713 of the 13 917 documents in the
+ * real export arrived as courriels, and telling a .msg from the .pdf beside it is most of what a name
+ * in a long list has to do.</p>
+ */
+function fileIcon(fileName: string) {
+  const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()
+  const shared = { size: 14, strokeWidth: 1.75, className: 'w-[26px] shrink-0 text-disabled' } as const
+
+  if (['msg', 'eml'].includes(extension)) return <Mail {...shared} />
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'heic'].includes(extension)) {
+    return <ImageIcon {...shared} />
+  }
+  if (['xls', 'xlsx', 'xlsm', 'csv', 'ods'].includes(extension)) return <FileSpreadsheet {...shared} />
+  if (['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt'].includes(extension)) return <FileText {...shared} />
+
+  return <File {...shared} />
 }
 
 function DocumentRow({
-  item, isOpen, editing, nextNumber, folders, checkedOut,
+  item, isOpen, editing, nextNumber, folders, checkedOut, context,
   onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile, onOpen, onClose,
 }: {
   item: DocumentItem
   isOpen: boolean
   editing: boolean
   nextNumber: number
+  /** Where it is filed, shown only where the row is out of its folder: a result, a pièce, a récent. */
+  context?: string | null
   folders: string[]
   checkedOut: boolean
   onEdit: () => void
@@ -697,7 +995,7 @@ function DocumentRow({
           {item.exhibitNumber}
         </NumberPill>
       ) : (
-        <FileText size={14} strokeWidth={1.75} className="w-[26px] shrink-0 text-disabled" />
+        fileIcon(item.fileName)
       )}
 
       <RowMain>
@@ -706,6 +1004,7 @@ function DocumentRow({
           {item.exhibitLabel ?? item.fileName}
         </span>
         {item.exhibitLabel && <Micro className="font-mono">{item.fileName}</Micro>}
+        {context && <Micro className="font-mono">{context}</Micro>}
       </RowMain>
 
       {checkedOut && (
