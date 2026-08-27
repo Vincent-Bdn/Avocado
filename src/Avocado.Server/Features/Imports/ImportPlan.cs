@@ -12,6 +12,10 @@ namespace Avocado.Server.Features.Imports;
 /// suggested, because one of the six is named « 700119 » and a leading digit reads as a filing
 /// scheme. The suggestion is a hint; the choice belongs on every row.
 /// </param>
+/// <param name="GestisoftCode">« 700770 », when the folder is named after it. The one identifier the
+/// folder, the contacts list and the billing export all share.</param>
+/// <param name="ContactsFile">A contacts PDF found inside, if Gestisoft managed to export one.</param>
+/// <param name="BillingFile">The billing spreadsheet, likewise. Most dossiers have neither.</param>
 public sealed record ImportCandidate(
     string SourcePath,
     string Client,
@@ -20,7 +24,10 @@ public sealed record ImportCandidate(
     int Files,
     int Emails,
     long Bytes,
-    int Subfolders);
+    int Subfolders,
+    string? GestisoftCode = null,
+    string? ContactsFile = null,
+    string? BillingFile = null);
 
 /// <param name="Splittable">
 /// Client folders holding what look like several affaires. Offered, never applied: see
