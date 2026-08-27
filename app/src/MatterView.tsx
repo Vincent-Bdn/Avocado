@@ -6,6 +6,7 @@ import { MatterForm } from './MatterForm.js'
 import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
+import { Overview } from './tabs/Overview.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
 import { Avatar } from './components/ui/avatar.js'
 import { Badge, NumberPill } from './components/ui/badge.js'
@@ -22,12 +23,19 @@ import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
 import type { ContactSummary, MatterDetail } from './types.js'
 
-type Tab = 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
+type Tab = 'overview' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 
 /** The fiche dossier: header 52, tab bar 32 sticky, body, and the 208px context panel. */
 export function MatterView({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
   const [matter, setMatter] = useState<MatterDetail | null>(null)
-  const [tab, setTab] = useState<Tab>('journal')
+  /**
+   * Aperçu, not the journal.
+   *
+   * <p>The journal is forty rows of what happened, newest first, and it is the right screen for
+   * working and the wrong one for arriving: it opened before she had been told which dossier she was
+   * looking at.</p>
+   */
+  const [tab, setTab] = useState<Tab>('overview')
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -83,6 +91,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
   }
 
   const tabs: [Tab, string, number | null][] = [
+    ['overview', 'Aperçu', null],
     ['journal', 'Journal', matter.counts.activities],
     ['documents', 'Documents', matter.counts.documents],
     ['deadlines', 'Échéances', matter.counts.openDeadlines],
@@ -184,7 +193,15 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         ))}
       </nav>
 
-      <div className="grid flex-1 grid-cols-[minmax(0,1fr)_208px] overflow-hidden">
+      {/* The context panel is the same three blocks as the aperçu, so it steps aside there rather
+          than showing every figure twice on one screen. */}
+      <div
+        className={cn(
+          'grid flex-1 overflow-hidden',
+          tab === 'overview' ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_208px]',
+        )}
+      >
+        {tab === 'overview' && <Overview matter={matter} onOpen={setTab} />}
         {tab === 'journal' && (
           <Journal matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
@@ -201,7 +218,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
 
-        <ContextPanel matter={matter} onChanged={refreshAll} />
+        {tab !== 'overview' && <ContextPanel matter={matter} onChanged={refreshAll} />}
       </div>
 
       {editing && (
