@@ -30,6 +30,7 @@ public static class CreateInvoice
             ExternalReference = input.ExternalReference?.Trim(),
             IsPaid = input.IsPaid,
             PaidOn = input.PaidOn,
+            IsHistorical = input.IsHistorical,
         };
 
         database.Invoices.Add(invoice);

@@ -5,12 +5,17 @@ namespace Avocado.Server.Features.Billings.Endpoints.Dtos;
 /// <param name="AmountExclVatCents">
 /// Hors taxes. Avocado records what was billed elsewhere and never computes VAT.
 /// </param>
+/// <param name="IsHistorical">
+/// A facture whose work was never recorded here: issued before Avocado or in another system. It
+/// counts as facturé and never reduces « reste à facturer ».
+/// </param>
 public sealed record BillingInvoiceInput(
     DateOnly Date,
     long AmountExclVatCents,
     string? ExternalReference,
     bool IsPaid = false,
-    DateOnly? PaidOn = null)
+    DateOnly? PaidOn = null,
+    bool IsHistorical = false)
 {
     public string? Validate() => this switch
     {

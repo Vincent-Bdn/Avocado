@@ -27,6 +27,8 @@ interface BillingInvoice {
   amountExclVatCents: number
   isPaid: boolean
   paidOn: string | null
+  /** Brought over from before Avocado. Counts as facturé, never against « reste à facturer ». */
+  isHistorical: boolean
   billedTimeCents: number
   varianceCents: number
   billedEntryCount: number
@@ -320,6 +322,12 @@ export function Billing({ matterId, isOpen, onChanged }: {
                 </RowMain>
 
                 <RowAmount>{formatEuros(invoice.amountExclVatCents)}</RowAmount>
+                {invoice.isHistorical && (
+                  <span title="Reprise de l’ancien logiciel : compte comme facturée, hors reste à facturer.">
+                    <Badge tone="neutral">antérieure</Badge>
+                  </span>
+                )}
+
                 <Badge tone={invoice.isPaid ? 'brand' : 'accent'}>
                   {invoice.isPaid ? 'Payée' : 'En attente'}
                 </Badge>
@@ -785,6 +793,7 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
   const [amount, setAmount] = useState(invoice ? centsToAmount(invoice.amountExclVatCents) : '')
   const [reference, setReference] = useState(invoice?.externalReference ?? '')
   const [paid, setPaid] = useState(invoice?.isPaid ?? false)
+  const [historical, setHistorical] = useState(invoice?.isHistorical ?? false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -806,6 +815,7 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         externalReference: reference.trim() || null,
         isPaid: paid,
         paidOn: paid ? date : null,
+        isHistorical: historical,
       }
 
       if (invoice) {
@@ -815,6 +825,7 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         setAmount('')
         setReference('')
         setPaid(false)
+        setHistorical(false)
       }
 
       onSaved()
@@ -844,6 +855,21 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
           Payée
+        </label>
+
+        {/* The escape hatch for a facture whose hours were never recorded here. Without it, « reste
+            à facturer » subtracts the whole amount and a dossier repris de Gestisoft opens at
+            − 8 974 €. */}
+        <label
+          className="flex items-center gap-2 text-[13px]"
+          title="Émise avant Avocado ou dans un autre logiciel : elle compte comme facturée, mais n’est pas déduite du reste à facturer."
+        >
+          <input
+            type="checkbox"
+            checked={historical}
+            onChange={(event) => setHistorical(event.target.checked)}
+          />
+          Antérieure
         </label>
 
         <Button disabled={busy} onClick={() => void save()}>

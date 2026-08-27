@@ -321,6 +321,9 @@ public sealed class GestisoftImporter(
                     ExternalReference = row.Reference,
                     IsPaid = row.IsPaid,
                     PaidOn = row.PaidOn,
+                    // The hours behind these were never recorded here, so they must not be taken off
+                    // what is left to bill.
+                    IsHistorical = true,
                 });
 
                 continue;

@@ -30,6 +30,7 @@ public static class UpdateInvoice
         invoice.ExternalReference = input.ExternalReference?.Trim();
         invoice.IsPaid = input.IsPaid;
         invoice.PaidOn = input.IsPaid ? input.PaidOn : null;
+        invoice.IsHistorical = input.IsHistorical;
 
         await database.SaveChangesAsync(cancellationToken);
 

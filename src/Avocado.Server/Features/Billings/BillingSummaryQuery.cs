@@ -40,15 +40,17 @@ public static class BillingSummaryQuery
 
         var invoices = await database.Invoices
             .Where(invoice => invoice.MatterId == matterId)
-            .Select(invoice => new { invoice.AmountExclVatCents, invoice.BilledTimeCents })
+            .Select(invoice => new { invoice.AmountExclVatCents, invoice.BilledTimeCents, invoice.IsHistorical })
             .ToListAsync(cancellationToken);
 
         var invoicedCents = invoices.Sum(invoice => invoice.AmountExclVatCents);
 
         // A facture established from selected hours consumed those hours, so subtracting its amount
-        // as well would count the same work twice. Only the hand-recorded ones are subtracted.
+        // as well would count the same work twice. Only the hand-recorded ones are subtracted, and a
+        // historical one is not among them: its hours were never recorded here, so there is nothing
+        // for it to have consumed and taking it off would remove money that was never counted.
         var manualInvoicedCents = invoices
-            .Where(invoice => invoice.BilledTimeCents == 0)
+            .Where(invoice => invoice.BilledTimeCents == 0 && !invoice.IsHistorical)
             .Sum(invoice => invoice.AmountExclVatCents);
 
         var varianceCents = invoices

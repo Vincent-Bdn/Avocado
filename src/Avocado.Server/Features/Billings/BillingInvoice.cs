@@ -22,6 +22,23 @@ public class BillingInvoice
 
     public bool IsPaid { get; set; }
 
+    /// <summary>
+    /// A facture whose work was never recorded here: issued before Avocado, or in another system, and
+    /// brought over for the history.
+    ///
+    /// <para><b>It exists because « reste à facturer » subtracts hand-recorded factures.</b> That
+    /// subtraction is right for one she types today, since the hours justifying it are still sitting
+    /// unbilled and would otherwise be counted twice. It is meaningless for one imported from
+    /// Gestisoft: those hours were never entered, so nothing is being counted twice and the
+    /// subtraction simply removes money that was never there. COULEYRE arrived with seven factures
+    /// totalling 8 974 €, and the first 45 minutes she recorded on it read « reste à facturer
+    /// − 8 794 € ».</para>
+    ///
+    /// <para>Editable rather than fixed at import, because the same thing is true of a facture she
+    /// types in for last year.</para>
+    /// </summary>
+    public bool IsHistorical { get; set; }
+
     public DateOnly? PaidOn { get; set; }
 
     /// <summary>

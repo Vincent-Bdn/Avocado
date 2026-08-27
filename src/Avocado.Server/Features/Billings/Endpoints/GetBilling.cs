@@ -40,7 +40,8 @@ public static class GetBilling
                 invoice.PaidOn,
                 invoice.BilledTimeCents,
                 invoice.AmountExclVatCents - invoice.BilledTimeCents,
-                database.TimeEntries.Count(entry => entry.InvoiceId == invoice.Id)))
+                database.TimeEntries.Count(entry => entry.InvoiceId == invoice.Id),
+                invoice.IsHistorical))
             .ToListAsync(cancellationToken);
 
         var ledger = await database.LedgerEntries

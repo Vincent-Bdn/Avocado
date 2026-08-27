@@ -14,7 +14,9 @@ public sealed record BillingInvoiceItem(
     long BilledTimeCents,
     /// <summary>Positive = boni, negative = mali. Zero on a hand-recorded facture.</summary>
     long VarianceCents,
-    int BilledEntryCount);
+    int BilledEntryCount,
+    /// <summary>Brought over for the history. Counts as facturé, never against « reste à facturer ».</summary>
+    bool IsHistorical = false);
 
 /// <param name="Kind">Derived from the stored sign, so the badge and the rendered ± cannot disagree.</param>
 /// <param name="AmountCents">Signed, as stored. The UI renders « + 1 200,00 € » / « − 105,00 € ».</param>
