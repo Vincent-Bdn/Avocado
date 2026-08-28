@@ -11,10 +11,11 @@ namespace Avocado.Server.Features.Dashboards;
 /// month valued at the dossier's rate, against the factures actually issued that month. A practice
 /// that works more than it invoices sees it here before it shows up in the bank.</para>
 ///
-/// <para>Factures brought over from before Avocado are left out, and counted separately so the card
-/// can say so. Their hours were never recorded here, so they have nothing to be compared against:
-/// with them in, every month of a freshly migrated practice drew a full invoiced bar against an empty
-/// facturable one, which is a picture of the migration and not of the practice.</para>
+/// <para>Factures brought over from before Avocado are counted separately and drawn in their own
+/// segment. They are real turnover and belong on the chart; what they cannot do is take part in the
+/// comparison, since the hours behind them were never recorded here. Left in it, février 2026 read
+/// 7 000 € facturé against nothing worked; left out of the chart altogether, which is where this
+/// went first, the card said « facturé 0 € » for a practice that had invoiced fifty thousand.</para>
 ///
 /// <para>The window ends on the current month, which is in progress, its gap is expected, and the
 /// expanded view says so rather than letting it read as a miss.</para>
@@ -73,15 +74,17 @@ public static class HonorairesQuery
                 .Where(entry => entry.Date >= month && entry.Date < next)
                 .Sum(entry => entry.Rate * entry.DurationMinutes / 60);
 
-            var issued = invoices
-                .Where(invoice => invoice.Date >= month && invoice.Date < next && !invoice.IsHistorical)
-                .ToList();
+            var issued = invoices.Where(invoice => invoice.Date >= month && invoice.Date < next).ToList();
 
             months.Add(new HonoraireMonth(
                 month,
                 billable,
                 issued.Sum(invoice => invoice.AmountExclVatCents),
-                issued.Where(invoice => invoice.IsPaid).Sum(invoice => invoice.AmountExclVatCents),
+                issued.Where(invoice => invoice.IsHistorical).Sum(invoice => invoice.AmountExclVatCents),
+                // Paid is the settled part of what is not historical, since that is the part the
+                // month's own segments split.
+                issued.Where(invoice => invoice.IsPaid && !invoice.IsHistorical)
+                    .Sum(invoice => invoice.AmountExclVatCents),
                 costs.Where(cost => cost.Date >= month && cost.Date < next)
                     .Sum(cost => cost.AmountExclVatCents)));
         }
@@ -90,9 +93,9 @@ public static class HonorairesQuery
             months,
             months.Sum(month => month.BillableCents),
             months.Sum(month => month.InvoicedCents),
+            months.Sum(month => month.HistoricalCents),
             months.Sum(month => month.PaidCents),
             months.Sum(month => month.SubcontractedCents),
-            invoices.Where(invoice => invoice.IsHistorical).Sum(invoice => invoice.AmountExclVatCents),
             Scale(months));
     }
 

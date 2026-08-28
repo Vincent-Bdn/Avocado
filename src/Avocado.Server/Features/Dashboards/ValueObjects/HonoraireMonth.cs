@@ -10,18 +10,21 @@ namespace Avocado.Server.Features.Dashboards.ValueObjects;
 /// ce que j'ai travaillé ce mois-là », and excluding what was billed would erase the answer.
 /// </param>
 /// <param name="InvoicedCents">
-/// Factures dated in that month, whatever work they cover, <em>except the historical ones</em>.
-///
-/// <para>Excluded for the same reason as sous-traitance below: the facturable bar is time recorded in
-/// Avocado, and a facture repris de Gestisoft covers hours that were never recorded here. Leaving them
-/// in drew a month with 7 000 € invoiced against nothing worked, and called the gap « reste à
-/// facturer − 7 000 € ». There is no month of hers where that comparison could have meant
-/// anything.</para>
+/// Every facture dated in that month, whatever work it covers, historical ones included. It is real
+/// turnover and belongs on the chart; what it does not belong in is the comparison, which is
+/// <see cref="GapCents"/>'s business and not this one's.
+/// </param>
+/// <param name="HistoricalCents">
+/// The part of that brought over from before Avocado. Drawn as its own segment so a month of migrated
+/// history does not read as a month of billing without working, and left out of the gap because the
+/// hours behind it were never recorded here.
 /// </param>
 /// <param name="PaidCents">
-/// The part of those factures marked as settled, by their current state rather than by the date of
-/// payment. « Encaissé » here means « facturé ce mois-là, et rentré depuis », which is the question a
-/// practice asks about a month it has closed.
+/// The settled part of what is <em>not</em> historical, by its current state rather than by the date
+/// of payment. « Encaissé » here means « facturé ce mois-là, et rentré depuis », which is the question
+/// a practice asks about a month it has closed. Historical factures carry their own segment and are
+/// not split again inside it: whether a facture from before the migration was settled is a fact about
+/// the old system, not about this month.
 /// </param>
 /// <param name="SubcontractedCents">
 /// Rétrocessions and other sous-traitance recorded that month. Subtracted from the invoiced figure
@@ -34,10 +37,14 @@ public sealed record HonoraireMonth(
     DateOnly Month,
     long BillableCents,
     long InvoicedCents,
+    long HistoricalCents,
     long PaidCents,
     long SubcontractedCents)
 {
-    public long UnpaidCents => InvoicedCents - PaidCents;
+    /// <summary>Factures for work Avocado could have recorded. The only ones the gap can speak about.</summary>
+    public long CurrentCents => InvoicedCents - HistoricalCents;
+
+    public long UnpaidCents => CurrentCents - PaidCents;
 
     /// <summary>What the month actually brought in, once the confrères are paid. Never below zero.</summary>
     public long NetCents => Math.Max(0, InvoicedCents - SubcontractedCents);
@@ -48,10 +55,15 @@ public sealed record HonoraireMonth(
     /// <para><b>It is not « reste à facturer »</b>, which is what it used to be called. That figure is
     /// a dossier's, it is cumulative, and it nets off provisions; this one is one month of recorded
     /// time against one month of factures. They go negative for entirely ordinary reasons, chiefly
-    /// that a facture issued in March pays for February, and reading « reste à facturer − 7 000 € »
-    /// off a chart invites a conclusion about the practice that the number does not support.</para>
+    /// that a facture issued in mars pays for février, and reading « reste à facturer − 7 000 € » off
+    /// a chart invites a conclusion about the practice that the number does not support.</para>
+    ///
+    /// <para>Historical factures are outside it. Their hours were never recorded here, so there is
+    /// nothing for them to be compared against, and février 2026 drew 7 000 € facturé against nothing
+    /// worked. They stay on the chart, in their own segment: the figure was never the problem, the
+    /// comparison was.</para>
     /// </summary>
-    public long GapCents => BillableCents - NetCents;
+    public long GapCents => BillableCents - Math.Max(0, CurrentCents - SubcontractedCents);
 }
 
 /// <param name="ScaleCents">
@@ -60,20 +72,21 @@ public sealed record HonoraireMonth(
 /// the data to find it.
 /// </param>
 /// <param name="HistoricalCents">
-/// What was set aside: factures brought over from before Avocado, dated inside the window, whose work
-/// was never recorded here. Reported rather than simply dropped, because a chart quietly missing
-/// 8 974 € of real turnover is the same failure as one quietly inventing a gap.
+/// How much of the invoiced total was brought over from before Avocado. Shown on the card so the gap
+/// it is absent from can be explained rather than merely be smaller than expected.
 /// </param>
 public sealed record DashboardHonoraires(
     IReadOnlyList<HonoraireMonth> Months,
     long BillableCents,
     long InvoicedCents,
+    long HistoricalCents,
     long PaidCents,
     long SubcontractedCents,
-    long HistoricalCents,
     long ScaleCents)
 {
-    public long UnpaidCents => InvoicedCents - PaidCents;
+    public long CurrentCents => InvoicedCents - HistoricalCents;
+
+    public long UnpaidCents => CurrentCents - PaidCents;
 
     public long NetCents => InvoicedCents - SubcontractedCents;
 }

@@ -135,12 +135,16 @@ public class DashboardFiguresTests : IDisposable
     }
 
     /// <summary>
-    /// The chart drew February 2026 as 7 000 € invoiced against nothing worked, and called the gap
-    /// « reste à facturer − 7 000 € ». The hours were never recorded here, so there is nothing to
-    /// compare them against.
+    /// The chart drew February 2026 as 7 000 EUR invoiced against nothing worked, and called the gap
+    /// « reste a facturer, moins 7 000 EUR ». The hours were never recorded here, so there is nothing
+    /// to compare them against.
+    ///
+    /// <para>Taking them off the chart instead was worse, and is the other half of what this pins: the
+    /// card then read « facture 0 EUR » for a practice that had invoiced fifty thousand. The figure
+    /// was never the problem. The comparison was.</para>
     /// </summary>
     [Fact]
-    public async Task LeavesHistoricalFacturesOutOfTheComparison()
+    public async Task ShowsAHistoricalFactureWithoutLettingItIntoTheComparison()
     {
         Invoice(new DateOnly(2026, 2, 27), 650_000, historical: true);
         Invoice(new DateOnly(2026, 2, 27), 50_000, historical: true);
@@ -148,11 +152,35 @@ public class DashboardFiguresTests : IDisposable
         var chart = await ChartAsync();
         var february = Assert.Single(chart.Months, month => month.Month == new DateOnly(2026, 2, 1));
 
-        Assert.Equal(0, february.InvoicedCents);
-        Assert.Equal(0, february.GapCents);
-
-        // Set aside, not lost: the card says so rather than quietly missing 7 000 € of turnover.
+        // On the chart, and in the total.
+        Assert.Equal(700_000, february.InvoicedCents);
+        Assert.Equal(700_000, february.HistoricalCents);
+        Assert.Equal(700_000, chart.InvoicedCents);
         Assert.Equal(700_000, chart.HistoricalCents);
+
+        // Out of the comparison, and out of the paid/unpaid split, which is about this month.
+        Assert.Equal(0, february.CurrentCents);
+        Assert.Equal(0, february.GapCents);
+        Assert.Equal(0, february.PaidCents);
+        Assert.Equal(0, february.UnpaidCents);
+    }
+
+    /// <summary>
+    /// A month holding both: the facture she issued here is compared, the one repris is shown beside
+    /// it and does not move the gap.
+    /// </summary>
+    [Fact]
+    public async Task ComparesOnlyTheCurrentPartOfAMixedMonth()
+    {
+        Minutes(new DateOnly(2026, 7, 6), 600);
+        Invoice(new DateOnly(2026, 7, 20), 100_000);
+        Invoice(new DateOnly(2026, 7, 20), 500_000, historical: true);
+
+        var july = Assert.Single((await ChartAsync()).Months, month => month.Month == new DateOnly(2026, 7, 1));
+
+        Assert.Equal(600_000, july.InvoicedCents);
+        Assert.Equal(100_000, july.CurrentCents);
+        Assert.Equal(140_000, july.GapCents);
     }
 
     /// <summary>And what she actually recorded still draws the gap it should.</summary>

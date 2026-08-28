@@ -8,7 +8,12 @@ export interface HonoraireMonth {
   /** The first of the month, ISO. */
   month: string
   billableCents: number
+  /** Everything invoiced that month, historical included. Real turnover, and it belongs on the chart. */
   invoicedCents: number
+  /** The part of it brought over from before Avocado. Drawn apart, and outside the gap. */
+  historicalCents: number
+  /** `invoiced − historical`: the factures the gap can speak about. */
+  currentCents: number
   paidCents: number
   unpaidCents: number
   subcontractedCents: number
@@ -22,12 +27,13 @@ export interface Honoraires {
   months: HonoraireMonth[]
   billableCents: number
   invoicedCents: number
+  /** Factures repris de l’ancien logiciel: on the chart, outside the comparison. */
+  historicalCents: number
+  currentCents: number
   paidCents: number
   unpaidCents: number
   subcontractedCents: number
   netCents: number
-  /** Factures repris de l’ancien logiciel, left out of the comparison and reported instead. */
-  historicalCents: number
   scaleCents: number
 }
 
@@ -42,6 +48,13 @@ const BILLABLE = 'bg-[#DDE8E0] border border-[#9DBCA8]'
 const PAID = 'bg-[#2C4A38]'
 const UNPAID =
   'bg-[repeating-linear-gradient(135deg,#8FB79E_0_2px,#FFFFFF_2px_4px)] border-b border-[#2C4A38]'
+
+/**
+ * Factures repris de l’ancien logiciel. Flat and unsaturated, so it reads as background rather than
+ * as this month's activity: it is turnover she wants to see and not something the gap above it is
+ * measuring, and a month of migrated history must not look like a month of billing without working.
+ */
+const HISTORICAL = 'bg-[#C3CFC6] border-b border-[#8FB79E]'
 
 /**
  * « Honoraires facturables et facturés », twelve months of one question: am I invoicing what I
@@ -76,6 +89,7 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
           <Legend swatch={BILLABLE}>Facturable</Legend>
           <Legend swatch={PAID}>Facturé, payé</Legend>
           <Legend swatch={cn(UNPAID, 'border border-[#2C4A38]')}>Facturé, non payé</Legend>
+          {data.historicalCents > 0 && <Legend swatch={HISTORICAL}>Antérieur à Avocado</Legend>}
         </div>
 
         <Plot data={data} height={88} barWidth={9} tooltipWidth={186} />
@@ -94,13 +108,12 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
           )}
         </div>
 
-        {/* Said rather than silently dropped: a chart missing 8 974 € of real turnover is the same
-            failure as one inventing a gap. */}
+        {/* On the chart, out of the comparison, and said so: the figure was never the problem. */}
         {data.historicalCents > 0 && (
           <div className="border-t border-line-subtle bg-[#F8F9F6] px-3 pb-2 text-[10.5px] leading-[15px] text-muted">
-            {formatEurosRounded(data.historicalCents)} de factures antérieures à Avocado ne sont pas
-            comptées ici : le temps qu’elles couvrent n’a jamais été saisi, il n’y a donc rien à leur
-            comparer.
+            Dont {formatEurosRounded(data.historicalCents)} de factures antérieures à Avocado. Elles
+            comptent dans le facturé, mais pas dans l’écart : le temps qu’elles couvrent n’a jamais été
+            saisi ici, il n’y a donc rien à leur comparer.
           </div>
         )}
       </div>
@@ -131,6 +144,9 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
   const percent = (cents: number) =>
     data.scaleCents === 0 ? 0 : Math.min(100, (cents / data.scaleCents) * 100)
 
+  /** A segment's share of its own column, which is a different scale from the axis. */
+  const share = (cents: number, of: number) => (of === 0 ? 0 : (cents / of) * 100)
+
   return (
     <div className={cn('relative', labels === 'full' ? 'py-0' : 'px-3 pt-2.5 pb-1.5')}>
       {hovered !== null && data.months[hovered] && (
@@ -147,10 +163,13 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
         {data.months.map((month, index) => {
           const net = percent(month.netCents)
 
-          // The confrères are paid out of what came in, so what is left is settled money first. The
-          // split is a cap, never a pro rata: a proportion invented here would look like a figure.
-          const paid = Math.min(month.paidCents, month.netCents)
-          const unpaid = month.netCents - paid
+          // The confrères are paid out of what came in, so what is left is settled money first, and
+          // what came over from the old software is set aside before either. Every split is a cap and
+          // never a pro rata: a proportion invented here would look like a figure.
+          const historical = Math.min(month.historicalCents, month.netCents)
+          const rest = month.netCents - historical
+          const paid = Math.min(month.paidCents, rest)
+          const unpaid = rest - paid
 
           return (
             <div
@@ -175,21 +194,16 @@ function Plot({ data, height, barWidth, tooltipWidth, labels = 'initial' }: {
                   className={cn('rounded-t-[2px]', BILLABLE)}
                 />
 
-                {/* One column, filled from the bottom: paid, then unpaid hatched above it. */}
+                {/* One column, filled from the bottom: paid, unpaid hatched above it, and whatever
+                    was repris above that. Paid keeps the baseline so the dark segment stays
+                    comparable from one month to the next. */}
                 <div
                   style={{ width: barWidth, height: `${net}%` }}
                   className="flex flex-col justify-end overflow-hidden rounded-t-[2px]"
                 >
-                  {unpaid > 0 && (
-                    <div
-                      style={{ height: `${month.netCents === 0 ? 0 : (unpaid / month.netCents) * 100}%` }}
-                      className={UNPAID}
-                    />
-                  )}
-                  <div
-                    style={{ height: `${month.netCents === 0 ? 0 : (paid / month.netCents) * 100}%` }}
-                    className={PAID}
-                  />
+                  {historical > 0 && <div style={{ height: `${share(historical, month.netCents)}%` }} className={HISTORICAL} />}
+                  {unpaid > 0 && <div style={{ height: `${share(unpaid, month.netCents)}%` }} className={UNPAID} />}
+                  <div style={{ height: `${share(paid, month.netCents)}%` }} className={PAID} />
                 </div>
               </div>
 
@@ -252,6 +266,16 @@ function Tooltip({ month, index, count, width, large }: {
         <Line large={large} indented label="· payé" value={month.paidCents} tone="text-brand-on-subtle" />
         <Line large={large} indented label="· non payé" value={month.unpaidCents} tone="text-warning" />
 
+        {month.historicalCents > 0 && (
+          <Line
+            large={large}
+            indented
+            label="· antérieur"
+            value={month.historicalCents}
+            tone="text-muted"
+          />
+        )}
+
         {month.subcontractedCents > 0 && (
           <>
             <Line
@@ -275,9 +299,12 @@ function Tooltip({ month, index, count, width, large }: {
               provisions; this is one month of recorded time against one month of factures, and it
               goes negative whenever a facture issued in March pays for February. */}
           <span
-            title={month.gapCents >= 0
+            title={(month.gapCents >= 0
               ? 'Temps saisi ce mois-là qui n’a pas été facturé le même mois'
-              : 'Facturé ce mois-là au-delà du temps saisi le même mois, ce qui est le cas dès qu’une facture couvre le mois précédent'}
+              : 'Facturé ce mois-là au-delà du temps saisi le même mois, ce qui est le cas dès qu’une facture couvre le mois précédent')
+              + (month.historicalCents > 0
+                ? '. Les factures antérieures à Avocado n’y entrent pas : le temps qu’elles couvrent n’a jamais été saisi ici.'
+                : '')}
             className={cn('font-medium', large ? 'text-[11.5px]' : 'text-[10.5px]')}
           >
             Écart
