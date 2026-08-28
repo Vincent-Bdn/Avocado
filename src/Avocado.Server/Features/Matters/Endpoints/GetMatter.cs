@@ -39,6 +39,22 @@ public static class GetMatter
                 .ToListAsync(cancellationToken)
             : [];
 
+        // « Derniers modifiés »: what she was last working on, which on the aperçu is the useful five
+        // out of seven hundred and ninety-two.
+        var documents = await database.Documents
+            .AsNoTracking()
+            .Where(document => document.MatterId == id)
+            .OrderByDescending(document => document.UpdatedAt)
+            .Take(5)
+            .Select(document => new MatterDocumentItem(
+                document.Id,
+                document.FileName,
+                document.ExhibitNumber,
+                document.ExhibitLabel,
+                document.Folder ?? document.Type,
+                document.UpdatedAt))
+            .ToListAsync(cancellationToken);
+
         var counts = new MatterCounts(
             await database.Activities.CountAsync(activity => activity.MatterId == id, cancellationToken),
             await database.Documents.CountAsync(document => document.MatterId == id, cancellationToken),
@@ -82,6 +98,7 @@ public static class GetMatter
             {
                 Urgency = DeadlineUrgencyRule.For(deadline.Date, today),
             })],
+            documents,
             counts,
             await BillingSummaryQuery.ForMatterAsync(database, id, cancellationToken),
             lastActivity);
