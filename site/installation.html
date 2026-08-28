@@ -99,7 +99,7 @@
                 </svg>
                 Télécharger pour Mac Apple Silicon
               </a>
-              <a href="#avertissement-mac">macOS va refuser de l’ouvrir la première fois</a>
+              <a href="#avertissement-mac">macOS le refusera : une commande à coller</a>
             </div>
             <p class="download__version">
               Pour les Mac à puce M1, M2, M3, M4 et suivantes, c’est-à-dire tous les Mac vendus
@@ -230,12 +230,14 @@
 
       <section id="avertissement-mac">
         <p class="eyebrow">Étape 2, sur Mac</p>
-        <h2>macOS refuse d’ouvrir Avocado la première fois.</h2>
+        <h2>macOS refuse d’ouvrir Avocado. Une commande le débloque.</h2>
 
         <p>
-          Le message parle de logiciel malveillant. Il faut le lire pour ce qu’il dit exactement :
-          <strong>Apple ne peut pas vérifier</strong> l’application, faute d’avoir été payée pour
-          cela. Ce n’est pas la même chose que « Apple a vérifié et c’est dangereux ».
+          Avocado n’est pas signé par Apple : la signature coûte cent dollars par an et suppose un
+          compte développeur, ce qu’un logiciel gratuit et vérifiable n’a pas. macOS le constate et
+          refuse. Il faut lire le message pour ce qu’il dit exactement :
+          <strong>Apple n’a pas vérifié</strong> cette application. Ce n’est pas
+          « Apple a vérifié et c’est dangereux ».
         </p>
 
         <ol class="steps">
@@ -247,56 +249,78 @@
             </p>
           </li>
           <li>
-            <h3>Ouvrez Avocado depuis Applications, et laissez-le refuser</h3>
+            <h3>Ouvrez le Terminal et collez cette ligne</h3>
             <p>
-              Le refus est nécessaire : c’est lui qui inscrit Avocado dans les réglages de sécurité,
-              où vous pourrez l’autoriser à l’étape suivante. Cliquez sur « Terminé » ou
-              « Annuler », surtout pas sur « Déplacer vers la corbeille ».
+              Le Terminal se trouve dans Applications, dossier Utilitaires ; ou tapez
+              « Terminal » dans Spotlight, la loupe en haut à droite. Collez la ligne, appuyez sur
+              Entrée. Rien ne s’affiche : c’est normal, elle a fonctionné.
             </p>
 
-            <div class="dialog">
-              <p class="dialog__caption">Reproduction du message macOS</p>
-              <div class="dialog__body">
-                <p class="dialog__title">
-                  « Avocado » n’a pas pu être ouvert car Apple ne peut pas vérifier qu’il ne contient
-                  pas de logiciel malveillant.
-                </p>
-                <p>Ce logiciel doit être mis à jour. Contactez le développeur pour en savoir plus.</p>
-                <div class="dialog__buttons">
-                  <span class="dialog__button dialog__button--target">Terminé</span>
-                  <span class="dialog__button">Déplacer vers la corbeille</span>
-                </div>
-              </div>
-            </div>
-          </li>
-          <li>
-            <h3>Allez dans Réglages Système, Confidentialité et sécurité</h3>
+            <pre><code>xattr -cr /Applications/Avocado.app</code></pre>
+
             <p>
-              Descendez jusqu’à la section « Sécurité ». Une ligne y est apparue :
-              « Avocado a été bloqué car il ne provient pas d’un développeur identifié ». Cliquez sur
-              <strong>« Ouvrir quand même »</strong>, puis confirmez avec votre mot de passe ou
-              Touch ID.
+              Elle retire les étiquettes que macOS a posées sur le fichier en le téléchargeant. Elle
+              ne modifie pas Avocado, elle ne touche à rien d’autre sur le Mac, et elle n’est à faire
+              qu’une fois. Ne lancez jamais une commande de ce genre sur un logiciel dont vous ne
+              savez pas d’où il vient : ici, vous pouvez lire le code qui a produit le fichier.
             </p>
           </li>
           <li>
             <h3>Avocado s’ouvre</h3>
             <p>
-              Cette autorisation vaut une fois pour toutes. Les lancements suivants se font
-              normalement, depuis le Launchpad ou le Dock.
+              Depuis le Launchpad ou le dossier Applications, normalement. Les lancements suivants ne
+              demandent plus rien.
             </p>
           </li>
         </ol>
 
         <details>
-          <summary>Si vous préférez une seule commande dans le Terminal</summary>
+          <summary>Pourquoi passer par le Terminal plutôt que par les Réglages ?</summary>
           <p>
-            Cette commande retire l’étiquette « téléchargé depuis Internet » que macOS pose sur le
-            fichier, et l’application s’ouvre ensuite normalement. Elle remplace les étapes 2 et 3.
+            Parce que sur beaucoup de Mac, le chemin par les Réglages n’existe pas. Il dépend du
+            message que macOS affiche, et il y en a deux :
           </p>
-          <pre><code>xattr -dr com.apple.quarantine /Applications/Avocado.app</code></pre>
+
+          <div class="dialog">
+            <p class="dialog__caption">Le premier message, sur certains Mac</p>
+            <div class="dialog__body">
+              <p class="dialog__title">
+                « Avocado » n’a pas pu être ouvert car Apple ne peut pas vérifier qu’il ne contient
+                pas de logiciel malveillant.
+              </p>
+              <div class="dialog__buttons">
+                <span class="dialog__button dialog__button--target">Terminé</span>
+                <span class="dialog__button">Déplacer vers la corbeille</span>
+              </div>
+            </div>
+          </div>
+
           <p>
-            Ne lancez jamais une commande de ce genre sur un logiciel dont vous ne savez pas d’où il
-            vient. Ici, vous pouvez lire le code qui a produit le fichier.
+            Celui-là inscrit Avocado dans Réglages Système, Confidentialité et sécurité, section
+            « Sécurité », où apparaît un bouton <strong>« Ouvrir quand même »</strong>. Si vous le
+            voyez, il fait le même travail que la commande. Cliquez sur « Terminé », jamais sur
+            « Déplacer vers la corbeille ».
+          </p>
+
+          <div class="dialog">
+            <p class="dialog__caption">Le second, sur les Mac Apple Silicon récents</p>
+            <div class="dialog__body">
+              <p class="dialog__title">
+                « Avocado » est endommagé et ne peut pas être ouvert. Vous devriez le placer dans la
+                corbeille.
+              </p>
+              <div class="dialog__buttons">
+                <span class="dialog__button dialog__button--target">Annuler</span>
+                <span class="dialog__button">Placer dans la corbeille</span>
+              </div>
+            </div>
+          </div>
+
+          <p>
+            Celui-là est un refus sec. Rien n’apparaît dans les Réglages, il n’y a pas de bouton
+            « Ouvrir quand même », et le fichier n’est pourtant pas endommagé : macOS le dit de
+            toute application non signée qu’il a marquée au téléchargement. La commande est alors le
+            seul chemin, et c’est pour cela qu’elle est donnée en premier.
           </p>
         </details>
 
