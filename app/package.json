@@ -69,6 +69,7 @@
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false
     },
+    "afterPack": "scripts/adhoc-sign.cjs",
     "mac": {
       "icon": "public/icon.png",
       "category": "public.app-category.business",
