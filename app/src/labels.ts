@@ -39,7 +39,20 @@ export const urgencyLabels: Record<DeadlineUrgency, string> = {
 
 const euros = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' })
 
-export const formatEuros = (cents: number): string => euros.format(cents / 100)
+/**
+ * What is shown where a figure did not arrive.
+ *
+ * <p>Not « 0,00 € », which is a different statement and a false one. Not « NaN € » either, which is
+ * what an absent field used to produce: the server was one build behind the window, sent the figure
+ * under its previous name, and the chart printed NaN where the money goes.</p>
+ */
+const MISSING = 'n/d'
+
+/** A figure that never arrived is not zero, and saying so is the whole point of this. */
+const amount = (format: Intl.NumberFormat, cents: number): string =>
+  Number.isFinite(cents) ? format.format(cents / 100) : MISSING
+
+export const formatEuros = (cents: number): string => amount(euros, cents)
 
 const roundEuros = new Intl.NumberFormat('fr-FR', {
   style: 'currency',
@@ -52,10 +65,12 @@ const roundEuros = new Intl.NumberFormat('fr-FR', {
  * 16 000,00 € says nothing more than 16 000 € and takes half again the width to say it. Anywhere a
  * figure is a figure rather than a scale, use formatEuros.
  */
-export const formatEurosRounded = (cents: number): string => roundEuros.format(cents / 100)
+export const formatEurosRounded = (cents: number): string => amount(roundEuros, cents)
 
 /** « 4 h 20 », « 45 min », never « 4.33 h ». */
 export function formatDuration(minutes: number): string {
+  if (!Number.isFinite(minutes)) return MISSING
+
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
 
