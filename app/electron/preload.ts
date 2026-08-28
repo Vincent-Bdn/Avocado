@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('avocado', {
     ipcRenderer.invoke('avocado:chooseFile', title, startIn, extensions) as Promise<string | null>,
   revealFolder: (folder: string) =>
     ipcRenderer.invoke('avocado:revealFolder', folder) as Promise<string | null>,
+  revealFile: (file: string) =>
+    ipcRenderer.invoke('avocado:revealFile', file) as Promise<string | null>,
 
   /** Removable volumes only, never this computer's own disk. */
   removableDrives: () =>

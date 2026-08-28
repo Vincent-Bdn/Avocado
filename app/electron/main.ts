@@ -146,6 +146,16 @@ app.whenReady().then(async () => {
     })
 
     /**
+     * Opens the dossier's folder with one file selected, which is what « ouvrir un document » does now
+     * that there is only one way to reach one. showItemInFolder rather than openPath: she is being
+     * shown where the file is, among the others, not handed it in isolation.
+     */
+    ipcMain.handle('avocado:revealFile', (_event, file: string) => {
+      shell.showItemInFolder(file)
+      return null
+    })
+
+    /**
      * Restoring accepts the sheet itself rather than only what is typed off it, and the import wizard
      * uses the same dialog to point at the contacts list Gestisoft exported under a name nobody could
      * have guessed. Hence the two optional arguments; given neither, this is what it always was.

@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { ChevronRight, FileText, Plus, X } from 'lucide-react'
-import { api } from '../api.js'
+import { ChevronRight } from 'lucide-react'
 import { Avatar } from '../components/ui/avatar.js'
 import { Button } from '../components/ui/button.js'
-import { AddParty, PartyRole } from '../sections/Parties.js'
+import { PartyRole } from '../sections/Parties.js'
+import { FileGlyph } from './Documents.js'
 import { TierBullet, distance } from '../lib/urgency.js'
 import { urgencyLabels } from '../labels.js'
 import { cn } from '../lib/utils.js'
@@ -32,31 +32,28 @@ import type { DeadlineUrgency, MatterDetail } from '../types.js'
  */
 export function Overview({ matter, onOpen, onEdit, onChanged }: {
   matter: MatterDetail
-  onOpen: (tab: 'journal' | 'documents' | 'deadlines' | 'time' | 'billing') => void
+  onOpen: (tab: 'parties' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing') => void
   onEdit: () => void
   onChanged: () => void
 }) {
-  const [addingParty, setAddingParty] = useState(false)
   const [editingParty, setEditingParty] = useState<string | null>(null)
-  const [showAllParties, setShowAllParties] = useState(false)
 
   /**
-   * « Gérer » has to manage something.
+   * Nothing has happened here yet.
    *
-   * <p>Detaching a party lived only in the 208px context panel, which this tab hides, so on the aperçu
-   * it was unreachable. A link labelled « Gérer » that only ever opened « ajouter » would be a label
-   * that lies, and the row's own role is already editable by clicking it.</p>
+   * <p>Not « no description »: a dossier repris de Gestisoft arrives with two hundred journal entries,
+   * eight hundred documents and no description at all, and telling it to note its first call was
+   * absurd. What makes a dossier new is that nothing is in it.</p>
    */
-  const [managing, setManaging] = useState(false)
-
-  async function detach(id: string) {
-    await api(`/api/parties/${id}`, { method: 'DELETE' }).catch(() => undefined)
-    onChanged()
-  }
+  const isNew =
+    matter.counts.activities === 0
+    && matter.counts.documents === 0
+    && matter.counts.timeEntries === 0
+    && !matter.description
 
   const clients = matter.parties.filter((party) => party.isClient)
   const others = matter.parties.filter((party) => !party.isClient)
-  const shown = showAllParties ? others : others.slice(0, 5)
+  const shown = others.slice(0, 5)
 
   return (
     <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_1px_minmax(0,380px)] overflow-y-auto max-[1120px]:grid-cols-[minmax(0,1fr)_1px_minmax(0,320px)] max-[1000px]:grid-cols-[minmax(0,1fr)]">
@@ -68,10 +65,13 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
           <p className="m-0 max-w-[64ch] text-[14.5px] leading-6 text-ink">{matter.description}</p>
         )}
 
+        {/* The top rule separates the register from the description above it. With no description
+            it separates it from nothing, and a line hanging over the first row of a page reads as a
+            mistake, which is what it was. */}
         <dl
           className={cn(
-            'm-0 grid grid-cols-[132px_minmax(0,1fr)] border-t border-line-subtle',
-            matter.description ? 'mt-[22px]' : 'mt-0',
+            'm-0 grid grid-cols-[132px_minmax(0,1fr)]',
+            matter.description && 'mt-[22px] border-t border-line-subtle',
           )}
         >
           {/* The référence lives in the dossier header, so it is repeated here only when there is
@@ -115,7 +115,7 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
                 {/* A pièce carries its number; a plain file carries a glyph. */}
                 {document.exhibitNumber === null ? (
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-line-subtle bg-app">
-                    <FileText size={13} strokeWidth={1.75} className="text-disabled" />
+                    <FileGlyph fileName={document.fileName} size={13} />
                   </span>
                 ) : (
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-[#BFD3C5] bg-brand-subtle font-mono text-[9.5px] leading-none font-medium text-brand-on-subtle">
@@ -175,8 +175,8 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
         <SectionTitle
           title="Parties"
           count={matter.parties.length}
-          action={others.length > 0 ? (managing ? 'Terminer' : 'Gérer') : 'Ajouter une partie'}
-          onAction={() => (others.length > 0 ? setManaging((current) => !current) : setAddingParty(true))}
+          action={matter.parties.length > 0 ? 'Gérer' : 'Ajouter une partie'}
+          onAction={() => onOpen('parties')}
         />
 
         {/* The client is set apart, and every client is: a dossier repris de Gestisoft sometimes has
@@ -202,8 +202,8 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
           </div>
         ))}
 
-        {clients.length === 0 && matter.parties.length === 0 && (
-          <Empty title="Aucune partie" action="Ajouter une partie" onAction={() => setAddingParty(true)}>
+        {matter.parties.length === 0 && (
+          <Empty title="Aucune partie" action="Ajouter une partie" onAction={() => onOpen('parties')}>
             Le client, la partie adverse, son conseil : tout ce qui a un nom dans ce dossier se range
             ici et se retrouve ensuite dans le carnet.
           </Empty>
@@ -260,35 +260,17 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
                   {nature(party.contactType)}
                 </span>
 
-                {managing && (
-                  <button
-                    type="button"
-                    title="Retirer cette partie du dossier"
-                    onClick={() => void detach(party.id)}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-[3px] text-danger hover:bg-hover"
-                  >
-                    <X size={13} strokeWidth={2} />
-                  </button>
-                )}
               </div>
             ),
           )}
 
-          {managing && (
-            <button
-              type="button"
-              onClick={() => setAddingParty(true)}
-              className="mt-2 flex h-[26px] items-center gap-1.5 rounded-sm border border-dashed border-line-strong px-2.5 text-[11.5px] font-medium text-ink-secondary hover:bg-hover"
-            >
-              <Plus size={12} strokeWidth={2} />
-              Ajouter une partie
-            </button>
-          )}
 
+          {/* A link into the tab, not an expander. Expanding was one-way, and a dossier with
+              twenty-five parties turned the page she lands on into a scroll. */}
           {others.length > shown.length && (
             <button
               type="button"
-              onClick={() => setShowAllParties(true)}
+              onClick={() => onOpen('parties')}
               className="block px-1 pt-2 text-[11.5px] leading-4 text-brand-on-subtle underline-offset-2 hover:underline"
             >
               Voir les {others.length - shown.length} autres parties
@@ -296,8 +278,11 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
           )}
         </div>
 
-        {/* The room the missing description frees becomes one teaching line and two ways out. */}
-        {!matter.description && (
+        {/* Only for a dossier that is genuinely new. It keyed off the missing description alone, so a
+            dossier repris de Gestisoft with two hundred entries in its journal was told to note its
+            first call. An empty description on a full dossier is a gap, not a beginning: it gets the
+            quiet line underneath instead. */}
+        {isNew ? (
           <div className="mt-5 border-t border-line-subtle pt-[18px]">
             <p className="m-0 max-w-[56ch] text-[13px] leading-5 text-ink-secondary">
               Ce dossier vient d’être ouvert. Notez le premier appel dès que vous raccrochez, deux
@@ -309,6 +294,14 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
               <Button variant="secondary" size="lg" onClick={onEdit}>Ajouter une description</Button>
             </div>
           </div>
+        ) : !matter.description && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="mt-5 block border-t border-line-subtle pt-[18px] text-[11.5px] leading-4 text-brand-on-subtle underline-offset-2 hover:underline"
+          >
+            Ajouter une description
+          </button>
         )}
       </div>
 
@@ -406,14 +399,6 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
         </section>
       </div>
 
-      {addingParty && (
-        <AddParty
-          matterId={matter.id}
-          existing={matter.parties.map((party) => party.contactId)}
-          onCancel={() => setAddingParty(false)}
-          onAdded={() => { setAddingParty(false); onChanged() }}
-        />
-      )}
     </div>
   )
 }

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  Check, ChevronRight, Download, File, FilePlus2, FileSpreadsheet, FileText, Folder, FolderInput,
-  FolderOpen, Image as ImageIcon, Mail, Paperclip, Pencil, Search, SquareArrowOutUpRight, Trash2,
-  Undo2, X,
+  ChevronRight, Download, File, FileArchive, FilePlus2, FileSpreadsheet, FileText, FileType, Folder,
+  FolderInput, FolderOpen, Image as ImageIcon, Mail, Paperclip, Pencil, Search,
+  SquareArrowOutUpRight, Trash2, Undo2, X,
 } from 'lucide-react'
 import { ApiError, api, download, post } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
@@ -90,7 +90,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [uploadFolder, setUploadFolder] = useState('')
   const [query, setQuery] = useState('')
   const [showExhibits, setShowExhibits] = useState(true)
-  const [showRecent, setShowRecent] = useState(false)
   const toasts = useToasts()
   const input = useRef<HTMLInputElement>(null)
 
@@ -114,15 +113,13 @@ export function Documents({ matterId, isOpen, onChanged }: {
   useEffect(() => { void readWorkspace() }, [readWorkspace])
 
   /**
-   * While anything is open in Word the list polls, because the reintegration happens in the backend
-   * on its own schedule and the row's « modifié » line is the only sign she has that a save landed.
+   * Only the leftovers are read now.
+   *
+   * <p>« open » used to list documents checked out one at a time, and the list polled while any of them
+   * was in Word. That path is gone; what remains is « abandoned », the working copies a crash left
+   * behind, which is a question about data and has to keep being asked. The dossier folder does its own
+   * polling, in DossierFolder.</p>
    */
-  useEffect(() => {
-    if (workspace.open.length === 0) return
-
-    const timer = setInterval(() => { reload(); void readWorkspace() }, 3000)
-    return () => clearInterval(timer)
-  }, [workspace.open.length, reload, readWorkspace])
 
   /**
    * After something the user did: the edited row has served its purpose and closes.
@@ -220,46 +217,36 @@ export function Documents({ matterId, isOpen, onChanged }: {
    * normal thing to do, and the toast says so, because a file that looks editable and silently
    * discards the edits would be worse than one that refuses to open.
    */
+  /**
+   * Opening a document opens the dossier it belongs to, and points at the file.
+   *
+   * <p><b>There is one way in now.</b> There used to be two: check the whole dossier out into a folder,
+   * or decrypt this one file into a scratch directory of its own. Two ways to edit the same document
+   * cannot both be right, and lawyers said so plainly: knowing which one was open, whether a change had
+   * been taken back, and what « fermer » applied to, was work the application made rather than did.</p>
+   *
+   * <p>So one folder, one reconciliation, one thing to close. The dossier is opened if it is not
+   * already, which costs nothing when it is, and Explorer opens with the file selected among its
+   * neighbours, which is usually where she wanted to be anyway.</p>
+   */
   async function open(item: DocumentItem) {
     setError(null)
 
     try {
-      const { path, readOnly } = await post<{ path: string; readOnly: boolean }>(
-        `/api/documents/${item.id}/open`,
-        {},
-      )
+      const { path } = await post<{ path: string }>(`/api/documents/${item.id}/reveal`, {})
 
-      const failure = await window.avocado.openWorkingCopy(path)
+      await window.avocado.revealFile(path)
+      refreshQuietly()
 
-      if (failure) {
-        toasts.failed(
-          `Impossible d’ouvrir « ${item.fileName} »`,
-          'Aucune application n’est associée à ce type de fichier sur cet ordinateur.',
-        )
-      } else if (readOnly) {
+      if (!isOpen) {
         toasts.succeeded(
-          'Ouvert en lecture seule',
-          'Ce dossier est clôturé : vos modifications ne seront pas reprises dans le coffre. ' +
-          'Enregistrez ailleurs si vous voulez repartir de ce document.',
+          'Dossier clôturé, ouvert en lecture',
+          'Vos modifications ne seront pas reprises dans le coffre. Enregistrez ailleurs si vous ' +
+          'voulez repartir de ce document.',
         )
       }
-
-      await readWorkspace()
     } catch (failure) {
-      toasts.failed('Impossible d’ouvrir le document', messageOf(failure))
-    }
-  }
-
-  /** Puts the last save away and removes the working copy. */
-  async function close(id: string) {
-    setError(null)
-
-    try {
-      await post(`/api/documents/${id}/close`, {})
-      refresh()
-      await readWorkspace()
-    } catch (failure) {
-      setError(messageOf(failure))
+      toasts.failed('Impossible d’ouvrir ce document', messageOf(failure))
     }
   }
 
@@ -328,19 +315,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
   const tree = useMemo(() => build(page?.items ?? []), [page])
 
-  /**
-   * The last thirty touched, rather than everything from the last thirty days.
-   *
-   * <p>A count and not a window, because the Gestisoft export stamps every file with the moment it
-   * ran: a fresh import would put all 4 559 documents in « les trente derniers jours » and keep them
-   * there for a month. A count is bounded whatever the dates say, and once she works in the dossier
-   * the things she actually touched float to the top on their own.</p>
-   */
-  const recent = useMemo(
-    () => [...(page?.items ?? [])].sort((left, right) => touched(right) - touched(left)).slice(0, RECENT),
-    [page],
-  )
-
   const found = useMemo(() => {
     const needles = fold(query).split(/\s+/).filter(Boolean)
 
@@ -369,9 +343,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
     onDelete: () => void remove(item.id),
     folders: page?.folders ?? [],
     onFile: (folder: string | null) => void file(item, folder),
-    checkedOut: workspace.open.some((entry) => entry.documentId === item.id),
     onOpen: () => void open(item),
-    onClose: () => void close(item.id),
   })
 
   return (
@@ -557,21 +529,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
                 </Section>
               )}
 
-              {/* Only where it says something the list below does not. A dossier of seven documents
-                  shows all seven either way, and « Récents · 7 » above them is a row of noise. */}
-              {page.total > RECENT && (
-                <Section
-                  label="Récents"
-                  count={recent.length}
-                  open={showRecent}
-                  onToggle={() => setShowRecent((current) => !current)}
-                >
-                  {recent.map((item) => (
-                    <DocumentRow key={item.id} {...rowProps(item)} context={item.folder} />
-                  ))}
-                </Section>
-              )}
-
               <div className="flex items-baseline gap-2">
                 <Caption>Documents · {page.total.toLocaleString('fr-FR')}</Caption>
 
@@ -690,9 +647,6 @@ function GenerateDialog({ matterId, templates, folders, onCancel, onGenerated }:
 /** A dossier this size or smaller opens with everything already unfolded. */
 const FLAT_ENOUGH = 40
 
-/** How many of the last-touched to keep. */
-const RECENT = 30
-
 /** How many search results to draw before asking for another word. */
 const RESULTS = 200
 
@@ -772,9 +726,6 @@ function ancestors(path: string): string[] {
 /** Accent- and case-blind, so « procedure » finds « Procédure ». */
 const fold = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-
-const touched = (item: DocumentItem) =>
-  Math.max(Date.parse(item.updatedAt), Date.parse(item.addedAt))
 
 /** Session storage is a convenience and never load-bearing, so every access can fail quietly. */
 function read(key: string): Set<string> | null {
@@ -888,27 +839,55 @@ function Tree({ node, depth, expanded, onToggle, row }: {
 /**
  * What kind of file this is, at a glance.
  *
- * <p>Worth the mapping in a dossier that is half correspondence: 4 713 of the 13 917 documents in the
- * real export arrived as courriels, and telling a .msg from the .pdf beside it is most of what a name
- * in a long list has to do.</p>
+ * <p>Worth more than the mapping costs in a dossier that is half correspondence: 4 713 of the 13 917
+ * documents in the real export arrived as courriels, and telling a .msg from the .pdf beside it is most
+ * of what a name in a long list has to do. Lawyers reading the first version said every row surfaced
+ * the same whatever the file was.</p>
+ *
+ * <p>Each kind carries a tint as well as a glyph, muted enough that fifty rows do not become a
+ * rainbow, and the glyph alone still separates them in monochrome.</p>
  */
-function fileIcon(fileName: string) {
+const KINDS: { extensions: string[]; icon: typeof Mail; tone: string; label: string }[] = [
+  { extensions: ['msg', 'eml'], icon: Mail, tone: 'text-[#2B5578]', label: 'Courriel' },
+  {
+    extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'heic'],
+    icon: ImageIcon,
+    tone: 'text-[#7A4E86]',
+    label: 'Image',
+  },
+  { extensions: ['xls', 'xlsx', 'xlsm', 'csv', 'ods'], icon: FileSpreadsheet, tone: 'text-[#2F6B47]', label: 'Tableur' },
+  { extensions: ['pdf'], icon: FileType, tone: 'text-[#A32A22]', label: 'PDF' },
+  { extensions: ['doc', 'docx', 'odt', 'rtf', 'txt'], icon: FileText, tone: 'text-[#2C4A38]', label: 'Document' },
+  { extensions: ['zip', '7z', 'rar'], icon: FileArchive, tone: 'text-[#8A5A10]', label: 'Archive' },
+]
+
+export function kindOf(fileName: string) {
   const extension = fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase()
-  const shared = { size: 14, strokeWidth: 1.75, className: 'w-[26px] shrink-0 text-disabled' } as const
 
-  if (['msg', 'eml'].includes(extension)) return <Mail {...shared} />
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tif', 'tiff', 'heic'].includes(extension)) {
-    return <ImageIcon {...shared} />
-  }
-  if (['xls', 'xlsx', 'xlsm', 'csv', 'ods'].includes(extension)) return <FileSpreadsheet {...shared} />
-  if (['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt'].includes(extension)) return <FileText {...shared} />
+  return KINDS.find((kind) => kind.extensions.includes(extension))
+}
 
-  return <File {...shared} />
+export function FileGlyph({ fileName, size = 14, className }: {
+  fileName: string
+  size?: number
+  className?: string
+}) {
+  const kind = kindOf(fileName)
+  const Glyph = kind?.icon ?? File
+
+  return (
+    <Glyph
+      size={size}
+      strokeWidth={1.75}
+      aria-label={kind?.label}
+      className={cn('shrink-0', kind?.tone ?? 'text-disabled', className)}
+    />
+  )
 }
 
 function DocumentRow({
-  item, isOpen, editing, nextNumber, folders, checkedOut, context,
-  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile, onOpen, onClose,
+  item, isOpen, editing, nextNumber, folders, context,
+  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile, onOpen,
 }: {
   item: DocumentItem
   isOpen: boolean
@@ -917,7 +896,6 @@ function DocumentRow({
   /** Where it is filed, shown only where the row is out of its folder: a result, a pièce, a récent. */
   context?: string | null
   folders: string[]
-  checkedOut: boolean
   onEdit: () => void
   onCancel: () => void
   onLabel: (label: string) => void
@@ -925,7 +903,6 @@ function DocumentRow({
   onDelete: () => void
   onFile: (folder: string | null) => void
   onOpen: () => void
-  onClose: () => void
 }) {
   const [label, setLabel] = useState(item.exhibitLabel ?? '')
   const [folder, setFolder] = useState(item.folder ?? '')
@@ -995,7 +972,7 @@ function DocumentRow({
           {item.exhibitNumber}
         </NumberPill>
       ) : (
-        fileIcon(item.fileName)
+        <FileGlyph fileName={item.fileName} className="w-[26px]" />
       )}
 
       <RowMain>
@@ -1007,13 +984,6 @@ function DocumentRow({
         {context && <Micro className="font-mono">{context}</Micro>}
       </RowMain>
 
-      {checkedOut && (
-        <span className="flex shrink-0 items-center gap-1 rounded-[3px] bg-brand-subtle px-1.5 py-1 text-[10.5px] leading-3 text-brand-on-subtle">
-          <SquareArrowOutUpRight size={10} strokeWidth={2} />
-          ouvert
-        </span>
-      )}
-
       {item.version > 1 && (
         <Micro className="font-mono tnum" title={`Modifié le ${new Date(item.updatedAt).toLocaleString('fr-FR')}`}>
           v{item.version}
@@ -1023,24 +993,17 @@ function DocumentRow({
       <Micro>{item.type}</Micro>
       <Micro className="font-mono tnum">{formatSize(item.sizeBytes)}</Micro>
 
-      <span
-        className={cn(
-          'flex gap-0.5 transition-opacity focus-within:opacity-100 group-hover:opacity-100',
-          checkedOut ? 'opacity-100' : 'opacity-0',
-        )}
-      >
-        {checkedOut ? (
-          <RowAction label="Terminer la modification et remettre au coffre" onClick={onClose}>
-            <Check size={13} strokeWidth={2} />
-          </RowAction>
-        ) : (
-          <RowAction
-            label={isOpen ? 'Ouvrir et modifier' : 'Ouvrir en lecture seule'}
-            onClick={onOpen}
-          >
-            <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
-          </RowAction>
-        )}
+      <span className="flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        {/* One action, and it says what actually happens: the dossier opens, with this file
+            selected in it. */}
+        <RowAction
+          label={isOpen
+            ? 'Ouvrir le dossier et pointer ce fichier'
+            : 'Ouvrir le dossier en lecture et pointer ce fichier'}
+          onClick={onOpen}
+        >
+          <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
+        </RowAction>
 
         <RowAction
           label="Télécharger une copie"

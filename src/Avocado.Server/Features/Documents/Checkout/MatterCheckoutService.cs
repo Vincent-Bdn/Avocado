@@ -117,6 +117,59 @@ public sealed class MatterCheckoutService(
     }
 
     /// <summary>What the folder looks like now, against what was handed over.</summary>
+    /// <summary>
+    /// Where one document is on disk, opening the dossier first if it is not already open.
+    ///
+    /// <para><b>There is only one way to reach a document now, and this is it.</b> There used to be
+    /// two: check the whole dossier out into a folder, or decrypt one file to a scratch directory of
+    /// its own. Two ways to edit the same file cannot both be right, and lawyers said so plainly:
+    /// knowing which one was open, whether a change had been taken back, and what « fermer » applied
+    /// to, was work the application was creating rather than doing.</para>
+    ///
+    /// <para>So opening a document opens the dossier it belongs to and points at the file. One folder,
+    /// one reconciliation, one thing to close.</para>
+    /// </summary>
+    public async Task<string> RevealAsync(Guid documentId, CancellationToken cancellationToken)
+    {
+        Guid matterId;
+
+        {
+            var vault = vaults.Get(Guid.Empty);
+            await using var database = contexts.Create(vault.Id);
+
+            matterId = await database.Documents
+                .Where(document => document.Id == documentId)
+                .Select(document => document.MatterId)
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (matterId == Guid.Empty)
+        {
+            throw new VaultException("Ce document n'existe pas.");
+        }
+
+        // Idempotent: a dossier already open is handed back as it stands, so this never re-decrypts
+        // seven hundred files to reach one of them.
+        var checkout = await OpenAsync(matterId, cancellationToken).ConfigureAwait(false);
+
+        var borrowed = JsonSerializer.Deserialize<List<BorrowedFile>>(checkout.Manifest) ?? [];
+        // The manifest decides the path, never the client: it is what resolved two documents that
+        // happened to share a name, and a path rebuilt from the file name would point at the wrong one.
+        // A document absent from it opens the folder, which is still where it will appear.
+        foreach (var file in borrowed)
+        {
+            if (file.DocumentId == documentId)
+            {
+                return Path.Combine(
+                    checkout.FolderPath,
+                    file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+            }
+        }
+
+        return checkout.FolderPath;
+    }
+
     public async Task<IReadOnlyList<CheckoutChange>> InspectAsync(
         MatterCheckout checkout,
         CancellationToken cancellationToken)

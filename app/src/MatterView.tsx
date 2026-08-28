@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Plus, Star, X } from 'lucide-react'
+import { Check, Plus, Star } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
 import { MatterForm } from './MatterForm.js'
@@ -7,20 +7,19 @@ import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
 import { Overview } from './tabs/Overview.js'
+import { Parties } from './tabs/Parties.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
 import { Avatar } from './components/ui/avatar.js'
 import { Badge, NumberPill } from './components/ui/badge.js'
 import { Button } from './components/ui/button.js'
 import { Panel } from './components/ui/panel.js'
-import { AddParty, PartyRole } from './sections/Parties.js'
-import { RowAction } from './tabs/shared.js'
 import { BillingFigures, billingTone, readBilling } from './lib/billing.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, tierBorder } from './lib/urgency.js'
 import { formatDuration, formatEuros } from './labels.js'
 import type { MatterDetail } from './types.js'
 
-type Tab = 'overview' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
+type Tab = 'overview' | 'parties' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 
 /** The fiche dossier: header 52, tab bar 32 sticky, body, and the 208px context panel. */
 export function MatterView({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
@@ -89,6 +88,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
   const tabs: [Tab, string, number | null][] = [
     ['overview', 'Aperçu', null],
+    ['parties', 'Parties', matter.parties.length],
     ['journal', 'Journal', matter.counts.activities],
     ['documents', 'Documents', matter.counts.documents],
     ['deadlines', 'Échéances', matter.counts.openDeadlines],
@@ -195,7 +195,9 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
       <div
         className={cn(
           'grid flex-1 overflow-hidden',
-          tab === 'overview' ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_208px]',
+          tab === 'overview' || tab === 'parties'
+            ? 'grid-cols-[minmax(0,1fr)]'
+            : 'grid-cols-[minmax(0,1fr)_208px]',
         )}
       >
         {tab === 'overview' && (
@@ -205,6 +207,9 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
             onEdit={() => setEditing(true)}
             onChanged={refreshAll}
           />
+        )}
+        {tab === 'parties' && (
+          <Parties matter={matter} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
         {tab === 'journal' && (
           <Journal matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
@@ -222,7 +227,11 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
 
-        {tab !== 'overview' && <ContextPanel matter={matter} onChanged={refreshAll} />}
+        {/* The aperçu shows all of this with room to breathe, and the onglet Parties owns the parties,
+            so the panel would be the same figures twice on both. */}
+        {tab !== 'overview' && tab !== 'parties' && (
+          <ContextPanel matter={matter} onManage={() => setTab('parties')} />
+        )}
       </div>
 
       {editing && (
@@ -239,14 +248,8 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 const Divider = () => <span className="h-2.5 w-px shrink-0 bg-line" />
 
 /** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
-function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: () => void }) {
-  const [addingParty, setAddingParty] = useState(false)
-  const [editingParty, setEditingParty] = useState<string | null>(null)
+function ContextPanel({ matter, onManage }: { matter: MatterDetail; onManage: () => void }) {
   const reading = readBilling(matter.billing)
-
-  async function removeParty(id: string) {
-    await api(`/api/parties/${id}`, { method: 'DELETE' }).then(onChanged).catch(() => onChanged())
-  }
 
   return (
     <aside className="grid content-start gap-3 overflow-y-auto border-l border-line-subtle p-2.5">
@@ -315,72 +318,40 @@ function ContextPanel({ matter, onChanged }: { matter: MatterDetail; onChanged: 
       <section>
         <ContextTitle>Parties</ContextTitle>
 
-        {matter.parties.map((party) =>
-          editingParty === party.id ? (
-            <PartyRole
-              key={party.id}
-              party={party}
-              onCancel={() => setEditingParty(null)}
-              onSaved={() => { setEditingParty(null); onChanged() }}
-            />
-          ) : (
-            <div key={party.id} className="group/party mb-1.5 flex items-center gap-2">
-              <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
+        {matter.parties.length === 0 && <p className="m-0 text-[11px] text-muted">Aucune partie.</p>}
 
-              <span className="grid min-w-0 flex-1">
-                <span className="truncate text-[11.5px]">{party.displayName}</span>
+        {/* Read-only here. Writing a role into a 208px column meant truncating it as it was typed, and
+            the onglet Parties has the width to read one. Every way in leads there. */}
+        {matter.parties.map((party) => (
+          <div key={party.id} className="mb-1.5 flex items-center gap-2">
+            <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
 
-                {/*
-                  The role is free text and often long, so it truncates with the full wording in the
-                  title. It is also the only place it can be written, which is why the whole line is
-                  a button: « aucun rôle » has to be as clickable as a role that is already there.
-                */}
-                <button
-                  type="button"
-                  title={party.role ?? 'Indiquer le rôle de cette partie'}
-                  onClick={() => setEditingParty(party.id)}
-                  className={cn(
-                    'truncate text-left text-[10.5px] hover:underline',
-                    party.role
-                      ? party.isClient ? 'text-brand-on-subtle' : 'text-muted'
-                      : 'text-disabled italic',
-                  )}
-                >
-                  {party.role ?? 'indiquer le rôle…'}
-                </button>
+            <span className="grid min-w-0 flex-1">
+              <span className="truncate text-[11.5px]">{party.displayName}</span>
+              <span
+                title={party.role ?? undefined}
+                className={cn(
+                  'truncate text-[10.5px]',
+                  party.role
+                    ? party.isClient ? 'text-brand-on-subtle' : 'text-muted'
+                    : 'text-disabled italic',
+                )}
+              >
+                {party.role ?? 'rôle non précisé'}
               </span>
-
-              {!party.isClient && (
-                <RowAction
-                  label="Retirer du dossier"
-                  danger
-                  onClick={() => void removeParty(party.id)}
-                >
-                  <X size={12} strokeWidth={2} />
-                </RowAction>
-              )}
-            </div>
-          ),
-        )}
+            </span>
+          </div>
+        ))}
 
         <button
           type="button"
-          onClick={() => setAddingParty(true)}
+          onClick={onManage}
           className="mt-1.5 flex h-6 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-ink-secondary hover:bg-hover"
         >
           <Plus size={11} strokeWidth={2} />
-          Ajouter une partie
+          Gérer les parties
         </button>
       </section>
-
-      {addingParty && (
-        <AddParty
-          matterId={matter.id}
-          existing={matter.parties.map((party) => party.contactId)}
-          onCancel={() => setAddingParty(false)}
-          onAdded={() => { setAddingParty(false); onChanged() }}
-        />
-      )}
     </aside>
   )
 }

@@ -1,4 +1,5 @@
 using Avocado.Server.Data;
+using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Documents.Checkout;
@@ -27,6 +28,7 @@ public static class CheckoutEndpoints
         var group = routes.MapGroup("/api").WithTags("Checkout");
 
         group.MapGet("/checkouts", ListAsync);
+        group.MapPost("/documents/{documentId:guid}/reveal", RevealAsync);
         group.MapPost("/matters/{matterId:guid}/checkout", OpenAsync);
         group.MapPost("/matters/{matterId:guid}/checkout/sync", SyncAsync);
         group.MapPost("/matters/{matterId:guid}/checkout/resolve", ResolveAsync);
@@ -37,6 +39,33 @@ public static class CheckoutEndpoints
         group.MapPost("/checkouts/close-all", CloseAllAsync);
 
         return routes;
+    }
+
+    /// <summary>
+    /// Where a document is on disk, having opened its dossier if it was not open.
+    ///
+    /// <para>The one way in. Opening a single file into a scratch folder of its own is gone: two ways
+    /// to edit the same document could not both be right, and telling them apart was work the
+    /// application made rather than did.</para>
+    /// </summary>
+    private static async Task<IResult> RevealAsync(
+        Guid documentId,
+        MatterCheckoutService checkouts,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var path = await checkouts.RevealAsync(documentId, cancellationToken).ConfigureAwait(false);
+
+            return Results.Ok(new { path });
+        }
+        catch (VaultException exception)
+        {
+            return Results.Problem(
+                title: "Impossible d'ouvrir ce document",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
     }
 
     private static async Task<IResult> ListAsync(
