@@ -14,7 +14,8 @@ export interface HonoraireMonth {
   subcontractedCents: number
   /** `invoiced − subcontracted`, floored at zero. What the month actually brought in. */
   netCents: number
-  leftToBillCents: number
+  /** The gap the two bars draw. Not « reste à facturer », which is a dossier's and cumulative. */
+  gapCents: number
 }
 
 export interface Honoraires {
@@ -25,6 +26,8 @@ export interface Honoraires {
   unpaidCents: number
   subcontractedCents: number
   netCents: number
+  /** Factures repris de l’ancien logiciel, left out of the comparison and reported instead. */
+  historicalCents: number
   scaleCents: number
 }
 
@@ -90,6 +93,16 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
             </span>
           )}
         </div>
+
+        {/* Said rather than silently dropped: a chart missing 8 974 € of real turnover is the same
+            failure as one inventing a gap. */}
+        {data.historicalCents > 0 && (
+          <div className="border-t border-line-subtle bg-[#F8F9F6] px-3 pb-2 text-[10.5px] leading-[15px] text-muted">
+            {formatEurosRounded(data.historicalCents)} de factures antérieures à Avocado ne sont pas
+            comptées ici : le temps qu’elles couvrent n’a jamais été saisi, il n’y a donc rien à leur
+            comparer.
+          </div>
+        )}
       </div>
 
       {expanded && <HonorairesDialog data={data} onClose={() => setExpanded(false)} />}
@@ -258,8 +271,16 @@ function Tooltip({ month, index, count, width, large }: {
             large ? 'pt-[5px]' : 'pt-1',
           )}
         >
-          <span className={cn('font-medium', large ? 'text-[11.5px]' : 'text-[10.5px]')}>
-            Reste à facturer
+          {/* Not « reste à facturer ». That figure is a dossier's, cumulative, and nets off
+              provisions; this is one month of recorded time against one month of factures, and it
+              goes negative whenever a facture issued in March pays for February. */}
+          <span
+            title={month.gapCents >= 0
+              ? 'Temps saisi ce mois-là qui n’a pas été facturé le même mois'
+              : 'Facturé ce mois-là au-delà du temps saisi le même mois, ce qui est le cas dès qu’une facture couvre le mois précédent'}
+            className={cn('font-medium', large ? 'text-[11.5px]' : 'text-[10.5px]')}
+          >
+            Écart
           </span>
           <span
             className={cn(
@@ -267,7 +288,7 @@ function Tooltip({ month, index, count, width, large }: {
               large ? 'text-[11.5px]' : 'text-[10.5px]',
             )}
           >
-            {formatEuros(month.leftToBillCents)}
+            {formatEuros(month.gapCents)}
           </span>
         </div>
       </div>

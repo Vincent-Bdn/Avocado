@@ -11,6 +11,11 @@ namespace Avocado.Server.Features.Dashboards;
 /// month valued at the dossier's rate, against the factures actually issued that month. A practice
 /// that works more than it invoices sees it here before it shows up in the bank.</para>
 ///
+/// <para>Factures brought over from before Avocado are left out, and counted separately so the card
+/// can say so. Their hours were never recorded here, so they have nothing to be compared against:
+/// with them in, every month of a freshly migrated practice drew a full invoiced bar against an empty
+/// facturable one, which is a picture of the migration and not of the practice.</para>
+///
 /// <para>The window ends on the current month, which is in progress, its gap is expected, and the
 /// expanded view says so rather than letting it read as a miss.</para>
 /// </summary>
@@ -48,7 +53,13 @@ public static class HonorairesQuery
         var invoices = await database.Invoices
             .AsNoTracking()
             .Where(invoice => invoice.Date >= firstMonth && invoice.Date < end)
-            .Select(invoice => new { invoice.Date, invoice.AmountExclVatCents, invoice.IsPaid })
+            .Select(invoice => new
+            {
+                invoice.Date,
+                invoice.AmountExclVatCents,
+                invoice.IsPaid,
+                invoice.IsHistorical,
+            })
             .ToListAsync(cancellationToken);
 
         var months = new List<HonoraireMonth>(MonthCount);
@@ -62,7 +73,9 @@ public static class HonorairesQuery
                 .Where(entry => entry.Date >= month && entry.Date < next)
                 .Sum(entry => entry.Rate * entry.DurationMinutes / 60);
 
-            var issued = invoices.Where(invoice => invoice.Date >= month && invoice.Date < next).ToList();
+            var issued = invoices
+                .Where(invoice => invoice.Date >= month && invoice.Date < next && !invoice.IsHistorical)
+                .ToList();
 
             months.Add(new HonoraireMonth(
                 month,
@@ -79,6 +92,7 @@ public static class HonorairesQuery
             months.Sum(month => month.InvoicedCents),
             months.Sum(month => month.PaidCents),
             months.Sum(month => month.SubcontractedCents),
+            invoices.Where(invoice => invoice.IsHistorical).Sum(invoice => invoice.AmountExclVatCents),
             Scale(months));
     }
 

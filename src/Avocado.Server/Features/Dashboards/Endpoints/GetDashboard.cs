@@ -1,4 +1,5 @@
 using Avocado.Server.Data;
+using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Matters;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Dashboards.ValueObjects;
@@ -140,8 +141,17 @@ public static class GetDashboard
 
     /// <summary>
     /// « Temps saisi non facturé », the only large number in the application, and the most forgotten
-    /// thing in a solo practice. Per matter it is <c>billable time − ledger − invoiced</c>; matters
-    /// already square, or in credit, are left out so the rows sum exactly to the headline.
+    /// thing in a solo practice. Per matter it is <c>unbilled time − ledger − factures that reduce
+    /// it</c>, by <see cref="BillingRules"/>, which is the same arithmetic the fiche does.
+    ///
+    /// <para>It used to be its own arithmetic and disagreed with the fiche twice over: it counted
+    /// hours already attached to a facture, and subtracted every facture rather than the hand-recorded
+    /// ones. A dossier repris de Gestisoft with 8 974 € of history came out at − 8 794 € and, being
+    /// negative, was dropped from the list entirely: not a wrong number on screen but a dossier that
+    /// silently stopped appearing among the ones with work to bill.</para>
+    ///
+    /// <para>Matters already square, or in credit, are still left out so the rows sum exactly to the
+    /// headline.</para>
     /// </summary>
     private static async Task<DashboardUnbilled> ComputeUnbilledAsync(
         AvocadoDbContext database,
@@ -154,7 +164,9 @@ public static class GetDashboard
         // most, so this stays well inside what is reasonable to materialise.
         var entries = await database.TimeEntries
             .AsNoTracking()
-            .Where(entry => entry.IsBillable && entry.Matter!.ClosedOn == null)
+            // Not the hours already attached to a facture: issuing it is what took them out of the
+            // unbilled total, and the fiche has excluded them all along.
+            .Where(entry => entry.IsBillable && entry.InvoiceId == null && entry.Matter!.ClosedOn == null)
             .Select(entry => new
             {
                 entry.MatterId,
@@ -172,16 +184,20 @@ public static class GetDashboard
             .Select(group => new { MatterId = group.Key, Cents = group.Sum(entry => entry.AmountCents) })
             .ToDictionaryAsync(group => group.MatterId, group => group.Cents, cancellationToken);
 
-        var invoicedByMatter = await database.Invoices
-            .AsNoTracking()
-            .Where(invoice => invoice.Matter!.ClosedOn == null)
+        var invoicedByMatter = (await database.Invoices
+                .AsNoTracking()
+                .Where(invoice => invoice.Matter!.ClosedOn == null)
+                .Select(invoice => new
+                {
+                    invoice.MatterId,
+                    invoice.AmountExclVatCents,
+                    invoice.BilledTimeCents,
+                    invoice.IsHistorical,
+                })
+                .ToListAsync(cancellationToken))
+            .Where(invoice => BillingRules.ReducesLeftToBill(invoice.BilledTimeCents, invoice.IsHistorical))
             .GroupBy(invoice => invoice.MatterId)
-            .Select(group => new
-            {
-                MatterId = group.Key,
-                Cents = group.Sum(invoice => invoice.AmountExclVatCents),
-            })
-            .ToDictionaryAsync(group => group.MatterId, group => group.Cents, cancellationToken);
+            .ToDictionary(group => group.Key, group => group.Sum(invoice => invoice.AmountExclVatCents));
 
         var perMatter = entries
             .GroupBy(entry => new { entry.MatterId, entry.MatterName })

@@ -3,9 +3,6 @@ using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Billings.ValueObjects;
 using Avocado.Server.Features.Matters;
 using Avocado.Server.Features.TimeEntries;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-
 namespace Avocado.Server.Tests.Billings;
 
 /// <summary>
@@ -16,38 +13,25 @@ namespace Avocado.Server.Tests.Billings;
 /// imported from Gestisoft with seven paid factures reported « reste à facturer − 8 974 € », and the
 /// first 45 minutes recorded on it made that − 8 794 €.</para>
 ///
-/// <para>Unencrypted SQLite in memory, since what is being tested is a query and not a vault.</para>
+/// <para>Against a <see cref="TestVault"/>: unencrypted SQLite in memory, since what is being tested
+/// is a query and not a vault.</para>
 /// </summary>
 public class BillingSummaryQueryTests : IDisposable
 {
-    private readonly SqliteConnection _connection = new("Filename=:memory:");
-    private readonly AvocadoDbContext _database;
+    private readonly TestVault _vault = new();
     private readonly Matter _matter;
 
-    public BillingSummaryQueryTests()
-    {
-        _connection.Open();
-
-        _database = new AvocadoDbContext(
-            new DbContextOptionsBuilder<AvocadoDbContext>().UseSqlite(_connection).Options);
-
-        _database.Database.EnsureCreated();
-
-        _matter = new Matter
+    public BillingSummaryQueryTests() =>
+        _matter = _vault.Save(new Matter
         {
             Reference = "700770",
             Name = "COULEYRE / EDF ENR",
             OpenedOn = new DateOnly(2025, 1, 6),
             HourlyRateCents = 24_000,
-        };
+        });
 
-        _database.Matters.Add(_matter);
-        _database.SaveChanges();
-    }
-
-    private void Invoice(long amountExclVatCents, bool historical = false, long billedTimeCents = 0)
-    {
-        _database.Invoices.Add(new BillingInvoice
+    private void Invoice(long amountExclVatCents, bool historical = false, long billedTimeCents = 0) =>
+        _vault.Save(new BillingInvoice
         {
             MatterId = _matter.Id,
             Date = new DateOnly(2025, 7, 3),
@@ -56,12 +40,8 @@ public class BillingSummaryQueryTests : IDisposable
             IsHistorical = historical,
         });
 
-        _database.SaveChanges();
-    }
-
-    private void Minutes(int minutes)
-    {
-        _database.TimeEntries.Add(new TimeEntry
+    private void Minutes(int minutes) =>
+        _vault.Save(new TimeEntry
         {
             MatterId = _matter.Id,
             Date = new DateOnly(2026, 8, 27),
@@ -70,11 +50,8 @@ public class BillingSummaryQueryTests : IDisposable
             IsBillable = true,
         });
 
-        _database.SaveChanges();
-    }
-
     private BillingSummary Summary() =>
-        BillingSummaryQuery.ForMatterAsync(_database, _matter.Id, default).GetAwaiter().GetResult();
+        BillingSummaryQuery.ForMatterAsync(_vault.Database, _matter.Id, default).GetAwaiter().GetResult();
 
     /// <summary>
     /// The one that was wrong. Seven factures brought over from Gestisoft, 8 974 € in all, and 45
@@ -147,7 +124,6 @@ public class BillingSummaryQueryTests : IDisposable
     public void Dispose()
     {
         GC.SuppressFinalize(this);
-        _database.Dispose();
-        _connection.Dispose();
+        _vault.Dispose();
     }
 }
