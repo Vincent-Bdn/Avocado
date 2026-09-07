@@ -146,6 +146,30 @@ app.whenReady().then(async () => {
     })
 
     /**
+     * Opens the operating system's own encryption settings, and nothing else.
+     *
+     * The guard is the point: shell.openExternal will launch anything with a scheme, so the renderer
+     * is allowed exactly two strings. A bug in the UI cannot turn this into « open any URL ».
+     */
+    ipcMain.handle('avocado:openDiskEncryptionSettings', async (_event, pane: string) => {
+      const allowed = [
+        'ms-settings:deviceencryption',
+        'x-apple.systempreferences:com.apple.preference.security?FileVault',
+      ]
+
+      if (!allowed.includes(pane)) {
+        return 'Réglage inconnu.'
+      }
+
+      try {
+        await shell.openExternal(pane)
+        return null
+      } catch (failure) {
+        return failure instanceof Error ? failure.message : String(failure)
+      }
+    })
+
+    /**
      * Opens the dossier's folder with one file selected, which is what « ouvrir un document » does now
      * that there is only one way to reach one. showItemInFolder rather than openPath: she is being
      * shown where the file is, among the others, not handed it in isolation.

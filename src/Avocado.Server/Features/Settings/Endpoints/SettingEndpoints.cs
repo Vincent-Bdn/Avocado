@@ -18,6 +18,22 @@ public static class SettingEndpoints
         // machine rather than in the vault.
         routes.MapPut("/api/settings/working-directory", SetWorkingDirectory.HandleAsync).WithTags("Settings");
 
+        // Likewise: a property of the machine, read once and cached, and deliberately not folded into
+        // /api/settings, which every screen loads and which has no business shelling out to fdesetup.
+        routes.MapGet("/api/system/disk-encryption", async (
+            Avocado.Server.Features.Settings.Infrastructure.DiskEncryption disk,
+            CancellationToken cancellationToken) =>
+        {
+            var status = await disk.ReadAsync(cancellationToken);
+
+            return Results.Ok(new
+            {
+                status.State,
+                status.Mechanism,
+                pane = Avocado.Server.Features.Settings.Infrastructure.DiskEncryption.SettingsPane,
+            });
+        }).WithTags("Settings");
+
         return routes;
     }
 }
