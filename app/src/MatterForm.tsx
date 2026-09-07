@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Star } from 'lucide-react'
+import { FolderOpen, Star } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Dialog, DialogActions, Field } from './components/ui/dialog.js'
@@ -40,6 +40,17 @@ export function MatterForm({ matter, onSaved, onCancel }: {
   const [description, setDescription] = useState(matter?.description ?? '')
   const [rate, setRate] = useState(matter ? centsToAmount(matter.hourlyRateCents) : '')
   const [favourite, setFavourite] = useState(matter?.isFavourite ?? false)
+
+  /**
+   * Where her documents for this dossier live.
+   *
+   * <p><b>Always hers to set, and never constrained by anything Avocado prefers.</b> Ten lawyers
+   * organise their files ten ways: one keeps fifty dossiers loose on the Desktop, another splits them
+   * between « en cours » and « archivés », others do something else again. None of that is Avocado's
+   * business, and a folder that has to sit somewhere in particular is the sort of rule that made the
+   * previous version unusable.</p>
+   */
+  const [folder, setFolder] = useState(matter?.documentsFolder ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -95,13 +106,20 @@ export function MatterForm({ matter, onSaved, onCancel }: {
         isFavourite: favourite,
       }
 
-      if (matter) {
-        await api(`/api/matters/${matter.id}`, { method: 'PUT', body: JSON.stringify(body) })
-        onSaved(matter.id)
-      } else {
-        const created = await post<{ id: string }>('/api/matters', body)
-        onSaved(created.id)
+      // Its own route: setting it checks the folder is there and that no other dossier already has
+      // it, which the matter form has no business deciding.
+      const id = matter
+        ? (await api(`/api/matters/${matter.id}`, { method: 'PUT', body: JSON.stringify(body) }), matter.id)
+        : (await post<{ id: string }>('/api/matters', body)).id
+
+      if ((matter?.documentsFolder ?? '') !== folder.trim()) {
+        await api(`/api/matters/${id}/folder`, {
+          method: 'PUT',
+          body: JSON.stringify({ path: folder.trim() || null }),
+        })
       }
+
+      onSaved(id)
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
@@ -225,6 +243,40 @@ export function MatterForm({ matter, onSaved, onCancel }: {
           />
         </Field>
       </div>
+
+      <Field label="Dossier de documents">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            inputSize="lg"
+            className="min-w-0 flex-1 font-mono text-[12px]"
+            value={folder}
+            placeholder="aucun pour l’instant"
+            onChange={(event) => { setFolder(event.target.value); setError(null) }}
+          />
+
+          <Button
+            variant="secondary"
+            size="lg"
+            onClick={() => {
+              void window.avocado
+                .chooseFolder(folder || undefined, 'Le dossier où vivent les documents de ce dossier')
+                .then((chosen) => { if (chosen) { setFolder(chosen); setError(null) } })
+            }}
+          >
+            <FolderOpen size={14} strokeWidth={1.75} />
+            Parcourir…
+          </Button>
+
+          {folder !== '' && (
+            <Button variant="secondary" size="lg" onClick={() => setFolder('')}>Détacher</Button>
+          )}
+        </div>
+
+        <p className="m-0 mt-1 text-[11.5px] leading-[17px] text-muted">
+          Vos documents restent là où vous travaillez déjà : Avocado lit ce dossier, il ne le déplace
+          pas et n’en fait pas de copie. Bureau, disque réseau, dossier client, peu importe.
+        </p>
+      </Field>
 
       <Field label="Description">
         <Textarea rows={2} value={description} onChange={(event) => setDescription(event.target.value)} />

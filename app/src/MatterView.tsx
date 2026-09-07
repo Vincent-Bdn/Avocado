@@ -6,6 +6,7 @@ import { MatterForm } from './MatterForm.js'
 import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { Documents } from './tabs/Documents.js'
+import { DossierFiles } from './tabs/DossierFiles.js'
 import { Overview } from './tabs/Overview.js'
 import { Parties } from './tabs/Parties.js'
 import { TimeEntries } from './tabs/TimeEntries.js'
@@ -214,9 +215,18 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         {tab === 'journal' && (
           <Journal matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
-        {tab === 'documents' && (
-          <Documents matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
-        )}
+        {/* Her folder when she has pointed at one, and the old vault list until she does. Both exist
+            while the migration is in flight; only one of them is where anyone should end up. */}
+        {tab === 'documents' && (matter.documentsFolder
+          ? (
+            <DossierFiles
+              matterId={matterId}
+              folder={matter.documentsFolder}
+              isOpen={matter.isOpen}
+              onChanged={refreshAll}
+            />
+          )
+          : <Documents matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />)}
         {tab === 'deadlines' && (
           <Deadlines matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}

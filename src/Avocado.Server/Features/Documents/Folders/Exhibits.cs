@@ -13,32 +13,42 @@ public static class Exhibits
     public const string Folder = "Pièces";
 
     /// <summary>
-    /// The first number no file claims.
+    /// One past the highest, and never a number that has been used and freed.
     ///
-    /// <para><b>The first free one, not one past the highest.</b> A pièce she withdrew leaves a hole,
-    /// and that number may already be cited in conclusions that have been filed; handing it to a
-    /// different document would make those conclusions point at the wrong thing. Holes stay open until
-    /// she fills them deliberately.</para>
+    /// <para><b>A hole is not an opening.</b> Withdrawing a pièce leaves its number unclaimed, and that
+    /// number may already be cited in conclusions filed with a court. Handing it to a different
+    /// document on the next versement would make those conclusions point at something else, silently,
+    /// weeks later. So the counter only ever goes up.</para>
+    ///
+    /// <para>The freed ones are offered back through <see cref="FreeNumbers"/>, to be reused
+    /// deliberately or not at all. Which is what the rest of the application already said in words:
+    /// « ils restent libres volontairement, ces numéros pouvant être cités dans des conclusions déjà
+    /// déposées ».</para>
     ///
     /// <para>Read off the folder rather than from a counter in the database, so that renaming or
     /// deleting a pièce in Explorer leaves Avocado agreeing with what is on disk.</para>
     /// </summary>
     public static int NextNumber(IEnumerable<string> fileNames)
     {
-        var taken = fileNames
-            .Select(NumberOf)
-            .OfType<int>()
-            .ToHashSet();
+        var taken = Numbers(fileNames);
 
-        var number = 1;
-
-        while (taken.Contains(number))
-        {
-            number++;
-        }
-
-        return number;
+        return taken.Count == 0 ? 1 : taken.Max() + 1;
     }
+
+    /// <summary>
+    /// Numbers below the highest that no file claims: withdrawn pièces, offered for deliberate reuse.
+    /// </summary>
+    public static IReadOnlyList<int> FreeNumbers(IEnumerable<string> fileNames)
+    {
+        var taken = Numbers(fileNames);
+
+        return taken.Count == 0
+            ? []
+            : [.. Enumerable.Range(1, taken.Max()).Where(number => !taken.Contains(number))];
+    }
+
+    private static HashSet<int> Numbers(IEnumerable<string> fileNames) =>
+        [.. fileNames.Select(NumberOf).OfType<int>()];
 
     /// <summary>« Pièce 12 - Attestation.pdf » gives 12. Anything else gives nothing.</summary>
     public static int? NumberOf(string fileName)

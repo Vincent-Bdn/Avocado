@@ -60,6 +60,8 @@ public sealed record MatterDetail(
     string? CourtCaseNumber,
     string? Classification,
     string? Court,
+    /// <summary>Where her documents for this dossier live, on her own disk. Null until she says.</summary>
+    string? DocumentsFolder,
     bool IsOpen,
     bool IsFavourite,
     IReadOnlyList<MatterPartyItem> Parties,

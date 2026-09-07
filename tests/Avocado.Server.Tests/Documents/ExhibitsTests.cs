@@ -23,13 +23,24 @@ public class ExhibitsTests
         ]));
 
     /// <summary>
-    /// The one that matters. Pièce 2 was withdrawn, and 2 may already appear in conclusions that have
-    /// been filed: giving it to something else would make them cite the wrong document. The hole
-    /// stays open until she fills it herself.
+    /// The one that matters, and the one I got backwards first time.
+    ///
+    /// <para>Pièce 2 was withdrawn. Its number may already appear in conclusions filed with a court,
+    /// so handing it to the next document versé would make them cite something else, silently, weeks
+    /// later. The counter only goes up.</para>
     /// </summary>
     [Fact]
-    public void LeavesAWithdrawnNumberAloneRatherThanReusingIt() =>
-        Assert.Equal(2, Exhibits.NextNumber(["Pièce 1 - Contrat.pdf", "Pièce 3 - Attestation.pdf"]));
+    public void NeverReusesAWithdrawnNumberOnItsOwn() =>
+        Assert.Equal(4, Exhibits.NextNumber(["Pièce 1 - Contrat.pdf", "Pièce 3 - Attestation.pdf"]));
+
+    /// <summary>And the hole is offered back, to be filled deliberately or not at all.</summary>
+    [Fact]
+    public void OffersTheWithdrawnNumbersBack() =>
+        Assert.Equal([2], Exhibits.FreeNumbers(["Pièce 1 - Contrat.pdf", "Pièce 3 - Attestation.pdf"]));
+
+    [Fact]
+    public void HasNoFreeNumbersWhenNothingWasWithdrawn() =>
+        Assert.Empty(Exhibits.FreeNumbers(["Pièce 1 - Contrat.pdf", "Pièce 2 - Attestation.pdf"]));
 
     [Fact]
     public void IgnoresWhateverElseIsInTheFolder() =>

@@ -83,6 +83,7 @@ public static class GetMatter
             matter.CourtCaseNumber,
             matter.Classification,
             matter.Court,
+            matter.DocumentsFolder,
             matter.IsOpen,
             matter.IsFavourite,
             [.. matter.Parties.Select(party => new MatterPartyItem(

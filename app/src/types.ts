@@ -80,6 +80,8 @@ export interface MatterDetail {
   courtCaseNumber: string | null
   classification: string | null
   court: string | null
+  /** Where her documents live, on her own disk. Null until she points at a folder. */
+  documentsFolder: string | null
   isOpen: boolean
   isFavourite: boolean
   parties: MatterParty[]
