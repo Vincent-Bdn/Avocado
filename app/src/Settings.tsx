@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { AlertCircle, Check, ChevronDown, RefreshCw, X } from 'lucide-react'
+import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, post } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
+import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
 import { Backups } from './sections/Backups.js'
 import { Import } from './sections/Import.js'
 import { Templates } from './sections/Templates.js'
@@ -77,7 +78,14 @@ export function Settings() {
           open={open === 'chiffrement'}
           onToggle={toggle}
         >
-          <AtRest />
+          <DiskEncryptionBanner />
+
+          <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+            Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les
+            déplace pas et ne les enferme pas : il les recopie chiffrés dans vos sauvegardes. Sur
+            cette machine, c’est donc le chiffrement du disque qui les protège, et c’est le système
+            qui s’en charge.
+          </p>
         </Section>
 
         <Section
@@ -295,106 +303,6 @@ function Storage() {
  * it: an earlier attempt asked whether the sender was in the carnet, which answers a different
  * question. So it is asked, once.</p>
  */
-interface DiskEncryption {
-  state: 'on' | 'off' | 'unknown'
-  mechanism: string
-  pane: string
-}
-
-/**
- * Whether the disk her documents sit on is encrypted.
- *
- * <p>Documents live in her own folders now, so at-rest encryption is the operating system's job. What
- * is left for Avocado is to know whether it is switched on, because a dossier of client files on an
- * unencrypted laptop is a breach of secret professionnel waiting for a theft.</p>
- *
- * <p><b>It never reassures on a guess.</b> On Windows the authoritative check needs elevation, which
- * Avocado does not ask for, so the honest answer there is that it cannot see, and the screen says so
- * and opens the right settings page rather than implying anything.</p>
- */
-function AtRest() {
-  const [disk, setDisk] = useState<DiskEncryption | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    api<DiskEncryption>('/api/system/disk-encryption')
-      .then(setDisk)
-      .catch(() => setDisk(null))
-  }, [])
-
-  if (disk === null) {
-    return (
-      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Avocado n’a pas pu interroger cet ordinateur.
-      </p>
-    )
-  }
-
-  const tone = {
-    on: 'border-[#BFD3C5] bg-success-bg text-success',
-    off: 'border-[#EBC9C5] bg-danger-bg text-danger',
-    unknown: 'border-[#E8D5AE] bg-warning-bg text-warning',
-  }[disk.state]
-
-  return (
-    <>
-      <div className={cn('grid gap-1.5 rounded-sm border px-2.5 py-2', tone)}>
-        <div className="flex items-center gap-1.5 text-[12.5px] font-medium">
-          {disk.state === 'on' ? <Check size={14} strokeWidth={2.5} /> : <AlertCircle size={14} strokeWidth={2} />}
-          {disk.state === 'on' && `${disk.mechanism} est actif sur ce disque`}
-          {disk.state === 'off' && `Ce disque n’est pas chiffré`}
-          {disk.state === 'unknown' && `Avocado ne peut pas vérifier ${disk.mechanism} lui-même`}
-        </div>
-
-        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px]">
-          {disk.state === 'on' && (
-            <>
-              Vos dossiers sont illisibles pour qui prendrait cet ordinateur sans votre mot de passe.
-              Rien d’autre à faire.
-            </>
-          )}
-          {disk.state === 'off' && (
-            <>
-              Vos dossiers clients sont lisibles par quiconque met la main sur cette machine, ou sur
-              son disque. Activez {disk.mechanism} : cela prend une minute à lancer, le reste se fait
-              en arrière-plan, et vous ne le remarquerez plus ensuite.
-            </>
-          )}
-          {disk.state === 'unknown' && (
-            <>
-              La vérification demande des droits d’administrateur qu’Avocado ne réclame pas. Ouvrez le
-              réglage : s’il indique que le chiffrement est activé, il n’y a rien à faire.
-            </>
-          )}
-        </p>
-
-        {disk.state !== 'on' && (
-          <div>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                void window.avocado
-                  .openDiskEncryptionSettings(disk.pane)
-                  .then((failure) => setError(failure))
-              }}
-            >
-              Ouvrir le réglage {disk.mechanism}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les déplace pas
-        et ne les enferme pas : il les recopie chiffrés dans vos sauvegardes. Le chiffrement du disque
-        est donc ce qui les protège sur cette machine, et c’est le système qui s’en charge, pas nous.
-      </p>
-
-      {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
-    </>
-  )
-}
-
 function OwnAddresses() {
   const [addresses, setAddresses] = useState('')
   const [saved, setSaved] = useState(false)

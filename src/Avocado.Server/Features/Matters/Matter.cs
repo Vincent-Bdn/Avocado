@@ -48,6 +48,19 @@ public class Matter
     /// </summary>
     public bool IsFavourite { get; set; }
 
+    /// <summary>
+    /// Where her documents for this dossier actually live, absolute, on her own disk.
+    ///
+    /// <para><b>Avocado does not own these files.</b> Ten lawyers said the same thing: they already
+    /// have a place for their documents, arranged the way they want it, and an application that took
+    /// copies into an encrypted store they had to check files out of was work rather than help. So
+    /// this is a path, the Documents tab lists what is in it, and Explorer is where it is edited.</para>
+    ///
+    /// <para>Null while a dossier has not been pointed at one, which is every dossier until she says
+    /// otherwise and every dossier created before this existed.</para>
+    /// </summary>
+    public string? DocumentsFolder { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 
