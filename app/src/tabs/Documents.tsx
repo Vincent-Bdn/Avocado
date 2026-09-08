@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import {
   ChevronRight, Download, File, FileArchive, FilePlus2, FileSpreadsheet, FileText, FileType, Folder,
   FolderInput, FolderOpen, Image as ImageIcon, Mail, Paperclip, Pencil, Search,
-  SquareArrowOutUpRight, Trash2, Undo2, X,
+  Trash2, Undo2, X,
 } from 'lucide-react'
 import { ApiError, api, download, post } from '../api.js'
 import { NumberPill } from '../components/ui/badge.js'
@@ -61,7 +61,6 @@ const messageOf = (failure: unknown) =>
  * Any file attached to the dossier. A document becomes a pièce when it is given a number and a
  * libellé written for the judge, so both live in one list and the distinction is legible at a glance.
  */
-import { DossierFolder } from './DossierFolder.js'
 
 export function Documents({ matterId, isOpen, onChanged }: {
   matterId: string
@@ -75,16 +74,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
   const [editing, setEditing] = useState<string | null>(null)
   const [workspace, setWorkspace] = useState<WorkspaceState>({ open: [], abandoned: [] })
 
-  /**
-   * True while the dossier is open as a folder. Everything that changes a document from here is then
-   * withdrawn: renaming, filing, opening, deleting, uploading.
-   *
-   * <p>Not a precaution, a correction. Two ways to change the same file cannot both be right, and the
-   * folder is the one that wins: renaming a document here left the file on disk under its old name,
-   * and the next thing done in Explorer overwrote the rename without a word. Offering an action that
-   * quietly loses is worse than not offering it, so the tab says where the work happens instead.</p>
-   */
-  const [folderOpen, setFolderOpen] = useState(false)
   const [templates, setTemplates] = useState<TemplateItem[]>([])
   const [generating, setGenerating] = useState(false)
   const [uploadFolder, setUploadFolder] = useState('')
@@ -129,20 +118,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
    */
   const refresh = useCallback(() => {
     setEditing(null)
-    reload()
-    onChanged()
-  }, [reload, onChanged])
-
-  /**
-   * After the background sweep wrote something: the list is stale and reloads, but whatever she is
-   * typing stays open.
-   *
-   * <p>Sharing one refresh between the two closed the rename form every five seconds while a dossier
-   * was open, which made renaming a document from Avocado essentially impossible: the row vanished
-   * mid-edit, and what looked like a refresh that ate the change was the form being unmounted before
-   * it could be submitted.</p>
-   */
-  const refreshQuietly = useCallback(() => {
     reload()
     onChanged()
   }, [reload, onChanged])
@@ -217,39 +192,6 @@ export function Documents({ matterId, isOpen, onChanged }: {
    * normal thing to do, and the toast says so, because a file that looks editable and silently
    * discards the edits would be worse than one that refuses to open.
    */
-  /**
-   * Opening a document opens the dossier it belongs to, and points at the file.
-   *
-   * <p><b>There is one way in now.</b> There used to be two: check the whole dossier out into a folder,
-   * or decrypt this one file into a scratch directory of its own. Two ways to edit the same document
-   * cannot both be right, and lawyers said so plainly: knowing which one was open, whether a change had
-   * been taken back, and what « fermer » applied to, was work the application made rather than did.</p>
-   *
-   * <p>So one folder, one reconciliation, one thing to close. The dossier is opened if it is not
-   * already, which costs nothing when it is, and Explorer opens with the file selected among its
-   * neighbours, which is usually where she wanted to be anyway.</p>
-   */
-  async function open(item: DocumentItem) {
-    setError(null)
-
-    try {
-      const { path } = await post<{ path: string }>(`/api/documents/${item.id}/reveal`, {})
-
-      await window.avocado.revealFile(path)
-      refreshQuietly()
-
-      if (!isOpen) {
-        toasts.succeeded(
-          'Dossier clôturé, ouvert en lecture',
-          'Vos modifications ne seront pas reprises dans le coffre. Enregistrez ailleurs si vous ' +
-          'voulez repartir de ce document.',
-        )
-      }
-    } catch (failure) {
-      toasts.failed('Impossible d’ouvrir ce document', messageOf(failure))
-    }
-  }
-
   async function resolve(id: string, keep: boolean) {
     setError(null)
 
@@ -333,7 +275,7 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
   const rowProps = (item: DocumentItem) => ({
     item,
-    isOpen: isOpen && !folderOpen,
+    isOpen,
     editing: editing === item.id,
     nextNumber: page?.nextExhibitNumber ?? 1,
     onEdit: () => setEditing(item.id),
@@ -343,20 +285,13 @@ export function Documents({ matterId, isOpen, onChanged }: {
     onDelete: () => void remove(item.id),
     folders: page?.folders ?? [],
     onFile: (folder: string | null) => void file(item, folder),
-    onOpen: () => void open(item),
   })
 
   return (
     <TabPanel className="relative">
       {toasts.view}
 
-      {/* Above the drop zone on purpose: opening the whole dossier is the gesture that replaces
-          uploading files one at a time, so it should be met first. */}
       {isOpen && (
-        <DossierFolder matterId={matterId} onChanged={refreshQuietly} onOpenChange={setFolderOpen} />
-      )}
-
-      {isOpen && !folderOpen && (
         <div
           onDragOver={(event) => { event.preventDefault(); setDragging(true) }}
           onDragLeave={() => setDragging(false)}
@@ -464,8 +399,8 @@ export function Documents({ matterId, isOpen, onChanged }: {
 
       {page?.total === 0 && (
         <EmptyState icon={<FileText size={18} strokeWidth={1.8} />} title="Aucun document">
-          Tout ce qui arrive au dossier se range ici, chiffré. Les pièces sont des documents qui
-          portent un numéro et un libellé écrit pour le juge.
+          Ces documents-ci vivent dans le coffre, chiffrés. Indiquez à ce dossier le répertoire où
+          vous travaillez et ils cèderont la place à vos propres fichiers.
         </EmptyState>
       )}
 
@@ -887,7 +822,7 @@ export function FileGlyph({ fileName, size = 14, className }: {
 
 function DocumentRow({
   item, isOpen, editing, nextNumber, folders, context,
-  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile, onOpen,
+  onEdit, onCancel, onLabel, onWithdraw, onDelete, onFile,
 }: {
   item: DocumentItem
   isOpen: boolean
@@ -902,7 +837,6 @@ function DocumentRow({
   onWithdraw: () => void
   onDelete: () => void
   onFile: (folder: string | null) => void
-  onOpen: () => void
 }) {
   const [label, setLabel] = useState(item.exhibitLabel ?? '')
   const [folder, setFolder] = useState(item.folder ?? '')
@@ -962,7 +896,7 @@ function DocumentRow({
 
   return (
     // Double-click is the gesture everyone already has for « ouvrir », so it is the one bound here.
-    <Row className="group cursor-default" onDoubleClick={onOpen}>
+    <Row className="group cursor-default">
       {isExhibit ? (
         // The number pill: brand-tinted, so a pièce is identifiable before reading anything.
         <NumberPill
@@ -994,17 +928,6 @@ function DocumentRow({
       <Micro className="font-mono tnum">{formatSize(item.sizeBytes)}</Micro>
 
       <span className="flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        {/* One action, and it says what actually happens: the dossier opens, with this file
-            selected in it. */}
-        <RowAction
-          label={isOpen
-            ? 'Ouvrir le dossier et pointer ce fichier'
-            : 'Ouvrir le dossier en lecture et pointer ce fichier'}
-          onClick={onOpen}
-        >
-          <SquareArrowOutUpRight size={13} strokeWidth={1.75} />
-        </RowAction>
-
         <RowAction
           label="Télécharger une copie"
           onClick={() => void download(`/api/documents/${item.id}/content`, item.fileName)}

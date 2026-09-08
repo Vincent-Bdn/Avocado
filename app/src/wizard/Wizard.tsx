@@ -1,15 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, Clock, FolderSync, Lock, ShieldCheck, Usb } from 'lucide-react'
+import { Check, Clock, FolderOpen, FolderSync, Lock, ShieldCheck, Usb } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import type { VaultCreated, VaultPrepared, VaultStatus } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { cn } from '../lib/utils.js'
+import { StepDisk } from './StepDisk.js'
 import { StepRecovery } from './StepRecovery.js'
 import { StepRestore } from './StepRestore.js'
 import { StepVault } from './StepVault.js'
 import { Point, Points, WizardFootnote, WizardGate, WizardLead, WizardScroll, WizardTitle } from './shared.js'
 
-const steps = ['Bienvenue', 'Coffre', 'Clé de récupération', 'Terminé'] as const
+const steps = ['Bienvenue', 'Coffre', 'Clé de récupération', 'Disque', 'Terminé'] as const
 
 /** Shaped exactly like the body POST /api/backups/destinations takes, so it goes straight across. */
 interface Destination {
@@ -103,7 +104,13 @@ export function Wizard({ status, onReady }: { status: VaultStatus; onReady: () =
           />
         )}
 
-        {!restoring && step === 3 && prepared && (
+        {/* After the key rather than before it: the key is the hard screen and it comes first while
+            her attention is whole. This one asks nothing of her but a look. */}
+        {!restoring && step === 3 && (
+          <StepDisk onBack={() => setStep(2)} onContinue={() => setStep(4)} />
+        )}
+
+        {!restoring && step === 4 && prepared && (
           <StepDone
             directory={directory}
             created={created}
@@ -129,9 +136,14 @@ function StepWelcome({ onContinue, onRestore }: { onContinue: () => void; onRest
         </WizardLead>
 
         <Points>
-          <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Tout reste sur votre ordinateur, chiffré">
+          <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Tout reste sur votre ordinateur">
             Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien à
             négocier avec un hébergeur.
+          </Point>
+
+          <Point icon={<FolderOpen size={16} strokeWidth={1.75} />} title="Vos documents restent dans vos dossiers">
+            Là où vous les rangez déjà, sous les noms que vous leur donnez. Avocado les lit et ne les
+            déplace pas. Le reste, journal, tiers, facturation, vit dans un coffre chiffré.
           </Point>
 
           <Point icon={<Clock size={16} strokeWidth={1.75} />} title="Aucun mot de passe à retenir au quotidien">
@@ -242,6 +254,10 @@ function StepDone({ directory, created, onCommit, onFinish }: {
         <Points>
           <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Le coffre sera créé et chiffré" mono>
             {directory}
+          </Point>
+
+          <Point icon={<FolderOpen size={16} strokeWidth={1.75} />} title="Vos documents, eux, restent chez vous">
+            Vous indiquerez à chaque dossier le répertoire où vous travaillez déjà.
           </Point>
 
           <Point icon={<ShieldCheck size={16} strokeWidth={1.75} />} title="Clé de récupération mise à l’abri">

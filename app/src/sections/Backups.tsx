@@ -398,10 +398,16 @@ function Explainers({ localCount }: { localCount: number }) {
   return (
     <div className="grid gap-3 border-t border-line-subtle pt-3">
       <Explain title="Ce qu’une sauvegarde contient">
-        Tout : la base de données, les documents, les modèles, et la copie chiffrée de votre clé. Une
-        sauvegarde n’est pas un export partiel, c’est de quoi rouvrir votre cabinet entier sur un
-        ordinateur neuf. Elle reste chiffrée de bout en bout : personne ne peut l’ouvrir sans votre
-        clé de récupération, pas même le service qui l’héberge.
+        Votre journal, vos tiers, votre facturation, votre temps passé, vos modèles, et la copie
+        chiffrée de votre clé. Elle reste chiffrée de bout en bout : personne ne peut l’ouvrir sans
+        votre clé de récupération, pas même le service qui l’héberge.
+      </Explain>
+
+      <Explain title="Ce qu’elle ne contient pas encore : vos documents">
+        Depuis qu’ils vivent dans vos propres répertoires, Avocado ne les recopie plus dans ses
+        sauvegardes. C’est en cours et ce sera le cas prochainement. D’ici là,{' '}
+        <strong>sauvegardez vos répertoires de documents comme vous le faisiez avant Avocado</strong>,
+        et ne comptez pas sur ces sauvegardes-ci pour eux.
       </Explain>
 
       <Explain title="Les copies locales, et pourquoi elles ne suffisent pas">

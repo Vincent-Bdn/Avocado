@@ -262,7 +262,8 @@ export function DossierFiles({ matterId, folder, isOpen, onChanged }: {
           <p className="m-0 text-[11px] leading-4 text-muted">
             {listing.files.toLocaleString('fr-FR')} fichiers dans ce dossier,{' '}
             {(listing.bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go. Avocado
-            les lit, ne les déplace pas, et les recopie chiffrés dans vos sauvegardes.
+            les lit et ne les déplace pas. Il ne les sauvegarde pas encore : continuez à sauvegarder
+            ce répertoire comme vous le faisiez.
           </p>
         </>
       )}

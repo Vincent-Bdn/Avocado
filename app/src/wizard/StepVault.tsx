@@ -58,8 +58,9 @@ export function StepVault({ suggested, onBack, onPrepared }: {
         <WizardTitle>Où vivront vos dossiers ?</WizardTitle>
 
         <WizardLead>
-          Un seul dossier sur ce disque contiendra tout : journal, documents, temps passé. Il est
-          chiffré en permanence.
+          Un seul dossier sur ce disque tiendra votre journal, vos tiers, votre facturation et votre
+          temps passé, chiffré en permanence. Vos documents, eux, ne bougent pas : ils restent dans
+          les répertoires où vous les rangez déjà.
         </WizardLead>
 
         <div className="mt-[22px]">

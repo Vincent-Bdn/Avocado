@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, Copy, X } from 'lucide-react'
 import { Button } from '../components/ui/button.js'
-import { DiskEncryptionBanner } from '../components/DiskEncryptionBanner.js'
 import { cn } from '../lib/utils.js'
 import { RecoverySheet, fingerprintOf } from './RecoverySheet.js'
 import { SecureKeyOptions, isSecured, nothingSecured, type SecuredBy } from './SecureKeyOptions.js'
@@ -57,12 +56,6 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
               createdOn={createdOn}
               onCopied={() => setSecured((current) => ({ ...current, copied: true }))}
             />
-
-            {/* The key protects the backups; the disk protects this machine. Two different things,
-                and this is the one moment she is thinking about both. */}
-            <div className="mt-3.5">
-              <DiskEncryptionBanner compact />
-            </div>
 
             <div className="mt-3.5 text-[12px] leading-[17px] font-medium text-ink-secondary">
               Choisissez au moins une façon de la mettre à l’abri :

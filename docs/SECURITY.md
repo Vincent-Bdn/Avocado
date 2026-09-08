@@ -77,6 +77,16 @@ at all.
 
 ### The documents
 
+**They are no longer in the vault.** Ten lawyers refused an encrypted store they had to check files
+out of, so a dossier now points at a folder of hers and Avocado reads it. On the machine, what protects
+them is BitLocker or FileVault, which the application checks and reports rather than reimplements: see
+`DiskEncryption`, which answers on macOS and Linux and answers « unknown » on Windows because the
+authoritative check needs elevation. Never a guess in the reassuring direction.
+
+What follows still describes the blob store, which holds the documents of vaults created before this
+and which is where snapshots will write folder documents once that lands. It is not yet the case: at
+the moment, a document in her own folder is in no backup Avocado makes.
+
 `EncryptedBlobStore`: AES-256-GCM in 1 MB chunks, so a 50 MB scan is never fully resident in
 plaintext. The nonce is a random per-blob prefix plus a chunk counter, reusing a (key, nonce) pair
 with GCM is catastrophic, so it is derived, never generated twice. Each chunk authenticates its own

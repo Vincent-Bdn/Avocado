@@ -82,9 +82,8 @@ export function Settings() {
 
           <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
             Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les
-            déplace pas et ne les enferme pas : il les recopie chiffrés dans vos sauvegardes. Sur
-            cette machine, c’est donc le chiffrement du disque qui les protège, et c’est le système
-            qui s’en charge.
+            déplace pas et ne les enferme pas. Sur cette machine, c’est donc le chiffrement du disque
+            qui les protège, et c’est le système qui s’en charge.
           </p>
         </Section>
 
@@ -248,7 +247,8 @@ function Storage() {
           {settings.vaultDirectory}
         </code>
         <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-          Tout y est chiffré : la base, les documents, les modèles. C’est ce dossier qu’il faut
+          Tout y est chiffré : le journal, les tiers, la facturation, le temps passé, les modèles.
+          Vos documents, eux, restent dans vos propres répertoires. C’est ce dossier qu’il faut
           sauvegarder, et c’est votre clé de récupération qui le rouvrira ailleurs.
         </p>
       </div>

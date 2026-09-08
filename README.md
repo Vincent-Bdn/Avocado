@@ -1,7 +1,7 @@
 # Avocado
 
-**Le suivi de dossiers pour les avocats.** Tout reste sur votre ordinateur, chiffré. Aucun serveur,
-aucun compte, aucun abonnement.
+**Le suivi de dossiers pour les avocats.** Tout reste sur votre ordinateur. Aucun serveur, aucun
+compte, aucun abonnement.
 
 ### 👉 [Vous êtes avocat ? Le site, et le téléchargement, c'est ici.](https://vincent-bdn.github.io/Avocado/)
 
@@ -19,9 +19,10 @@ que vous y consacrez et ce qu'il vous reste à facturer. Le reste en découle.
 - **Le journal** est le geste central, et le plus rapide : `⌘J` depuis n'importe où, deux lignes,
   `⌘⏎`, avec le temps passé dans le même geste. Ce qui n'est pas noté au moment où l'on raccroche ne
   se facturera jamais.
-- **Les documents** se rangent chiffrés dans le coffre, s'ouvrent dans Word d'un double-clic, et
-  chaque enregistrement y revient tout seul. Un document devient une **pièce** quand il reçoit un
-  numéro et un libellé écrit pour le juge.
+- **Les documents restent dans vos répertoires**, là où vous les rangez déjà. Un dossier pointe
+  vers un répertoire, Avocado le lit et ne le déplace pas, et le travail se fait dans l'explorateur
+  comme avant. Verser une **pièce** écrit une copie numérotée dans un sous-dossier `Pièces`, lisible
+  comme n'importe quel autre fichier.
 - **Le temps et la facturation** : Avocado n'émet aucune facture et ne calcule aucune TVA, le
   logiciel comptable le fait déjà. Il note ce qui est parti pour que ce qui reste soit connu, boni et
   mali compris, rétrocessions d'honoraires comprises.
@@ -38,8 +39,10 @@ La description complète, écrite pour un avocat plutôt que pour un développeu
 
 ## Le modèle, en trois phrases
 
-**Un coffre est un dossier sur le disque.** Base de données, documents, modèles : tout y est chiffré
-en permanence, y compris application fermée. Sauvegarder Avocado, c'est copier ce dossier.
+**Un coffre est un dossier sur le disque.** Journal, tiers, facturation, temps passé, modèles : tout
+y est chiffré en permanence, y compris application fermée. Les documents, eux, vivent dans vos
+propres répertoires, et c'est le chiffrement du disque, BitLocker ou FileVault, qui les protège sur
+la machine.
 
 **Deux façons de l'ouvrir.** Au quotidien aucune, la clé est gardée par le système d'exploitation et
 liée à cette machine et à cette session. La **clé de récupération**, neuf groupes de six caractères,
