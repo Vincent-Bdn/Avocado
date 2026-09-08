@@ -21,7 +21,6 @@ Run on its own it reads three environment variables:
 | Variable | Default | What it is |
 |---|---|---|
 | `AVOCADO_VAULT` | `~/Documents/Avocado` | The vault folder |
-| `AVOCADO_WORKING_DIR` | `%LOCALAPPDATA%/Avocado/working` | Where documents are decrypted while open |
 | `AVOCADO_API_TOKEN` | random per launch | The bearer token every request must carry |
 | `AVOCADO_PORT` | `0`, the OS picks | Useful when you want a stable port to `curl` |
 
@@ -208,7 +207,7 @@ sequenceDiagram
     participant B as Avocado.Server
     participant V as Vault folder
 
-    E->>B: spawn, env: AVOCADO_VAULT, AVOCADO_WORKING_DIR,<br/>AVOCADO_API_TOKEN, AVOCADO_PORT=0
+    E->>B: spawn, env: AVOCADO_VAULT, AVOCADO_API_TOKEN,<br/>AVOCADO_PORT=0
     B->>V: VaultSession.TryResume()
     alt a vault exists and this machine can unlock it
         V-->>B: OpenVault
@@ -244,7 +243,8 @@ then on, which makes anything that happens after startup impossible to diagnose 
 
 `before-quit` kills the child. On Windows that is a hard terminate, so `IHostedService.StopAsync` may
 not run. Everything that must survive that is written to be idempotent and reconciled at the next
-launch, see `DocumentWorkspace`.
+launch: the backup service's snapshot is taken from the database's own last-write stamp, and
+`FolderCapture` saves per dossier so a hard kill leaves the dossiers already read.
 
 ---
 
@@ -257,14 +257,18 @@ GET    /health
 GET    /api/vault/status              prepare · commit · discard · unlock · recovery-key
 GET    /api/matters                   ?status=&search=&sort=&deadline=&clientId=&skip=&take=
 POST   /api/matters                   PUT /{id} · /close · /reopen · /favourite · /parties
-GET    /api/matters/{id}/activities   documents · deadlines · time-entries · billing
+GET    /api/matters/{id}/activities   deadlines · time-entries · billing
+GET    /api/matters/{id}/folder       PUT to point the dossier somewhere else
+POST   /api/matters/{id}/exhibits/verser
 POST   /api/matters/{id}/invoices/from-time
 GET    /api/invoices/{id}/detail.xlsx
-POST   /api/documents/{id}/open       close · resolve · exhibit
-GET    /api/documents/workspace
+GET    /api/backups                   /run · /volumes · /destinations
+PUT    /api/backups/documents/schedule
+POST   /api/backups/documents/restore
 GET    /api/templates                 POST · PUT /{id} · /{id}/content
 GET    /api/contacts                  PUT /{id} · /{id}/attachment
 GET    /api/dashboard · /api/search · /api/deadlines · /api/settings
+GET    /api/system/disk-encryption
 ```
 
 **Route templates must name the parameter the handler takes.** A mismatch does not fail at startup:
@@ -325,39 +329,48 @@ that succeeds and is wrong, which nothing can undo. This is the user's only copy
 
 ---
 
-## The document workspace
+## The documents, and the nightly capture
 
-`Features/Documents/Workspace/DocumentWorkspace.cs` is a `BackgroundService`. It decrypts a document
-into the machine-local working directory, hands the path to the shell, and re-encrypts every save back
-into the vault.
+**There is no document store, and there was.** `Features/Documents/Workspace/`, the checkout
+endpoints and the `Document` entity are gone: five thousand lines deleted, because ten beta lawyers
+said the same thing about them. They already have a place for their documents, arranged the way they
+want it, and an application that took copies into an encrypted store they had to check files out of
+was work rather than help.
 
-**It polls; it does not watch.** Word does not write documents in place, it creates `~$name.docx` and
-a scratch file, then renames over the original, so a `FileSystemWatcher` sees a delete-and-create
-dance it has to be taught to read through, and on Windows it silently drops events when its buffer
-overflows. A 1.5-second comparison of *(length, last write, then hash)* has none of those failure
-modes. The hash is what stops a version being created every time Word rewrites an untouched file.
+What replaced it is a path. `Matter.DocumentsFolder` is absolute and hers, `DossierFolderReader`
+lists one level of it on demand, uncached, and the shell opens a file with the operating system.
+Nothing is decrypted, nothing is locked, nothing has to be given back. A dossier can point anywhere,
+including the Desktop, because how she organises herself is not Avocado's decision.
 
-```mermaid
-stateDiagram-v2
-    [*] --> Closed
-    Closed --> Open: POST /open<br/>decrypt, register
-    Open --> Open: bytes changed<br/>wait for the lock, hash, re-encrypt, bump version
-    Open --> Closed: POST /close
-    Open --> Closed: idle 3 min<br/>unlocked, no ~$ sidecar, unchanged
-    Closed --> Reconciled: startup sweep
-    Reconciled --> [*]: identical to the vault → deleted silently
-    Reconciled --> Awaiting: differs → reported, never deleted
-```
+Two operations write into her folders, and both are asked for explicitly: versing a pièce copies a
+file into `Pièces/` under a numbered name, and generating a modèle writes the filled `.docx` beside
+her work. Neither ever overwrites; see `Exhibits` and `GenerateFromTemplate`.
 
-The idle rule is the interesting one. Closing a reader is not an event any application can observe, so
-three signals stand in for it, all three held for three minutes: the file is not locked, Word has left
-no `~$` sidecar beside it, and the bytes have not changed since they were last stored. **The sidecar is
-what makes this safe with Word**, Word does not hold the document itself exclusively between saves,
-so a lock check alone would declare an open document idle and delete the file out from under it.
+### The capture
 
-A hard kill cannot run the shutdown path, which is why the startup sweep exists. Anything hashing
-identical to the vault is deleted silently; anything that differs is reported and never deleted on
-sight, because a crash must not discard an afternoon's drafting.
+`Features/Backups/Infrastructure/FolderCapture.cs` walks each dossier's folder once a night and
+writes what changed into the blob store, so that a sauvegarde contains the pièce rather than the
+journal line saying a pièce exists. The manifest is `captured_files`, a table in the vault database,
+which means it travels inside every snapshot, taken at the same instant by the same copy, with no
+second file to keep in step.
+
+- **Unchanged is not reread.** Size and last-write time against the row. The first night reads the
+  practice; every night after reads the dozen files touched that day.
+- **Files open `FileShare.ReadWrite | Delete`**, because a document open in Word is exactly the one
+  worth backing up. What genuinely cannot be read is reported, never skipped silently.
+- **An absent folder is never an emptied folder.** An unplugged disk would otherwise look identical
+  to « she deleted everything », and would drop that dossier out of the sauvegarde on the one night
+  nobody was watching. Its rows and blobs are left alone and the report names it.
+- **Never inside a request or on shutdown.** `BackupService.Trigger` distinguishes the three: the
+  beat captures, « Sauvegarder maintenant » records a request the next beat honours, and shutdown
+  never captures at all. An application that takes twenty minutes to close gets killed from the task
+  manager, every time, by everyone.
+- **The window is `BackupSchedule`**, 22:00 local by default. A missed night is caught up on the next
+  pass rather than skipped, because a schedule that silently does nothing looks like one that works.
+
+`FolderRestore` is the way back: two folders she chooses, en cours and clôturés, may be the same. The
+manifest holds relative paths precisely so that the machine it is restored onto need not resemble the
+one it came from, and nothing is ever written over something already there.
 
 ---
 

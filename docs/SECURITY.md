@@ -12,8 +12,8 @@ the claims rather than take them.
 
 | Threat | Defence |
 |---|---|
-| A stolen or lost laptop | Everything at rest is encrypted; the device key is bound to the machine and the user session |
-| A backup copied to a USB stick, a NAS or a cloud folder | The backup is the encrypted vault; without a key it is noise |
+| A stolen or lost laptop | Everything **in the vault** is encrypted at rest and the device key is bound to the machine and the session. The documents in her own folders are the disk's problem, see below |
+| A backup copied to a USB stick, a NAS or a cloud folder | The backup is the encrypted vault, documents included; without a key it is noise |
 | Another process on the same machine reading the API | Per-launch bearer token, checked in constant time |
 | A web page the user has open calling the local API | Same token, the port alone is not a boundary |
 | A directory listing of `blobs/` confirming a document | Blob file names are `HMAC(DEK, sha256)`, not the plaintext hash |
@@ -23,8 +23,9 @@ the claims rather than take them.
 
 **What this does not defend against, and says so plainly**
 
-- **A compromised machine while the vault is open.** The data encryption key is in memory, and a
-  document open in Word is plaintext on disk. Nothing running as the user can be kept out.
+- **A compromised machine, open vault or not.** The data encryption key is in memory while it is
+  unlocked, and the documents are plaintext in her own folders at all times. Nothing running as the
+  user can be kept out; full-disk encryption is what covers the machine at rest.
 - **An attacker who has both the machine and the recovery sheet.** That is the one combination with no
   way back, by design: there is no third copy of the key anywhere.
 - **Physical access to an unlocked session.** There is no idle re-lock in v1.
@@ -83,15 +84,31 @@ them is BitLocker or FileVault, which the application checks and reports rather 
 `DiskEncryption`, which answers on macOS and Linux and answers « unknown » on Windows because the
 authoritative check needs elevation. Never a guess in the reassuring direction.
 
-What follows still describes the blob store, which holds the documents of vaults created before this
-and which is where snapshots will write folder documents once that lands. It is not yet the case: at
-the moment, a document in her own folder is in no backup Avocado makes.
+**A backup still carries them.** Once a night, at an hour she sets, `FolderCapture` walks each
+dossier's folder and writes what changed into the blob store below. The two are not in tension: she
+works on plain files in Explorer, and Avocado keeps a copy it can give back. The copy those practices
+keep today is a USB key holding the files in clear, so an encrypted one is strictly better than the
+status quo, which is the whole argument for doing it.
+
+A file whose size and last-write time match the manifest is not reopened, so only the first night
+reads the practice. Files are opened `FileShare.ReadWrite`, because a document she has open in Word
+is exactly the one worth backing up; what genuinely cannot be read is reported, never skipped
+silently. A folder that is *absent* (an unplugged disk) is never mistaken for a folder that was
+emptied: its rows and blobs are left alone.
 
 `EncryptedBlobStore`: AES-256-GCM in 1 MB chunks, so a 50 MB scan is never fully resident in
 plaintext. The nonce is a random per-blob prefix plus a chunk counter, reusing a (key, nonce) pair
 with GCM is catastrophic, so it is derived, never generated twice. Each chunk authenticates its own
-index and a final flag, which is what makes truncation and reordering detectable rather than merely
+index and its flags, which is what makes truncation and reordering detectable rather than merely
 unlikely.
+
+**Chunks are deflated when it helps.** Compression is attempted on the first chunk and abandoned for
+the rest of the file if it does not pay, so prose and `.msg` shrink and PDFs are left alone. The flag
+saying so lives in the byte that already carried « final » and is covered by the AEAD's associated
+data, so it cannot be flipped: a chunk cannot be made to inflate arbitrary bytes. A blob's identity
+stays the SHA-256 of its *plaintext*, which keeps deduplication independent of the compressor.
+Compressing before encrypting leaks a little about content through length; with no attacker-chosen
+plaintext to mix in, that buys nothing that the file sizes in her folder do not already say.
 
 **File names are `HMAC-SHA256(DEK, sha256(plaintext))`, not the plaintext hash.** Deduplication still
 works, but a directory listing no longer lets anyone confirm *this vault contains this exact document*
@@ -192,29 +209,34 @@ Nothing else. No account, no telemetry, no crash reporting, no update check, no 
 
 ---
 
-## Working copies
+## Documents in the clear
 
 <a id="working-copies"></a>
 
-Letting Word edit a document means the document exists in plaintext for as long as it is open. No
-application can avoid that; what it can do is bound it.
+**Every document this practice owns is plaintext on disk, all the time, and that is the design.**
+There used to be a section here about working copies: files decrypted out of the vault so Word could
+edit them, swept at launch, reconciled after a crash. All of it is gone, along with the store it
+protected. Ten lawyers refused that arrangement, so a dossier now points at a folder of the user's
+own and Avocado reads it.
 
-- Working copies live **outside the vault**, in the platform's machine-local application-state folder
-, `%LOCALAPPDATA%` on Windows (not Electron's `userData`, which is Roaming and follows a domain
-  profile), `~/Library/Application Support` on macOS, `~/.config` on Linux.
-- Deliberately **not Documents**: that is the folder OneDrive synchronises, and the setup wizard makes
-  a point of refusing it for the vault.
-- One folder per vault, one per document inside it, so two dossiers holding `conclusions.docx` never
-  collide.
-- Emptied on check-in, on a clean shutdown, and swept at every launch, anything hashing identical to
-  the vault is deleted silently.
-- A file that **differs** from the vault is never deleted on sight. It is reported with its timestamp
-  and two explicit choices, because a crash must not silently discard an afternoon's drafting.
+What defends them is therefore not this application:
 
-Three separate reasons this is not in the vault: the vault is what gets backed up, and a half-saved
-draft has no business in a backup; the vault may one day be a share or a remote store, while a file
-being edited has to be on the machine editing it; and deleting the vault is a catastrophe you recover
-from with the recovery key, while deleting this costs at most the last few seconds of typing.
+- **Full-disk encryption**, BitLocker or FileVault or LUKS, which is why `DiskEncryption` exists, why
+  the setup wizard has a step for it, and why the answer on Windows is « unknown » rather than a
+  reassuring guess (the authoritative check needs elevation).
+- **The operating system's own permissions**, exactly as for every other file the user owns.
+
+Avocado's contribution is narrower and worth stating precisely: **the copies it makes are encrypted
+even though the originals are not.** The nightly capture writes each file into the blob store, so the
+USB key, the external disk or the Drive folder holding the sauvegarde is unreadable without the
+recovery key. The copy those practices keep today is a key carrying the files in clear; this is
+strictly better than that, and it is the part Avocado can actually do.
+
+Two consequences follow, and neither is hidden:
+
+- Anything running as the user can read the documents. No application can prevent that.
+- Avocado never writes into those folders except when explicitly asked: versing a pièce, and
+  generating a modèle. Both refuse to overwrite an existing file.
 
 ---
 
@@ -257,8 +279,11 @@ Stated because a security document that lists only its strengths is not one.
 - **No Keychain on macOS**, no Secret Service on Linux: a `0600` file stands in for both.
 - **No idle re-lock.** An unlocked session stays unlocked until the application closes.
 - **No audit trail.** Who changed what, and when, is not recorded beyond `CreatedAt` and `UpdatedAt`.
-- **The blob store is not compacted.** Replacing a document's bytes drops the old blob when nothing
-  references it, but a vault is never rewritten to reclaim space.
+- **The blob store is never swept.** A document edited today leaves yesterday's version stored
+  forever, locally and on every destination. That is what makes an old snapshot genuinely restorable,
+  and it is unbounded: expect roughly a gigabyte a year of superseded versions against a practice of
+  twelve. Reclaiming it means computing the live set across every retained snapshot, and getting that
+  wrong deletes client documents, so it is deliberately not done yet.
 - **`InvariantGlobalization` is on** in the backend, so French month and date formatting is done by
   the renderer. This is a deliberate size trade-off, not an oversight.
 

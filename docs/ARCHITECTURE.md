@@ -22,7 +22,7 @@ flowchart TB
     subgraph service["src/Avocado.Server, the service"]
         api["Minimal API<br/><i>vertical slices</i>"]
         ef["EF Core"]
-        workspace["DocumentWorkspace<br/><i>working copies</i>"]
+        capture["FolderCapture<br/><i>nightly, her folders</i>"]
     end
 
     subgraph vault["src/Avocado.Vault, the vault"]
@@ -38,7 +38,8 @@ flowchart TB
     renderer -->|"HTTP + bearer token<br/>127.0.0.1:0"| api
     api --> ef --> db
     api --> blobs
-    workspace --> blobs
+    capture -->|reads| folders[("Her own folders<br/><i>plain files, untouched</i>")]
+    capture --> blobs
     cli --> vault
 
     style vault fill:#E7EEE8,stroke:#2C4A38
@@ -119,12 +120,15 @@ configuration by assembly scan.
 <coffre>/
   vault.json      the keyring: one wrapped DEK per unlock path. Not secret by itself.
   avocado.db      SQLCipher. Everything relational: dossiers, journal, temps, factures.
-  blobs/          one encrypted file per document, content-addressed
+  blobs/          modèles, and the nightly copy of her documents, content-addressed
   backups/        snapshots, including the automatic pre-migration ones
 ```
 
-Working copies, files currently open in Word, deliberately live **outside** the vault, in the
-platform's machine-local application-state folder. See [SECURITY.md](SECURITY.md#working-copies).
+**Her documents are not in there, and are not owned by any of it.** A dossier holds an absolute path
+to a folder of hers; `DossierFolderReader` lists it on demand and `FolderCapture` copies it into
+`blobs/` once a night so a backup can give it back. Nothing in the application opens a document
+through the vault, and nothing writes to her folders except versing a pièce and generating a modèle,
+both of which she asks for explicitly.
 
 ```mermaid
 flowchart LR
@@ -181,7 +185,7 @@ service.
 erDiagram
     MATTER ||--o{ MATTER_PARTY : "parties, free-text roles"
     MATTER ||--o{ ACTIVITY : "journal"
-    MATTER ||--o{ DOCUMENT : "documents and pièces"
+    MATTER ||--o{ CAPTURED_FILE : "what the sauvegarde holds of her folder"
     MATTER ||--o{ DEADLINE : "échéances"
     MATTER ||--o{ TIME_ENTRY : "temps passé"
     MATTER ||--o{ INVOICE : "factures émises ailleurs"
@@ -190,7 +194,6 @@ erDiagram
     CONTACT ||--o{ MATTER_PARTY : ""
     CONTACT ||--o{ CONTACT : "personnes rattachées"
     ACTIVITY ||--o| TIME_ENTRY : "logged together"
-    ACTIVITY ||--o{ DOCUMENT : "arrived with"
     INVOICE ||--o{ TIME_ENTRY : "hours it covers"
     INVOICE ||--o{ BILLING_COST : "costs incurred against it"
     CONTACT ||--o{ BILLING_COST : "who was paid"
@@ -200,8 +203,14 @@ Three decisions worth knowing before reading the code:
 
 - **Status is derived, never stored.** A dossier is *en cours* while `ClosedOn` is null. There is no
   status column to fall out of step with reality.
-- **A pièce is a document** that has been given a number and a libellé, two nullable columns, not a
-  second table. The relationship is 1:1 by definition.
+- **There is no document table.** Documents are files in her own folders, and the only rows about
+  them are `CAPTURED_FILE`, which is the sauvegarde's manifest and nothing else: a photograph, not a
+  claim of ownership. Ten lawyers refused a store they had to check files out of, so a dossier holds
+  a path and `DossierFolderReader` reads it.
+- **A pièce is a file name**, not a row. `Pièces/Pièce 7 - Contrat du 3 mars 2019.pdf` in her folder,
+  parsed back by `Exhibits.NumberOf`. The numbering rule lives in `Exhibits`: the next number is one
+  past the highest ever used, never a freed hole, because a withdrawn pièce n°2 may already be cited
+  in conclusions that have been filed.
 - **Three kinds of money, and they are separate tables on purpose.** An `INVOICE` is a facture *she
   issued*; a `LEDGER_ENTRY` is money that moved without one, a provision received, a débours advanced
   *for the client* and re-billed at cost; a `BILLING_COST` is a rétrocession d'honoraires or other
@@ -224,6 +233,8 @@ as text, and legible when you open the database with a tool.
 | How is « reste à facturer » computed? | `Features/Billings/BillingSummaryQuery.cs` |
 | Which urgency tier is a deadline in? | `Features/Deadlines/DeadlineUrgencyRule.cs` |
 | What counts as « touching » a dossier? | `Features/Matters/MatterTouch.cs` |
-| How does a document get into Word and back? | `Features/Documents/Workspace/DocumentWorkspace.cs` |
+| What is in a dossier's folder? | `Features/Documents/Folders/DossierFolderReader.cs` |
+| How is a pièce numbered? | `Features/Documents/Folders/Exhibits.cs` |
+| How do documents get into a backup? | `Features/Backups/Infrastructure/FolderCapture.cs`, and `FolderRestore.cs` back out |
 | Where is the encryption? | `Avocado.Vault/Keys/VaultKeyring.cs`, `Blobs/EncryptedBlobStore.cs` |
 | Why is the schema migrated the way it is? | `Data/VaultMigrator.cs` |

@@ -567,20 +567,25 @@
         <h2>Au premier lancement</h2>
 
         <p>
-          Un assistant vous pose deux questions. Il n’y en aura pas de troisième, et vous ne le
-          reverrez plus.
+          Un assistant vous pose deux questions et vous montre une chose à vérifier. Il n’y en aura
+          pas d’autres, et vous ne le reverrez plus.
         </p>
 
         <ol class="steps">
           <li>
-            <h3>Où vivront vos dossiers</h3>
+            <h3>Où vivra le coffre</h3>
             <p>
-              Un dossier sur votre disque, qui contiendra tout : la base, les documents, les modèles.
-              Le proposé par défaut convient. Sauvegarder Avocado, ce sera copier ce dossier.
+              Un dossier sur votre disque, qui contiendra le journal, les tiers, la facturation, le
+              temps passé et vos modèles, chiffrés. Celui qui vous est proposé convient.
+            </p>
+            <p>
+              <strong>Vos documents, eux, n’y entrent pas</strong> : ils restent dans les répertoires
+              où vous les rangez déjà, et vous direz à chaque dossier où se trouve le sien. Il n’y a
+              rien à déplacer, ni maintenant ni jamais.
             </p>
             <p>
               L’assistant refusera de le placer dans OneDrive, Dropbox ou Google Drive, et vous
-              proposera le montage qui marche : les dossiers en local, les sauvegardes dans le
+              proposera le montage qui marche : le coffre en local, les sauvegardes dans le
               dossier synchronisé. Une base de données vivante dans un dossier synchronisé finit
               corrompue.
             </p>
@@ -595,6 +600,19 @@
             <p>
               C’est le seul chemin qui traverse les machines : c’est elle qui rouvrira vos dossiers
               sur un ordinateur neuf, après un vol ou une panne.
+            </p>
+          </li>
+          <li>
+            <h3>Le chiffrement de votre disque</h3>
+            <p>
+              Pas une question, une vérification. Puisque vos documents restent dans vos propres
+              répertoires, ce qui les protège sur cette machine est BitLocker sur Windows ou
+              FileVault sur Mac. Avocado vous dit s’il est actif et vous emmène au bon réglage sinon.
+            </p>
+            <p>
+              Vous pouvez continuer sans, et l’activer plus tard : Réglages, Chiffrement du disque.
+              C’est le seul réglage de cette liste qui ne concerne pas qu’Avocado, et le seul qui
+              protège aussi tout le reste de votre ordinateur.
             </p>
           </li>
         </ol>

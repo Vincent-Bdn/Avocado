@@ -22,7 +22,8 @@ que vous y consacrez et ce qu'il vous reste à facturer. Le reste en découle.
 - **Les documents restent dans vos répertoires**, là où vous les rangez déjà. Un dossier pointe
   vers un répertoire, Avocado le lit et ne le déplace pas, et le travail se fait dans l'explorateur
   comme avant. Verser une **pièce** écrit une copie numérotée dans un sous-dossier `Pièces`, lisible
-  comme n'importe quel autre fichier.
+  comme n'importe quel autre fichier. Chaque nuit, Avocado en copie une version chiffrée dans ses
+  sauvegardes : vos fichiers ne bougent pas, mais rien ne manque le jour où il faut tout rouvrir.
 - **Le temps et la facturation** : Avocado n'émet aucune facture et ne calcule aucune TVA, le
   logiciel comptable le fait déjà. Il note ce qui est parti pour que ce qui reste soit connu, boni et
   mali compris, rétrocessions d'honoraires comprises.
@@ -42,7 +43,7 @@ La description complète, écrite pour un avocat plutôt que pour un développeu
 **Un coffre est un dossier sur le disque.** Journal, tiers, facturation, temps passé, modèles : tout
 y est chiffré en permanence, y compris application fermée. Les documents, eux, vivent dans vos
 propres répertoires, et c'est le chiffrement du disque, BitLocker ou FileVault, qui les protège sur
-la machine.
+la machine. Dans les sauvegardes, en revanche, c'est Avocado qui les chiffre.
 
 **Deux façons de l'ouvrir.** Au quotidien aucune, la clé est gardée par le système d'exploitation et
 liée à cette machine et à cette session. La **clé de récupération**, neuf groupes de six caractères,

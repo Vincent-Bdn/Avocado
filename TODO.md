@@ -61,13 +61,16 @@ A vault is a **folder**. Configure a folder, and that's the install.
 ```
 MonCabinet/
 ├── avocado.db        # SQLCipher, dossiers, contacts, journal, temps, index (FTS5)
-├── blobs/            # encrypted documents, content-addressed
+├── blobs/            # modèles, and the nightly copy of her documents, content-addressed
 ├── vault.json        # KDF salt/params + wrapped DEKs (list, not scalar)
 └── backups/          # rolling encrypted snapshots
 ```
 
 - Structured data in SQLite; **large files as external encrypted blobs** (better streaming + backup
   granularity). Blob refs live in the DB.
+- **Superseded, 2026-09: her documents are not in the vault.** A dossier holds an absolute path to a
+  folder of hers and Avocado reads it. The blob store still exists, for modèles and for the nightly
+  backup copy of those folders, but nothing is ever *served* from it. See below.
 - Full-text search via **FTS5**, works normally, since SQLCipher decrypts pages in memory.
 
 ### EF Core + SQLCipher gotchas (do these or lose the data)
@@ -273,9 +276,9 @@ Activity      MatterId, OccurredAt, Type, ContactId?, Subject, Body
               Type: Call | IncomingEmail | OutgoingEmail | IncomingLetter
                   | OutgoingLetter | Meeting | Note | Hearing | Other
 
-Document      MatterId, ActivityId?, BlobHash, FileName, SizeBytes,
-              MimeType, DocumentDate, AddedAt,
-              ExhibitNumber?, ExhibitLabel?
+CapturedFile  MatterId, RelativePath, BlobSha256, SizeBytes,
+              ModifiedAt, CapturedAt
+              (the sauvegarde's manifest; replaced Document, see below)
 
 Deadline      MatterId, Date, Time?, Type, Label, RemindDaysBefore, IsDone
 
@@ -298,14 +301,24 @@ Eleven tables became nine. The decisions behind them:
   Client column.
 - **Direction is folded into `Activity.Type`**, not a separate field. It's meaningless for calls and notes,
   but for letters « envoyé le 12/03 » vs « reçu le 15/03 » starts délais and proves diligence.
-- **`Exhibit` collapsed into `Document`** as two nullable columns, the relationship is 1:1. In French
-  procedure, pièces are evidence *communicated to the other side*, numbered, and cited in conclusions
-  (« la pièce n°7 »), with a label written for the judge, « Contrat de travail de M. Dupont du 12 mars
-  2019 », not `scan_003.pdf`. Conclusions and client correspondence are never pièces.
+- **The pièce reasoning still holds; the table it lived in does not.** In French procedure, pièces are
+  evidence *communicated to the other side*, numbered, and cited in conclusions (« la pièce n°7 »),
+  with a label written for the judge, « Contrat de travail de M. Dupont du 12 mars 2019 », not
+  `scan_003.pdf`. Conclusions and client correspondence are never pièces.
+
+  **Superseded, 2026-09:** this was two nullable columns on `Document`. It is now a *file name* in her
+  own folder, `Pièces/Pièce 7 - Libellé.pdf`, parsed by `Exhibits`. The rule that survived the move
+  intact: the next number is one past the highest ever used, never a freed hole, because a withdrawn
+  pièce n°2 may already be cited in conclusions that have been filed.
 - **`CourtCaseNumber` (n° RG)** is nullable, conseil, rédaction d'actes and transactions never go to court.
   It's kept for one reason: when the greffe calls they say the RG number, not the client's name. It is a
   **search key**. *(pending her confirmation)*
-- **`Document.ActivityId?`** is a nullable FK, not a join table.
+- **Superseded, 2026-09: there is no `Document` table at all.** Two weeks of beta said the same thing
+  from ten practices: nobody knew or cared about encryption, and all of them wanted to work in an
+  ordinary directory organised as they liked. A store they had to check files out of was work rather
+  than help. So documents live in her folders, Avocado reads and never moves them, disk encryption is
+  what protects them on the machine, and the sauvegarde carries an encrypted copy so it can give them
+  back. Five thousand lines were deleted for this. It is the single largest product decision so far.
 
 ### The billing boundary, one rule
 
@@ -346,7 +359,9 @@ Left to bill = Σ(billable time) − Σ(ledger entries) − Σ(invoiced)
 - [ ] **Dossiers**, the central object.
 - [ ] **Journal**, appels, mails, RDV, notes. This *is* « le suivi ».
       **Make it the single fastest interaction in the app.**
-- [ ] **Documents**, drag & drop, typage, PDF preview, **numérotation des pièces** (numéro + libellé).
+- [x] **Documents**, as an explorer over her own folder: breadcrumb, filter, per-extension icons, one
+      way to open a file. **Numérotation des pièces** by file name, `Exhibits`. No drag & drop and no
+      PDF preview, deliberately: the file manager she already uses does both better.
 - [ ] **Échéances / agenda**, audiences et délais, exposed as a **read-only ICS feed** so it lands on her
       phone. Read-only feed, not two-way sync: 10× cheaper, 90% of the value.
 - [ ] **Temps passé**, timer + manual entry, taux horaire, facturable o/n. Logging « appel client, 20 min »
@@ -365,8 +380,16 @@ Left to bill = Σ(billable time) − Σ(ledger entries) − Σ(invoiced)
       USB key, and nothing to maintain. Native providers only if someone actually asks.
 - [ ] **Detect and refuse** a live vault located inside a sync folder, SQLite + mid-write sync = corruption.
       Backups go to the cloud; the vault never does.
+- [x] **The documents go in too.** Once a night, at an hour she sets, `FolderCapture` copies her
+      dossier folders into the blob store, compressed and encrypted. The manifest is a table in the
+      database, so it travels inside every snapshot. Rationale: the copy these practices keep today is
+      a USB key holding the files in clear, so an encrypted one is strictly better than the status quo,
+      and a lawyer must be able to produce the pièce, not the note saying a pièce exists.
 - [ ] Restore wizard, requires the recovery file. **Tested in CI.**
 - [ ] Warn if no backup in 7 days.
+- [ ] **Sweep superseded blobs.** Nothing is ever deleted from the blob store, so old versions of
+      edited documents accumulate, roughly a gigabyte a year. The live set has to be computed across
+      every retained snapshot and it must fail closed: getting it wrong deletes client documents.
 
 ---
 
