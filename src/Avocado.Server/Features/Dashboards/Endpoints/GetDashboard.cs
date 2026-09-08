@@ -110,6 +110,23 @@ public static class GetDashboard
             .Take(RecentMatterCount)
             .ToList();
 
+        // Every facture ever issued, HT, with its date. Historical imports included: an invoice she
+        // sent under her previous software is still turnover, and a chiffre d'affaires that quietly
+        // omitted the first years would be worse than no figure at all.
+        var invoiced = await database.Invoices
+            .AsNoTracking()
+            .Select(invoice => new { invoice.Date, invoice.AmountExclVatCents })
+            .ToListAsync(cancellationToken);
+
+        var settings = await database.PracticeSettings
+            .AsNoTracking()
+            .ToDictionaryAsync(setting => setting.Key, setting => setting.Value, cancellationToken);
+
+        var exercices = Exercices.Build(
+            [.. invoiced.Select(invoice => (invoice.Date, invoice.AmountExclVatCents))],
+            Exercices.StartFrom(settings),
+            today);
+
         var summary = new DashboardSummary(
             today,
             await database.Matters.CountAsync(matter => matter.ClosedOn == null, cancellationToken),
@@ -132,7 +149,8 @@ public static class GetDashboard
                 matter.Last?.Type,
                 matter.Last?.Summary,
                 matter.TouchedAt))],
-            await HonorairesQuery.ForPracticeAsync(database, today, cancellationToken));
+            await HonorairesQuery.ForPracticeAsync(database, today, cancellationToken),
+            exercices);
 
         return Results.Ok(summary);
     }

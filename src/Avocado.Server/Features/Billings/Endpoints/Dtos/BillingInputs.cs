@@ -15,12 +15,15 @@ public sealed record BillingInvoiceInput(
     string? ExternalReference,
     bool IsPaid = false,
     DateOnly? PaidOn = null,
-    bool IsHistorical = false)
+    bool IsHistorical = false,
+    int? DiscountBasisPoints = null,
+    string? DiscountReason = null)
 {
     public string? Validate() => this switch
     {
         { AmountExclVatCents: <= 0 } => "Le montant doit être positif.",
         { IsPaid: false, PaidOn: not null } => "Une facture non réglée ne peut pas avoir de date de règlement.",
+        { DiscountBasisPoints: < 0 or > 10_000 } => "La remise doit être comprise entre 0 et 100%.",
         _ => null,
     };
 }

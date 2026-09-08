@@ -48,7 +48,12 @@ public static class GetSettings
         return Results.Ok(new PracticeInfo(
             ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents),
             PracticeAddresses.Parse(stored.GetValueOrDefault(PracticeSettingKeys.EmailAddresses)),
-            vaultStore.Get(tenant.VaultId).Paths.Root));
+            vaultStore.Get(tenant.VaultId).Paths.Root,
+            // Read back through the same parser the dashboard uses, so a value the figures ignore is
+            // never a value the form shows as accepted.
+            Dashboards.ValueObjects.Exercices.StartFrom(stored) is var (month, day)
+                ? $"{month:00}-{day:00}"
+                : "01-01"));
     }
 
     private static long ReadLong(IReadOnlyDictionary<string, string> stored, string key, long fallback) =>
@@ -94,6 +99,23 @@ public static class UpdateSettings
             PracticeSettingKeys.HourlyRateCents,
             input.HourlyRateCents.ToString(),
             cancellationToken);
+
+        // « MM-DD », or nothing. Refused rather than silently ignored: an exercice starting on a
+        // date the figures do not use would put a year's turnover in the wrong column.
+        if (input.ExerciceStart is { } exercice)
+        {
+            if (Dashboards.ValueObjects.Exercices.StartFrom(
+                    new Dictionary<string, string> { [PracticeSettingKeys.ExerciceStart] = exercice })
+                is var parsed && $"{parsed.Month:00}-{parsed.Day:00}" != exercice)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["exerciceStart"] = ["Indiquez un début d'exercice entre le 1er et le 28 du mois."],
+                });
+            }
+
+            await UpsertAsync(database, PracticeSettingKeys.ExerciceStart, exercice, cancellationToken);
+        }
 
         if (addresses is not null)
         {

@@ -42,6 +42,15 @@ public static class PracticeSettingKeys
     /// </summary>
     public const string EmailAddresses = "practice.emailAddresses";
 
+    /// <summary>
+    /// The first day of the exercice comptable, as « MM-DD ». « 09-01 » for a practice that opened in
+    /// September and closes its books in August.
+    ///
+    /// <para>A setting rather than a constant because it is the one figure the chiffre d'affaires is
+    /// counted against, and it differs per cabinet. Absent, the exercice is the calendar year.</para>
+    /// </summary>
+    public const string ExerciceStart = "practice.exerciceStart";
+
     /// <summary>Whether the sauvegarde carries the dossiers' documents at all. On by default.</summary>
     public const string CaptureDocuments = "backup.documents.enabled";
 

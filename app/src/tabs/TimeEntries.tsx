@@ -5,6 +5,8 @@ import { Button } from '../components/ui/button.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { Input } from '../components/ui/input.js'
 import { cn } from '../lib/utils.js'
+import { parseDuration, toDurationInput } from '../lib/duration.js'
+import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
 
@@ -43,8 +45,9 @@ const messageOf = (failure: unknown) =>
  * a crash could lose is a worse promise than none at all. Every line can be corrected, because a
  * duration typed in a hurry is exactly the kind of thing that needs correcting.
  */
-export function TimeEntries({ matterId, isOpen, onChanged }: {
+export function TimeEntries({ matterId, hourlyRateCents, isOpen, onChanged }: {
   matterId: string
+  hourlyRateCents: number
   isOpen: boolean
   onChanged: () => void
 }) {
@@ -79,7 +82,9 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
 
   return (
     <TabPanel>
-      {isOpen && <EntryForm matterId={matterId} onSaved={refresh} />}
+      {isOpen && (
+        <EntryForm matterId={matterId} matterHourlyRateCents={hourlyRateCents} onSaved={refresh} />
+      )}
 
       {error && <p className="m-0 text-danger">{error}</p>}
 
@@ -111,6 +116,7 @@ export function TimeEntries({ matterId, isOpen, onChanged }: {
         {page?.items.map((entry) =>
           editing === entry.id ? (
             <EntryForm
+              matterHourlyRateCents={hourlyRateCents}
               key={entry.id}
               matterId={matterId}
               entry={entry}
@@ -194,25 +200,36 @@ const Total = ({ label, value }: { label: string; value: string }) => (
 )
 
 /** One form for both adding and correcting, so the two can never drift apart. */
-function EntryForm({ matterId, entry, onSaved, onCancel }: {
+function EntryForm({ matterId, matterHourlyRateCents, entry, onSaved, onCancel }: {
   matterId: string
+  matterHourlyRateCents: number
   entry?: TimeEntryItem
   onSaved: () => void
   onCancel?: () => void
 }) {
   const [date, setDate] = useState(entry?.date.slice(0, 10) ?? new Date().toISOString().slice(0, 10))
-  const [hours, setHours] = useState(entry ? String(Math.floor(entry.durationMinutes / 60)) : '')
-  const [minutes, setMinutes] = useState(entry ? String(entry.durationMinutes % 60) : '')
+  const [duration, setDuration] = useState(entry ? toDurationInput(entry.durationMinutes) : '')
   const [task, setTask] = useState(entry?.task ?? '')
   const [billable, setBillable] = useState(entry?.isBillable ?? true)
+  const [rate, setRate] = useState(
+    entry?.isRateOverridden ? centsToAmount(entry.appliedRateCents) : '',
+  )
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const durationMinutes = Number(hours || 0) * 60 + Number(minutes || 0)
+  const durationMinutes = parseDuration(duration)
 
   async function save() {
-    if (durationMinutes <= 0) {
-      setError('Indiquez une durée, par exemple 1 h 30.')
+    if (durationMinutes === null || durationMinutes <= 0) {
+      setError('Indiquez une durée : 0,25 pour un quart d’heure, 2 pour deux heures, ou 1h30.')
+      return
+    }
+
+    // Empty is « the dossier's rate », which is not the same as zero and must not become it.
+    const rateCents = rate.trim() === '' ? null : parseAmountToCents(rate)
+
+    if (rate.trim() !== '' && rateCents === null) {
+      setError('Indiquez un taux horaire positif, par exemple 200,00, ou laissez le champ vide.')
       return
     }
 
@@ -231,15 +248,16 @@ function EntryForm({ matterId, entry, onSaved, onCancel }: {
         task: task.trim(),
         durationMinutes,
         isBillable: billable,
+        hourlyRateCentsOverride: rateCents,
       }
 
       if (entry) {
         await api(`/api/time-entries/${entry.id}`, { method: 'PUT', body: JSON.stringify(body) })
       } else {
         await post(`/api/matters/${matterId}/time-entries`, body)
-        setHours('')
-        setMinutes('')
+        setDuration('')
         setTask('')
+        // The rate is deliberately kept: a dérogation applies to a run of entries, not to one.
       }
 
       onSaved()
@@ -250,32 +268,47 @@ function EntryForm({ matterId, entry, onSaved, onCancel }: {
     }
   }
 
+  /**
+   * Entrée saves, from any field. She records time between two telephone calls and reaching for the
+   * mouse to finish a line she has already typed is the friction that stops it being recorded at all.
+   */
+  function submitOnEnter(event: React.KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey && !busy) {
+      event.preventDefault()
+      void save()
+    }
+  }
+
+  const reading = durationMinutes !== null && durationMinutes > 0 ? formatDuration(durationMinutes) : null
+
   return (
     <div className="grid gap-1">
       <InlineForm editing={Boolean(entry)}>
-        <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} aria-label="Date" />
+        <Input
+          type="date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          aria-label="Date"
+          onKeyDown={submitOnEnter}
+        />
 
-        {/* Two fields rather than parsed prose: « 30 minutes » is a sentence, and guessing at
-            sentences is how a duration silently lands wrong. */}
-        <span className="flex items-center gap-1">
+        {/* One field, in decimal hours, because that is how a convention d'honoraires is written
+            and how she reads her own time back. It still accepts « 1h30 ». Whatever she types, the
+            échoed reading underneath says what was understood before anything is saved: parsing
+            input without showing the reading is how a duration silently lands wrong. */}
+        <span className="flex items-baseline gap-1.5">
           <Input
-            className="w-11 text-center font-mono tnum"
-            inputMode="numeric"
-            placeholder="0"
-            value={hours}
-            aria-label="Heures"
-            onChange={(event) => { setHours(event.target.value.replace(/\D/g, '')); setError(null) }}
+            className="w-[68px] text-center font-mono tnum"
+            inputMode="decimal"
+            placeholder="0,25"
+            value={duration}
+            aria-label="Durée en heures"
+            onChange={(event) => { setDuration(event.target.value); setError(null) }}
+            onKeyDown={submitOnEnter}
           />
-          <span className="text-muted">h</span>
-          <Input
-            className="w-11 text-center font-mono tnum"
-            inputMode="numeric"
-            placeholder="00"
-            value={minutes}
-            aria-label="Minutes"
-            onChange={(event) => { setMinutes(event.target.value.replace(/\D/g, '')); setError(null) }}
-          />
-          <span className="text-muted">min</span>
+          <span className={cn('text-[11.5px] tabular-nums', reading ? 'text-muted' : 'text-disabled')}>
+            {reading ?? 'heures'}
+          </span>
         </span>
 
         <Input
@@ -283,7 +316,23 @@ function EntryForm({ matterId, entry, onSaved, onCancel }: {
           value={task}
           placeholder="Rédaction des conclusions, appel du confrère…"
           onChange={(event) => { setTask(event.target.value); setError(null) }}
+          onKeyDown={submitOnEnter}
         />
+
+        {/* Blank means the dossier's rate. Filled, it is a taux dérogatoire on this line alone,
+            which is the only way to bill one diligence differently without repricing history. */}
+        <span className="flex items-baseline gap-1">
+          <Input
+            className="w-[76px] text-right font-mono tnum"
+            inputMode="decimal"
+            placeholder={centsToAmount(matterHourlyRateCents)}
+            value={rate}
+            aria-label="Taux horaire de cette ligne"
+            onChange={(event) => { setRate(event.target.value); setError(null) }}
+            onKeyDown={submitOnEnter}
+          />
+          <span className="text-[11.5px] text-muted">€/h</span>
+        </span>
 
         <label className="flex items-center gap-2 text-[13px]">
           <input

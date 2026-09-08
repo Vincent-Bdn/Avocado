@@ -31,9 +31,14 @@ public static class UpdateInvoice
         invoice.IsPaid = input.IsPaid;
         invoice.PaidOn = input.IsPaid ? input.PaidOn : null;
         invoice.IsHistorical = input.IsHistorical;
+        invoice.DiscountBasisPoints = input.DiscountBasisPoints;
+        invoice.DiscountReason = Trimmed(input.DiscountReason);
 
         await database.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
     }
+
+    private static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

@@ -7,9 +7,14 @@ namespace Avocado.Server.Features.Settings.Endpoints.Dtos;
 /// <param name="EmailAddresses">
 /// Hers, one per line. What tells a courriel reçu from a courriel envoyé.
 /// </param>
+/// <param name="ExerciceStart">
+/// « MM-DD », the first day of the exercice comptable. Null means the form did not send it, which is
+/// not the same as clearing it: the rate form sends only the rate.
+/// </param>
 public sealed record PracticeSettings(
     long HourlyRateCents,
-    IReadOnlyList<string>? EmailAddresses = null);
+    IReadOnlyList<string>? EmailAddresses = null,
+    string? ExerciceStart = null);
 
 /// <param name="VaultDirectory">
 /// Where the coffre is: the journal, the tiers, the facturation, the temps passé and the modèles.
@@ -18,4 +23,5 @@ public sealed record PracticeSettings(
 public sealed record PracticeInfo(
     long HourlyRateCents,
     IReadOnlyList<string> EmailAddresses,
-    string VaultDirectory);
+    string VaultDirectory,
+    string ExerciceStart);

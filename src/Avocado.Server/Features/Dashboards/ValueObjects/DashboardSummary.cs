@@ -60,4 +60,6 @@ public sealed record DashboardSummary(
     DashboardUnbilled Unbilled,
     IReadOnlyList<DashboardRecentMatter> RecentMatters,
     /// <summary>« Ai-je facturé ce que j'ai travaillé ? », twelve months of it.</summary>
-    DashboardHonoraires Honoraires);
+    DashboardHonoraires Honoraires,
+    /// <summary>Le chiffre d'affaires HT, par exercice, le courant en tête. See <see cref="Exercices"/>.</summary>
+    IReadOnlyList<Exercice> Exercices);

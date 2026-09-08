@@ -54,6 +54,24 @@ public class BillingInvoice
     /// </summary>
     public long BilledTimeCents { get; set; }
 
+    /// <summary>
+    /// « Application d'une remise commerciale de 30% pour fidélité client ». In basis points, so
+    /// 3 000 is 30%.
+    ///
+    /// <para>Basis points rather than a percentage, because a percentage that is not a whole number
+    /// wants a decimal, and <c>AvocadoDbContext</c> refuses decimals for the reason every money
+    /// column here is a <c>long</c>. Basis points say 12,5% exactly and sort correctly.</para>
+    ///
+    /// <para><b>Presentation, not arithmetic.</b> <see cref="AmountExclVatCents"/> is already the
+    /// amount actually billed, remise deducted: it is what the client owes, what the accountant sees
+    /// and what the chiffre d'affaires counts. This records why it is lower than the hours behind it,
+    /// so the détail can say so in the sentence she would have written by hand.</para>
+    /// </summary>
+    public int? DiscountBasisPoints { get; set; }
+
+    /// <summary>« pour fidélité client ». Free text, because the reason is hers.</summary>
+    public string? DiscountReason { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>Positive = boni (billed above the recorded time), negative = mali.</summary>

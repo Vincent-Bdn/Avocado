@@ -287,6 +287,14 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("date");
 
+                    b.Property<int?>("DiscountBasisPoints")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("discount_basis_points");
+
+                    b.Property<string>("DiscountReason")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("discount_reason");
+
                     b.Property<string>("ExternalReference")
                         .HasMaxLength(120)
                         .HasColumnType("TEXT")

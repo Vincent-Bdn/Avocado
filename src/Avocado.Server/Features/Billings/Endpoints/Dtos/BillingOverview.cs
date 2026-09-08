@@ -16,7 +16,9 @@ public sealed record BillingInvoiceItem(
     long VarianceCents,
     int BilledEntryCount,
     /// <summary>Brought over for the history. Counts as facturé, never against « reste à facturer ».</summary>
-    bool IsHistorical = false);
+    bool IsHistorical = false,
+    int? DiscountBasisPoints = null,
+    string? DiscountReason = null);
 
 /// <param name="Kind">Derived from the stored sign, so the badge and the rendered ± cannot disagree.</param>
 /// <param name="AmountCents">Signed, as stored. The UI renders « + 1 200,00 € » / « − 105,00 € ».</param>

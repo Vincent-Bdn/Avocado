@@ -108,6 +108,8 @@ export interface PracticeSettings {
   /** Hers. What tells a courriel reçu from a courriel envoyé. */
   emailAddresses: string[]
   vaultDirectory: string
+  /** « MM-DD ». The first day of the exercice comptable, against which the CA is counted. */
+  exerciceStart: string
 }
 
 export interface ActivityListItem {

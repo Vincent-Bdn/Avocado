@@ -29,6 +29,8 @@ interface BillingInvoice {
   paidOn: string | null
   /** Brought over from before Avocado. Counts as facturé, never against « reste à facturer ». */
   isHistorical: boolean
+  discountBasisPoints: number | null
+  discountReason: string | null
   billedTimeCents: number
   varianceCents: number
   billedEntryCount: number
@@ -136,8 +138,8 @@ export function Billing({ matterId, isOpen, onChanged }: {
   async function exportDetail(invoice: BillingInvoice) {
     try {
       const saved = await saveAs(
-        `/api/invoices/${invoice.id}/detail.xlsx`,
-        `detail-facturation-${invoice.externalReference ?? invoice.date.slice(0, 10)}.xlsx`,
+        `/api/invoices/${invoice.id}/detail.docx`,
+        `detail-facture-${invoice.externalReference ?? invoice.date.slice(0, 10)}.docx`,
       )
 
       if (saved) {
@@ -794,6 +796,10 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
   const [reference, setReference] = useState(invoice?.externalReference ?? '')
   const [paid, setPaid] = useState(invoice?.isPaid ?? false)
   const [historical, setHistorical] = useState(invoice?.isHistorical ?? false)
+  const [discount, setDiscount] = useState(
+    invoice?.discountBasisPoints ? String(invoice.discountBasisPoints / 100).replace('.', ',') : '',
+  )
+  const [discountReason, setDiscountReason] = useState(invoice?.discountReason ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -802,6 +808,17 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
 
     if (cents === null) {
       setError('Indiquez un montant positif, par exemple 1 480,00.')
+      return
+    }
+
+    // Basis points, so « 12,5 » survives the trip: a percentage is not money and does not round to
+    // the centime, but it still has to be exact on the détail the client reads.
+    const points = discount.trim() === ''
+      ? null
+      : Math.round(Number(discount.trim().replace(',', '.')) * 100)
+
+    if (points !== null && (!Number.isFinite(points) || points < 0 || points > 10_000)) {
+      setError('Indiquez une remise entre 0 et 100, par exemple 30.')
       return
     }
 
@@ -816,6 +833,8 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         isPaid: paid,
         paidOn: paid ? date : null,
         isHistorical: historical,
+        discountBasisPoints: points,
+        discountReason: discountReason.trim() || null,
       }
 
       if (invoice) {
@@ -826,6 +845,8 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         setReference('')
         setPaid(false)
         setHistorical(false)
+        setDiscount('')
+        setDiscountReason('')
       }
 
       onSaved()
@@ -871,6 +892,31 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
           />
           Antérieure
         </label>
+
+        {/* Printed on the détail, not deducted here: the montant above is already what the client
+            owes. This says why it is lower than the hours behind it, in the sentence she used to
+            type by hand under the total. */}
+        <span className="flex items-baseline gap-1">
+          <Input
+            className="w-[58px] text-right font-mono tnum"
+            inputMode="decimal"
+            placeholder="0"
+            value={discount}
+            aria-label="Remise en pourcentage"
+            onChange={(event) => { setDiscount(event.target.value); setError(null) }}
+          />
+          <span className="text-[11.5px] text-muted">% de remise</span>
+        </span>
+
+        {discount.trim() !== '' && (
+          <Input
+            className="flex-1 basis-[170px]"
+            value={discountReason}
+            placeholder="pour fidélité client"
+            aria-label="Motif de la remise"
+            onChange={(event) => setDiscountReason(event.target.value)}
+          />
+        )}
 
         <Button disabled={busy} onClick={() => void save()}>
           {invoice ? 'Enregistrer' : 'Ajouter la facture'}

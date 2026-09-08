@@ -31,6 +31,8 @@ public static class CreateInvoice
             IsPaid = input.IsPaid,
             PaidOn = input.PaidOn,
             IsHistorical = input.IsHistorical,
+            DiscountBasisPoints = input.DiscountBasisPoints,
+            DiscountReason = Trimmed(input.DiscountReason),
         };
 
         database.Invoices.Add(invoice);
@@ -38,4 +40,7 @@ public static class CreateInvoice
 
         return Results.Created($"/api/invoices/{invoice.Id}", new { invoice.Id });
     }
+
+    private static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

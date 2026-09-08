@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Plus, Star } from 'lucide-react'
+import { Check, Star } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
 import { MatterForm } from './MatterForm.js'
@@ -227,7 +227,12 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           <Deadlines matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
         )}
         {tab === 'time' && (
-          <TimeEntries matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+          <TimeEntries
+            matterId={matterId}
+            hourlyRateCents={matter.hourlyRateCents}
+            isOpen={matter.isOpen}
+            onChanged={refreshAll}
+          />
         )}
         {tab === 'billing' && (
           <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
@@ -236,7 +241,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
         {/* The aperçu shows all of this with room to breathe, and the onglet Parties owns the parties,
             so the panel would be the same figures twice on both. */}
         {tab !== 'overview' && tab !== 'parties' && (
-          <ContextPanel matter={matter} onManage={() => setTab('parties')} />
+          <ContextPanel matter={matter} />
         )}
       </div>
 
@@ -253,8 +258,15 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
 const Divider = () => <span className="h-2.5 w-px shrink-0 bg-line" />
 
-/** 208px: échéances, à facturer, parties. Three blocks separated by rules. */
-function ContextPanel({ matter, onManage }: { matter: MatterDetail; onManage: () => void }) {
+/**
+ * 208px: échéances and à facturer. Two blocks separated by a rule.
+ *
+ * <p>Parties used to be the third, and it was cut: they have had an onglet of their own since real
+ * lawyers said the dossier was hard to work with, and repeating them in a 208px column meant the same
+ * names twice on screen, truncated in one of the two places. A column this narrow earns its keep by
+ * showing what is not already elsewhere.</p>
+ */
+function ContextPanel({ matter }: { matter: MatterDetail }) {
   const reading = readBilling(matter.billing)
 
   return (
@@ -321,43 +333,6 @@ function ContextPanel({ matter, onManage }: { matter: MatterDetail; onManage: ()
         )}
       </section>
 
-      <section>
-        <ContextTitle>Parties</ContextTitle>
-
-        {matter.parties.length === 0 && <p className="m-0 text-[11px] text-muted">Aucune partie.</p>}
-
-        {/* Read-only here. Writing a role into a 208px column meant truncating it as it was typed, and
-            the onglet Parties has the width to read one. Every way in leads there. */}
-        {matter.parties.map((party) => (
-          <div key={party.id} className="mb-1.5 flex items-center gap-2">
-            <Avatar name={party.displayName} type={party.contactType} client={party.isClient} />
-
-            <span className="grid min-w-0 flex-1">
-              <span className="truncate text-[11.5px]">{party.displayName}</span>
-              <span
-                title={party.role ?? undefined}
-                className={cn(
-                  'truncate text-[10.5px]',
-                  party.role
-                    ? party.isClient ? 'text-brand-on-subtle' : 'text-muted'
-                    : 'text-disabled italic',
-                )}
-              >
-                {party.role ?? 'rôle non précisé'}
-              </span>
-            </span>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={onManage}
-          className="mt-1.5 flex h-6 items-center gap-1 rounded-[3px] border border-dashed border-line-strong px-2 text-[11px] text-ink-secondary hover:bg-hover"
-        >
-          <Plus size={11} strokeWidth={2} />
-          Gérer les parties
-        </button>
-      </section>
     </aside>
   )
 }

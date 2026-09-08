@@ -52,12 +52,52 @@ public static class UpdateMatter
             matter.OpenedOn = openedOn;
         }
 
-        // The rate is deliberately not updated here. Changing it retroactively would reprice every
-        // time entry that fell back to it; a rate change belongs on new matters or on an entry's
-        // own override.
+        await ApplyRateAsync(database, matter, input.HourlyRateCents, cancellationToken).ConfigureAwait(false);
+
         matter.UpdatedAt = DateTimeOffset.UtcNow;
         await database.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Changes the dossier's rate without repricing an hour of what is already recorded.
+    ///
+    /// <para><b>This used to refuse outright</b>, with a comment explaining that a retroactive change
+    /// would reprice every entry that fell back to the dossier's rate. The reasoning was right and the
+    /// behaviour was wrong: the form went on offering an editable field, the value went up to the
+    /// server on every save, and the server dropped it on the floor. « La modif du taux horaire ne
+    /// fonctionne pas » is what that looks like from a desk.</para>
+    ///
+    /// <para>So the edit is honoured, and the history it would have damaged is pinned down first:
+    /// every entry that was relying on the old rate is given that rate explicitly, as its own
+    /// dérogation, before the new one is written. Nothing changes value. An hour worked at 200 € was
+    /// worked at 200 € whatever she charges from tomorrow, which is also what a convention
+    /// d'honoraires says, and repricing it would quietly alter invoices already sent.</para>
+    ///
+    /// <para>Entries that already carried a dérogation are left alone: they were never relying on
+    /// the dossier's rate, so there is nothing to pin.</para>
+    /// </summary>
+    private static async Task ApplyRateAsync(
+        AvocadoDbContext database,
+        Matter matter,
+        long? requested,
+        CancellationToken cancellationToken)
+    {
+        if (requested is not { } rate || rate <= 0 || rate == matter.HourlyRateCents)
+        {
+            return;
+        }
+
+        var previous = matter.HourlyRateCents;
+
+        await database.TimeEntries
+            .Where(entry => entry.MatterId == matter.Id && entry.HourlyRateCentsOverride == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(entry => entry.HourlyRateCentsOverride, previous),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        matter.HourlyRateCents = rate;
     }
 }

@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { ApiError, api, post } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
+import { Select } from './components/ui/select.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
 import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
@@ -316,13 +317,17 @@ function OwnAddresses() {
 
 function HourlyRate() {
   const [rate, setRate] = useState('')
+  const [exercice, setExercice] = useState('01-01')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     api<PracticeSettings>('/api/settings')
-      .then((settings) => setRate(centsToAmount(settings.hourlyRateCents)))
+      .then((settings) => {
+        setRate(centsToAmount(settings.hourlyRateCents))
+        setExercice(settings.exerciceStart)
+      })
       .catch((failure: unknown) =>
         setError(failure instanceof ApiError ? failure.message : String(failure)),
       )
@@ -340,7 +345,10 @@ function HourlyRate() {
     setError(null)
 
     try {
-      await api('/api/settings', { method: 'PUT', body: JSON.stringify({ hourlyRateCents: cents }) })
+      await api('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({ hourlyRateCents: cents, exerciceStart: exercice }),
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     } catch (failure) {
@@ -379,10 +387,46 @@ function HourlyRate() {
         )}
       </div>
 
+      {/* Beside the rate because they are the two numbers the facturation is counted with, and
+          because a chiffre d'affaires counted against the wrong year is a figure she would trust. */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-line-subtle pt-3">
+        <span className="text-[12.5px] text-muted">L’exercice comptable commence le</span>
+
+        <Select
+          value={exercice.slice(3)}
+          aria-label="Jour de début d’exercice"
+          onChange={(event) => setExercice(`${exercice.slice(0, 2)}-${event.target.value}`)}
+        >
+          {Array.from({ length: 28 }, (_, index) => String(index + 1).padStart(2, '0')).map((day) => (
+            <option key={day} value={day}>{Number(day)}</option>
+          ))}
+        </Select>
+
+        <Select
+          value={exercice.slice(0, 2)}
+          aria-label="Mois de début d’exercice"
+          onChange={(event) => setExercice(`${event.target.value}-${exercice.slice(3)}`)}
+        >
+          {MONTHS.map((month, index) => (
+            <option key={month} value={String(index + 1).padStart(2, '0')}>{month}</option>
+          ))}
+        </Select>
+      </div>
+
+      <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+        C’est la date à laquelle votre chiffre d’affaires repart de zéro, sur l’accueil. Le 1er janvier
+        si votre exercice suit l’année civile.
+      </p>
+
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
     </>
   )
 }
+
+const MONTHS = [
+  'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
+]
 
 /** Full-width row, separated by rules rather than boxed: this list is meant to grow. */
 function Section({ id, title, summary, open, onToggle, children }: {

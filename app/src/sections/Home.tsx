@@ -44,6 +44,13 @@ interface DashboardSummary {
     lastActivityAt: string | null
   }[]
   honoraires: Honoraires
+  exercices: {
+    label: string
+    from: string
+    to: string
+    invoicedCents: number
+    isCurrent: boolean
+  }[]
 }
 
 const tiers: DeadlineUrgency[] = ['Overdue', 'Today', 'ThisWeek', 'Later']
@@ -187,6 +194,8 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
               before « combien reste-t-il à demander ». */}
           <HonorairesCard data={data.honoraires} />
 
+          <Chiffre exercices={data.exercices} />
+
           <Unbilled data={data} onOpenMatter={onOpenMatter} />
 
           <section>
@@ -241,6 +250,51 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
  * forgotten thing in a solo practice. The per-dossier breakdown sits right there rather than behind a
  * click, and the rows have to foot to the headline.
  */
+/**
+ * Le chiffre d'affaires, par exercice.
+ *
+ * <p>Facturé HT, which is the figure her accountant asks for and the only one Avocado can state
+ * honestly: it issues no facture and computes no TVA. The exercice en cours is first and is marked
+ * « en cours », because a partial year read as a full one is the way this number misleads.</p>
+ */
+function Chiffre({ exercices }: { exercices: DashboardSummary['exercices'] }) {
+  if (exercices.length === 0) return null
+
+  return (
+    <section>
+      <SectionTitle>Chiffre d’affaires facturé, HT</SectionTitle>
+
+      <div className="overflow-hidden rounded-md border border-line-subtle">
+        {exercices.map((exercice, index) => (
+          <div
+            key={exercice.label}
+            className={cn(
+              'flex items-baseline justify-between gap-3 px-3 py-2',
+              index > 0 && 'border-t border-line-subtle',
+            )}
+          >
+            <span className="flex items-baseline gap-2">
+              <span className={cn('text-[12.5px]', exercice.isCurrent ? 'font-medium text-ink' : 'text-ink-secondary')}>
+                {exercice.label}
+              </span>
+              {exercice.isCurrent && (
+                <span className="type-caption text-muted">
+                  en cours, depuis le{' '}
+                  {new Date(exercice.from).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
+                </span>
+              )}
+            </span>
+
+            <span className={cn('font-mono text-[12.5px] tnum', exercice.isCurrent ? 'text-ink' : 'text-muted')}>
+              {formatEuros(exercice.invoicedCents)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function Unbilled({ data, onOpenMatter }: {
   data: DashboardSummary
   onOpenMatter: (id: string) => void
