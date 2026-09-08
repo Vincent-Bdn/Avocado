@@ -87,14 +87,14 @@ public static class Exhibits
     /// dropped, so words do not run together, and the whole is capped: the folder is somewhere inside
     /// her Documents already, and a path Windows refuses to open would be worse than a shortened
     /// name.</para>
+    ///
+    /// <para>Refused everywhere, not merely here. See <see cref="PortableFileName"/>: on a Mac the
+    /// colon in that libellé is legal, and the pièce would then be a file nobody can open the day the
+    /// dossier reaches a Windows machine.</para>
     /// </summary>
     public static string Safe(string label)
     {
-        var invalid = Path.GetInvalidFileNameChars();
-
-        var cleaned = new string(label
-            .Select(character => invalid.Contains(character) ? ' ' : character)
-            .ToArray());
+        var cleaned = PortableFileName.Clean(label, ' ');
 
         cleaned = string.Join(' ', cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries));
 

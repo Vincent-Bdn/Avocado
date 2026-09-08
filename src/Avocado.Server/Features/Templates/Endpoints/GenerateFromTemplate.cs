@@ -125,12 +125,8 @@ public static class GenerateFromTemplate
         name.EndsWith(".docx", StringComparison.OrdinalIgnoreCase) ? name : $"{name}.docx";
 
     /// <summary>A file name, not a URL slug: accents stay, only what a filesystem refuses is replaced.</summary>
-    private static string Slug(string name)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-
-        return new string([.. name.Select(character => invalid.Contains(character) ? '-' : character)])
+    private static string Slug(string name) =>
+        PortableFileName.Clean(name, '-')
             .Replace(' ', '-')
             .ToLowerInvariant();
-    }
 }

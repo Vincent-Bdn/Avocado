@@ -146,7 +146,7 @@ public static class MailFile
             return "piece-jointe";
         }
 
-        return string.Concat(candidate.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '-' : c));
+        return Documents.Folders.PortableFileName.Clean(candidate, '-');
     }
 
     /// <summary>
