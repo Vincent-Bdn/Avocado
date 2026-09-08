@@ -4,7 +4,8 @@ import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { useToasts } from '../components/ui/toast.js'
-import { FileGlyph } from './Documents.js'
+import { FileGlyph } from './FileGlyph.js'
+import { EmptyState } from '../components/ui/empty-state.js'
 import { TabPanel } from './shared.js'
 import { formatSize } from '../lib/urgency.js'
 import { cn } from '../lib/utils.js'
@@ -40,10 +41,12 @@ interface FolderListing {
  * afternoon, and none of that should need Avocado to notice: the list is read when it is looked at,
  * and again whenever she comes back to the window.</p>
  */
-export function DossierFiles({ matterId, folder, isOpen, onChanged }: {
+export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
   matterId: string
-  folder: string
+  /** Null until she has pointed this dossier at one, which is the state every dossier starts in. */
+  folder: string | null
   isOpen: boolean
+  onEdit: () => void
   onChanged: () => void
 }) {
   const [listing, setListing] = useState<FolderListing | null>(null)
@@ -53,11 +56,13 @@ export function DossierFiles({ matterId, folder, isOpen, onChanged }: {
   const toasts = useToasts()
 
   const reload = useCallback(() => {
+    if (folder === null) return
+
     api<FolderListing>(`/api/matters/${matterId}/folder?path=${encodeURIComponent(at)}`)
       .then(setListing)
       .catch((failure: unknown) =>
         setError(failure instanceof ApiError ? failure.message : String(failure)))
-  }, [matterId, at])
+  }, [matterId, at, folder])
 
   useEffect(reload, [reload])
 
@@ -100,6 +105,26 @@ export function DossierFiles({ matterId, folder, isOpen, onChanged }: {
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     }
+  }
+
+  // The state every dossier starts in, and the only thing to do about it.
+  if (folder === null) {
+    return (
+      <TabPanel>
+        <EmptyState icon={<FolderOpen size={18} strokeWidth={1.8} />} title="Où sont les documents de ce dossier ?">
+          Vos documents restent chez vous, dans le répertoire où vous travaillez déjà : sur le bureau,
+          un disque réseau, où vous voulez. Indiquez-le et Avocado le lira, sans rien déplacer ni
+          copier.
+        </EmptyState>
+
+        <div>
+          <Button onClick={onEdit}>
+            <FolderOpen size={14} strokeWidth={1.75} />
+            Indiquer le répertoire
+          </Button>
+        </div>
+      </TabPanel>
+    )
   }
 
   const crumbs = at === '' ? [] : at.split('/')

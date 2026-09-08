@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { Avatar } from '../components/ui/avatar.js'
 import { Button } from '../components/ui/button.js'
 import { PartyRole } from '../sections/Parties.js'
-import { FileGlyph } from './Documents.js'
+import { FileGlyph } from './FileGlyph.js'
 import { TierBullet, distance } from '../lib/urgency.js'
 import { urgencyLabels } from '../labels.js'
 import { cn } from '../lib/utils.js'
@@ -93,18 +93,19 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
 
         {matter.documents.length === 0 ? (
           <Empty
-            title="Aucun document"
-            action="Ajouter des fichiers"
+            title={matter.documentsFolder ? 'Ce répertoire est vide' : 'Aucun répertoire indiqué'}
+            action={matter.documentsFolder ? 'Ouvrir le répertoire' : 'Indiquer le répertoire'}
             onAction={() => onOpen('documents')}
           >
-            Déposez les fichiers dans l’onglet Documents, ou faites-les glisser depuis un courriel.
-            Vous leur donnerez un n° de pièce si besoin.
+            {matter.documentsFolder
+              ? 'Vos documents vivent dans ce répertoire. Déposez-y des fichiers comme vous le faites déjà.'
+              : 'Vos documents restent chez vous : indiquez à ce dossier le répertoire où vous travaillez déjà.'}
           </Empty>
         ) : (
           <div className="mt-2 border-t border-line-subtle">
             {matter.documents.map((document, index) => (
               <button
-                key={document.id}
+                key={document.relativePath}
                 type="button"
                 onClick={() => onOpen('documents')}
                 className={cn(
@@ -112,10 +113,10 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
                   index < matter.documents.length - 1 && 'border-b border-[#F1F3EE]',
                 )}
               >
-                {/* A pièce carries its number; a plain file carries a glyph. */}
+                {/* A pièce carries its number; anything else carries the glyph of its kind. */}
                 {document.exhibitNumber === null ? (
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-line-subtle bg-app">
-                    <FileGlyph fileName={document.fileName} size={13} />
+                    <FileGlyph fileName={document.name} size={13} />
                   </span>
                 ) : (
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-sm border border-[#BFD3C5] bg-brand-subtle font-mono text-[9.5px] leading-none font-medium text-brand-on-subtle">
@@ -123,34 +124,24 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
                   </span>
                 )}
 
-                {/* The mono/sans swap on the first line is the tell: a mono title means no libellé has
-                    been written, so this is still just a file. */}
                 <span className="grid min-w-0 flex-1">
-                  <span
-                    title={document.exhibitLabel ?? document.fileName}
-                    className={cn(
-                      'truncate',
-                      document.exhibitLabel
-                        ? 'text-[12.5px] leading-[17px] font-medium text-ink'
-                        : 'font-mono text-[11.5px] leading-[17px] text-ink',
-                    )}
-                  >
-                    {document.exhibitLabel ?? document.fileName}
+                  <span title={document.name} className="truncate text-[12.5px] leading-[17px]">
+                    {document.name}
                   </span>
 
-                  {document.exhibitLabel ? (
-                    <span title={document.fileName} className="truncate font-mono text-[10px] leading-[14px] text-muted">
-                      {document.fileName}
-                    </span>
-                  ) : document.provenance && (
-                    <span title={document.provenance} className="truncate text-[10px] leading-[14px] text-muted">
-                      {document.provenance}
+                  {/* Where it sits in her folder, when that is not the folder itself. */}
+                  {document.relativePath !== document.name && (
+                    <span
+                      title={document.relativePath}
+                      className="truncate font-mono text-[10px] leading-[14px] text-muted"
+                    >
+                      {document.relativePath.slice(0, document.relativePath.lastIndexOf('/'))}
                     </span>
                   )}
                 </span>
 
                 <span className="w-[76px] shrink-0 text-right font-mono text-[11px] leading-[15px] text-ink-secondary tnum">
-                  {touched(document.updatedAt)}
+                  {touched(document.modifiedAt)}
                 </span>
               </button>
             ))}

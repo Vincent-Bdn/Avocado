@@ -11,9 +11,7 @@ export interface BackendHandshake {
   /** Absent, Locked or Unlocked. The renderer decides between wizard and application from this. */
   vaultState: string
   /** Where dossiers are opened, the folder the user chose. */
-  workingDirectory: string
   /** Where single documents are checked out. Separate from the above, and where a document opens from. */
-  documentDirectory: string
 }
 
 const READY_PREFIX = 'AVOCADO_READY '

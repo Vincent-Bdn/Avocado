@@ -92,15 +92,12 @@ export interface MatterDetail {
     label: string
     urgency: DeadlineUrgency
   }[]
-  /** The five last modified, for the aperçu. The Documents tab holds the other seven hundred. */
+  /** The five last modified in her folder. The Documents tab shows the rest. */
   documents: {
-    id: string
-    fileName: string
+    name: string
+    relativePath: string
     exhibitNumber: number | null
-    exhibitLabel: string | null
-    /** Where it is filed, or what kind it is: the line under a plain file name. */
-    provenance: string | null
-    updatedAt: string
+    modifiedAt: string
   }[]
   counts: { activities: number; documents: number; openDeadlines: number; timeEntries: number }
   billing: BillingSummary
@@ -111,8 +108,6 @@ export interface PracticeSettings {
   /** Hers. What tells a courriel reçu from a courriel envoyé. */
   emailAddresses: string[]
   vaultDirectory: string
-  workingDirectory: string
-  workingDirectoryIsFixed: boolean
 }
 
 export interface ActivityListItem {

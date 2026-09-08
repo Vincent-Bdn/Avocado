@@ -51,7 +51,7 @@ public sealed record BackupStatus(
 /// What has happened since the last copy left this machine, counted.
 ///
 /// <para>« Votre dernière sauvegarde date du 2 mars » is a date, and a date gets read past. « Depuis,
-/// vous avez ajouté 46 entrées de journal, 9 documents et 11 h 20 de temps saisi » is the same fact
+/// vous avez ajouté 46 entrées de journal et 11 h 20 de temps saisi » is the same fact
 /// with its price attached, and it is the sentence that makes someone go and find the USB key. The
 /// design asked for it; it needs numbers to say it, so the numbers are computed here rather than
 /// approximated in the window.</para>
@@ -59,9 +59,12 @@ public sealed record BackupStatus(
 /// <para>Zero everywhere is a real and good answer: nothing has changed, so nothing is at risk, and
 /// the screen should say so plainly instead of nagging.</para>
 /// </summary>
-public sealed record BackupExposure(int Activities, int Documents, int TimeEntries, int Minutes)
+/// <para>Documents are not counted, because a backup no longer carries them: they live in her own
+/// folders and Avocado copies nothing of them yet. Counting what a sauvegarde does not contain would
+/// be the wrong reassurance twice over.</para>
+public sealed record BackupExposure(int Activities, int TimeEntries, int Minutes)
 {
-    public static BackupExposure None { get; } = new(0, 0, 0, 0);
+    public static BackupExposure None { get; } = new(0, 0, 0);
 
     public bool IsEmpty => this == None;
 }

@@ -40,11 +40,10 @@ public static class ListActivities
                 database.TimeEntries
                     .Where(entry => entry.ActivityId == activity.Id)
                     .Sum(entry => (int?)entry.DurationMinutes),
-                database.Documents
-                    .Where(document => document.ActivityId == activity.Id)
-                    .Select(document => new ActivityAttachment(
-                        document.Id, document.FileName, document.SizeBytes, document.ExhibitNumber))
-                    .ToList()))
+                // Attachments were rows pointing at blobs in the coffre. Documents live in her own
+                // folders now, so a journal entry carries no files of its own: the courriel it was
+                // read from sits in the dossier's folder like everything else.
+                new List<ActivityAttachment>()))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(new ActivityListPage(items, total));

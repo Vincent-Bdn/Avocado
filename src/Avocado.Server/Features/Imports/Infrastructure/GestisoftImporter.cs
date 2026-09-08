@@ -157,6 +157,11 @@ public sealed class GestisoftImporter(
             OpenedOn = today,
             HourlyRateCents = await RateAsync(database, cancellationToken).ConfigureAwait(false),
             ClosedOn = candidate.IsOpen ? null : today,
+            // <b>The import copies nothing.</b> It used to read thirteen thousand files into the
+            // coffre, encrypting each, which took six minutes and produced a second copy of documents
+            // she already had, in a place she could not open. The dossier points at the folder it was
+            // found in and that is the whole of it.
+            DocumentsFolder = candidate.SourcePath,
         };
 
         if (client is { } placeholder)
@@ -181,8 +186,7 @@ public sealed class GestisoftImporter(
 
             try
             {
-                if (await ImportFileAsync(
-                        vault, database, matter.Id, candidate.SourcePath, file, ownAddresses, cancellationToken)
+                if (await ReadMailAsync(database, matter.Id, file, ownAddresses, cancellationToken)
                         .ConfigureAwait(false))
                 {
                     emails++;
@@ -397,75 +401,30 @@ public sealed class GestisoftImporter(
         await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>True when the file was an email and became a journal entry rather than a plain document.</summary>
-    private async Task<bool> ImportFileAsync(
-        OpenVault vault,
+    /// <summary>
+    /// Files a courriel as a journal entry. True when it was one.
+    ///
+    /// <para>The 4 713 .msg files in the real export are the reason this exists: left alone they are
+    /// opaque containers only Outlook opens, and read, each becomes a dated line in the journal saying
+    /// who wrote to whom and when. The file itself stays exactly where she filed it.</para>
+    ///
+    /// <para><b>Attachments stay inside the message.</b> They used to be extracted into the coffre as
+    /// documents of their own. Writing them into her folder instead would put several thousand files
+    /// she never asked for beside the ones she arranged herself, and Avocado does not add to her
+    /// folders uninvited. Opening the .msg still opens them.</para>
+    /// </summary>
+    private async Task<bool> ReadMailAsync(
         AvocadoDbContext database,
         Guid matterId,
-        string root,
         string file,
         IReadOnlyCollection<string> ownAddresses,
         CancellationToken cancellationToken)
     {
-        var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-        var folder = relative.Contains('/') ? relative[..relative.LastIndexOf('/')] : null;
-
-        var reference = await StoreAsync(vault, file, cancellationToken).ConfigureAwait(false);
-
-        var document = new Document
-        {
-            MatterId = matterId,
-            BlobSha256 = reference.Sha256,
-            SizeBytes = reference.SizeBytes,
-            FileName = Path.GetFileName(file),
-            Folder = folder,
-            AddedAt = Written(file),
-        };
-
-        database.Documents.Add(document);
-
-        // The 4,710 .msg files in the real export are the reason this exists. Left as documents they
-        // are opaque containers only Outlook opens; read, each becomes a dated journal entry and its
-        // attachments become pièces of their own.
         var attachments = await mails
-            .RecordAsync(database, matterId, document.Id, file, cancellationToken, ownAddresses)
+            .RecordAsync(database, matterId, Guid.Empty, file, cancellationToken, ownAddresses)
             .ConfigureAwait(false);
 
-        if (attachments is null)
-        {
-            return false;
-        }
-
-        foreach (var attachment in attachments)
-        {
-            using var content = new MemoryStream(attachment.Content);
-            var stored = await vault.Blobs.PutAsync(content, cancellationToken).ConfigureAwait(false);
-
-            database.Documents.Add(new Document
-            {
-                MatterId = matterId,
-                BlobSha256 = stored.Sha256,
-                SizeBytes = stored.SizeBytes,
-                FileName = attachment.FileName,
-                MimeType = attachment.ContentType,
-                Folder = folder,
-                AddedAt = document.AddedAt,
-            });
-        }
-
-        return true;
-    }
-
-    private static async Task<Vault.Blobs.BlobReference> StoreAsync(
-        OpenVault vault,
-        string file,
-        CancellationToken cancellationToken)
-    {
-        var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, useAsync: true);
-        await using (stream.ConfigureAwait(false))
-        {
-            return await vault.Blobs.PutAsync(stream, cancellationToken).ConfigureAwait(false);
-        }
+        return attachments is not null;
     }
 
     private static async Task<Guid> FindOrCreateClientAsync(

@@ -2,6 +2,7 @@ using Avocado.Server.Data;
 using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Deadlines;
+using Avocado.Server.Features.Documents.Folders;
 using Avocado.Server.Features.Matters.Endpoints.Dtos;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,25 +40,18 @@ public static class GetMatter
                 .ToListAsync(cancellationToken)
             : [];
 
-        // « Derniers modifiés »: what she was last working on, which on the aperçu is the useful five
-        // out of seven hundred and ninety-two.
-        var documents = await database.Documents
-            .AsNoTracking()
-            .Where(document => document.MatterId == id)
-            .OrderByDescending(document => document.UpdatedAt)
-            .Take(5)
-            .Select(document => new MatterDocumentItem(
-                document.Id,
-                document.FileName,
-                document.ExhibitNumber,
-                document.ExhibitLabel,
-                document.Folder ?? document.Type,
-                document.UpdatedAt))
-            .ToListAsync(cancellationToken);
+        // « Derniers modifiés » and the count, read from her folder in one walk. A dossier with no
+        // folder yet simply has none of either, which is what the aperçu says.
+        var (fileCount, recent) = DossierFolderReader.Summarise(matter.DocumentsFolder, 5, cancellationToken);
+
+        var documents = recent
+            .Select(entry => new MatterDocumentItem(
+                entry.Name, entry.RelativePath, entry.ExhibitNumber, entry.ModifiedAt))
+            .ToList();
 
         var counts = new MatterCounts(
             await database.Activities.CountAsync(activity => activity.MatterId == id, cancellationToken),
-            await database.Documents.CountAsync(document => document.MatterId == id, cancellationToken),
+            fileCount,
             await database.Deadlines.CountAsync(
                 deadline => deadline.MatterId == id && !deadline.IsDone, cancellationToken),
             await database.TimeEntries.CountAsync(entry => entry.MatterId == id, cancellationToken));

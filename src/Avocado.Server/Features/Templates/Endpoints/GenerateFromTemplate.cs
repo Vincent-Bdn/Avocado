@@ -1,6 +1,5 @@
 using Avocado.Server.Data;
-using Avocado.Server.Features.Documents;
-using Avocado.Server.Features.Documents.Endpoints;
+using Avocado.Server.Features.Documents.Folders;
 using Avocado.Server.Features.Templates.Infrastructure;
 using Avocado.Vault;
 using Avocado.Vault.Blobs;
@@ -11,12 +10,14 @@ namespace Avocado.Server.Features.Templates.Endpoints;
 public sealed record GenerateInput(string? FileName, string? Folder);
 
 /// <summary>
-/// Fills a modèle with this dossier's own wording and files the result as a document.
-/// <para>
-/// It lands in the coffre rather than in a download, because the point is that she then opens it,
-/// finishes the sentences Word cannot write for her, and the edits go straight back, a generated
-/// letter is a draft, not an export.
-/// </para>
+/// Fills a modèle with this dossier's own wording and writes the result into the dossier's folder.
+///
+/// <para>Into her folder rather than into a download or a coffre, because the point is that she opens
+/// it and finishes the sentences Word cannot write for her: a generated letter is a draft, and a draft
+/// belongs where she works. It appears beside her other files, under a name she can change.</para>
+///
+/// <para>A dossier with no folder cannot receive one. Saying so is better than writing it somewhere
+/// she would have to be told about.</para>
 /// </summary>
 public static class GenerateFromTemplate
 {
@@ -60,32 +61,64 @@ public static class GenerateFromTemplate
             filled = TemplateMerge.Fill(source, TemplateFields.For(matter, client, today));
         }
 
-        BlobReference blob;
-        using (var content = new MemoryStream(filled))
+        if (matter.DocumentsFolder is not { Length: > 0 } root || !Directory.Exists(root))
         {
-            blob = await vault.Blobs.PutAsync(content, cancellationToken);
+            return Results.Problem(
+                title: "Ce dossier n'a pas de dossier de documents",
+                detail: "Indiquez où vivent ses documents, et le modèle sera écrit là.",
+                statusCode: StatusCodes.Status400BadRequest);
         }
 
         var name = string.IsNullOrWhiteSpace(input.FileName)
             ? $"{Slug(template.Name)}-{matter.Reference}.docx"
             : EnsureDocx(input.FileName.Trim());
 
-        var document = new Document
+        var into = string.IsNullOrWhiteSpace(input.Folder)
+            ? root
+            : Path.GetFullPath(Path.Combine(root, input.Folder.Trim().Replace('/', Path.DirectorySeparatorChar)));
+
+        // The subfolder comes from the window, so it is checked like any other path from there.
+        if (!DossierFolderReader.Inside(root, into))
         {
-            MatterId = matterId,
-            BlobSha256 = blob.Sha256,
-            SizeBytes = blob.SizeBytes,
-            FileName = name,
-            Folder = DocumentFolder.Normalise(input.Folder),
-            Type = template.Kind,
-            MimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            DocumentDate = today,
-        };
+            into = root;
+        }
 
-        database.Documents.Add(document);
-        await database.SaveChangesAsync(cancellationToken);
+        Directory.CreateDirectory(into);
 
-        return Results.Created($"/api/documents/{document.Id}", new { document.Id, document.FileName });
+        // Never over a file that is already there: she may have generated this letter last week and
+        // spent an afternoon on it since.
+        var destination = Free(Path.Combine(into, name));
+
+        await File.WriteAllBytesAsync(destination, filled, cancellationToken);
+
+        return Results.Created(
+            $"/api/matters/{matterId}/folder",
+            new { path = destination, fileName = Path.GetFileName(destination) });
+    }
+
+    /// <summary>« lettre.docx », then « lettre (2).docx ». Nothing she has written is overwritten.</summary>
+    private static string Free(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return path;
+        }
+
+        var folder = Path.GetDirectoryName(path)!;
+        var stem = Path.GetFileNameWithoutExtension(path);
+        var extension = Path.GetExtension(path);
+
+        for (var index = 2; index < 1000; index++)
+        {
+            var candidate = Path.Combine(folder, $"{stem} ({index}){extension}");
+
+            if (!File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return Path.Combine(folder, $"{stem} ({Guid.NewGuid():N}){extension}");
     }
 
     private static string EnsureDocx(string name) =>

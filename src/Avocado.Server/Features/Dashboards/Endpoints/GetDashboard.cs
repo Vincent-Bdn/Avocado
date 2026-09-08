@@ -77,9 +77,7 @@ public static class GetDashboard
                         Summary = activity.Subject ?? activity.Body,
                     })
                     .FirstOrDefault(),
-                LastDocumentAt = database.Documents
-                    .Where(document => document.MatterId == matter.Id)
-                    .Max(document => (DateTimeOffset?)document.AddedAt),
+                LastDocumentAt = (DateTimeOffset?)null,
                 LastTimeEntryAt = database.TimeEntries
                     .Where(entry => entry.MatterId == matter.Id)
                     .Max(entry => (DateTimeOffset?)entry.CreatedAt),

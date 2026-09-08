@@ -101,9 +101,6 @@ public static class GetBackupStatus
         var activities = await database.Activities
             .CountAsync(activity => activity.CreatedAt > horizon, cancellationToken).ConfigureAwait(false);
 
-        var documents = await database.Documents
-            .CountAsync(document => document.AddedAt > horizon, cancellationToken).ConfigureAwait(false);
-
         // Counted and summed in one pass: « 11 h 20 » is what makes the sentence land, and a count of
         // rows does not carry it.
         var time = await database.TimeEntries
@@ -112,6 +109,6 @@ public static class GetBackupStatus
             .Select(group => new { Count = group.Count(), Minutes = group.Sum(entry => entry.DurationMinutes) })
             .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
-        return new BackupExposure(activities, documents, time?.Count ?? 0, time?.Minutes ?? 0);
+        return new BackupExposure(activities, time?.Count ?? 0, time?.Minutes ?? 0);
     }
 }

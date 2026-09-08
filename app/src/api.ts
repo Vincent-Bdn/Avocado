@@ -11,7 +11,6 @@ declare global {
       removableDrives: () => Promise<{ path: string; label: string; freeBytes: number }[]>
       saveRecoveryKey: (drivePath: string, contents: string) => Promise<string>
       exportRecoverySheet: () => Promise<string | null>
-      openWorkingCopy: (path: string) => Promise<string | null>
       saveAs: (fileName: string, base64: string) => Promise<string | null>
     }
   }

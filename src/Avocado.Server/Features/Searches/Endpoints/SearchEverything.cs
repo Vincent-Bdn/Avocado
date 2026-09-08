@@ -43,10 +43,10 @@ public static class SearchEverything
             groups.Add(await ContactsAsync(database, pattern, cancellationToken));
         }
 
-        if (scope is SearchScope.All or SearchScope.Documents)
-        {
-            groups.Add(await DocumentsAsync(database, pattern, includeClosed, cancellationToken));
-        }
+        // Documents are not searched any more. They live in her own folders, and there is no index
+        // of them: walking every dossier's folder on each keystroke is not a search, and keeping a
+        // mirror of somebody else's directory was the arrangement this replaced. The palette finds
+        // dossiers, tiers and journal entries, and the dossier's own tab filters its folder.
 
         var populated = groups.Where(group => group.Total > 0).ToList();
 
@@ -130,40 +130,5 @@ public static class SearchEverything
             .ToListAsync(cancellationToken);
 
         return new SearchResultGroup("contacts", items, total);
-    }
-
-    private static async Task<SearchResultGroup> DocumentsAsync(
-        AvocadoDbContext database,
-        string pattern,
-        bool includeClosed,
-        CancellationToken cancellationToken)
-    {
-        var query = database.Documents.AsNoTracking();
-
-        if (!includeClosed)
-        {
-            query = query.Where(document => document.Matter!.ClosedOn == null);
-        }
-
-        // File name and exhibit label only. Document *contents* are not indexed in v1.
-        query = query.Where(document =>
-            EF.Functions.Like(document.FileName, pattern) ||
-            EF.Functions.Like(document.ExhibitLabel ?? string.Empty, pattern));
-
-        var total = await query.CountAsync(cancellationToken);
-
-        var items = await query
-            .OrderByDescending(document => document.AddedAt)
-            .Take(PerGroup)
-            .Select(document => new SearchResultItem(
-                document.Id,
-                document.ExhibitLabel ?? document.FileName,
-                document.ExhibitNumber == null
-                    ? "document"
-                    : "pièce n° " + document.ExhibitNumber,
-                null))
-            .ToListAsync(cancellationToken);
-
-        return new SearchResultGroup("documents", items, total);
     }
 }

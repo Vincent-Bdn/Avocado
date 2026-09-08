@@ -217,26 +217,6 @@ app.whenReady().then(async () => {
      * renderer can only ever ask for a path inside the coffre's `.travail` folder, so a bug in the UI
      * cannot turn this into « open any file on this machine ».
      */
-    ipcMain.handle('avocado:openWorkingCopy', async (_event, target: string) => {
-      // Two roots now, and a document opens from the second one. Guarding only against the first,
-      // which is what happened when the scratch folder moved out of it, refused every document in a
-      // dossier that was open.
-      const roots = [handshake?.documentDirectory, handshake?.workingDirectory]
-        .filter((root): root is string => typeof root === 'string' && root.length > 0)
-        .map((root) => path.resolve(root) + path.sep)
-
-      const resolved = path.resolve(target)
-
-      if (!roots.some((root) => resolved.startsWith(root))) {
-        throw new Error('Chemin hors du dossier de travail.')
-      }
-
-      // Returns '' on success and a message on failure, which is the opposite of every other
-      // Electron API, so it is normalised here rather than at every call site.
-      const failure = await shell.openPath(resolved)
-      return failure || null
-    })
-
     ipcMain.handle('avocado:saveAs', async (_event, fileName: string, base64: string) => {
       const chosen = await dialog.showSaveDialog({
         title: 'Enregistrer',

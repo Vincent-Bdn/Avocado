@@ -166,9 +166,10 @@ public static class DeleteTemplate
 
         var reference = new BlobReference(template.BlobSha256, template.SizeBytes);
 
-        var stillReferenced =
-            await database.Templates.AnyAsync(t => t.BlobSha256 == template.BlobSha256, cancellationToken) ||
-            await database.Documents.AnyAsync(d => d.BlobSha256 == template.BlobSha256, cancellationToken);
+        // Only other modèles can share this blob now: generated letters are written into her folder
+        // rather than stored here.
+        var stillReferenced = await database.Templates
+            .AnyAsync(other => other.Id != template.Id && other.BlobSha256 == template.BlobSha256, cancellationToken);
 
         if (!stillReferenced)
         {

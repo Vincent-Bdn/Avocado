@@ -21,22 +21,13 @@ public sealed record MatterDeadlineItem(
     string Label,
     DeadlineUrgency Urgency);
 
-/// <param name="ExhibitNumber">Set when the document has been versé as a pièce.</param>
-/// <param name="ExhibitLabel">The libellé written for the judge. A pièce shows this and its file name.</param>
-/// <param name="Provenance">
-/// Where it is filed, or what kind of document it is: the second line under a plain file name.
-///
-/// <para>The design asks for « a short provenance note » there, and Avocado has no such field. Rather
-/// than leave the line empty or invent a sentence, it says the true thing it knows: the folder she
-/// filed it in, « 01 Courriers », falling back to the type. Absent when it knows neither.</para>
-/// </param>
+/// <param name="RelativePath">From the dossier's folder, which is where the file actually is.</param>
+/// <param name="ExhibitNumber">Set when Avocado wrote this file as a pièce.</param>
 public sealed record MatterDocumentItem(
-    Guid Id,
-    string FileName,
+    string Name,
+    string RelativePath,
     int? ExhibitNumber,
-    string? ExhibitLabel,
-    string? Provenance,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset ModifiedAt);
 
 /// <summary>Drives the tab bar's counter pills.</summary>
 public sealed record MatterCounts(int Activities, int Documents, int OpenDeadlines, int TimeEntries);

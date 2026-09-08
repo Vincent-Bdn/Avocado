@@ -3,8 +3,6 @@ using Avocado.Server.Features.Backups;
 using Avocado.Server.Features.Billings;
 using Avocado.Server.Features.Contacts;
 using Avocado.Server.Features.Deadlines;
-using Avocado.Server.Features.Documents;
-using Avocado.Server.Features.Documents.Checkout;
 using Avocado.Server.Features.Matters;
 using Avocado.Server.Features.Settings;
 using Avocado.Server.Features.Templates;
@@ -26,7 +24,6 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<Matter> Matters => Set<Matter>();
     public DbSet<MatterParty> MatterParties => Set<MatterParty>();
     public DbSet<Activity> Activities => Set<Activity>();
-    public DbSet<Document> Documents => Set<Document>();
     public DbSet<Deadline> Deadlines => Set<Deadline>();
     public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
     public DbSet<BillingInvoice> Invoices => Set<BillingInvoice>();
@@ -34,7 +31,6 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<BillingCost> Costs => Set<BillingCost>();
     public DbSet<PracticeSetting> PracticeSettings => Set<PracticeSetting>();
     public DbSet<BackupDestination> BackupDestinations => Set<BackupDestination>();
-    public DbSet<MatterCheckout> MatterCheckouts => Set<MatterCheckout>();
     public DbSet<DocumentTemplate> Templates => Set<DocumentTemplate>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

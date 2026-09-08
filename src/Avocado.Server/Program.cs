@@ -12,9 +12,6 @@ using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
 using Avocado.Server.Features.Deadlines.Endpoints;
-using Avocado.Server.Features.Documents.Checkout;
-using Avocado.Server.Features.Documents.Endpoints;
-using Avocado.Server.Features.Documents.Workspace;
 using Avocado.Server.Features.Imports.Endpoints;
 using Avocado.Server.Features.Imports.Infrastructure;
 using Avocado.Server.Features.Matters.Endpoints;
@@ -71,13 +68,8 @@ session.TryResume();
 builder.Services.AddSingleton(session);
 builder.Services.AddSingleton<IVaultStore>(session);
 builder.Services.AddSingleton<VaultDbContextFactory>();
-builder.Services.AddSingleton(WorkingDirectory.Resolve(builder.Configuration));
-builder.Services.AddSingleton<DocumentWorkspace>();
-builder.Services.AddHostedService(services => services.GetRequiredService<DocumentWorkspace>());
 builder.Services.AddSingleton<Avocado.Server.Features.Mails.Infrastructure.MailIngest>();
 builder.Services.AddSingleton<GestisoftImporter>();
-builder.Services.AddSingleton<MatterCheckoutService>();
-builder.Services.AddHostedService<CheckoutSyncService>();
 builder.Services.AddSingleton<Avocado.Server.Features.Settings.Infrastructure.DiskEncryption>();
 builder.Services.AddSingleton<SinkFactory>();
 builder.Services.AddSingleton<BackupService>();
@@ -129,7 +121,6 @@ app.MapMatters();
 app.MapActivities();
 app.MapDashboard();
 app.MapSearch();
-app.MapDocuments();
 app.MapDossierFolders();
 app.MapDeadlines();
 app.MapTimeEntries();
@@ -137,7 +128,6 @@ app.MapBilling();
 app.MapSettings();
 app.MapTemplates();
 app.MapBackups();
-app.MapCheckouts();
 app.MapImports();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
@@ -153,18 +143,6 @@ app.Lifetime.ApplicationStarted.Register(() =>
         token = apiToken,
         vaultState = session.State.ToString(),
 
-        // The shell guards openWorkingCopy against paths outside this folder, and since the backend
-        // is what resolves it, the backend is what must say where it is. The shell used to impose it,
-        // which meant Réglages could never move it.
-        workingDirectory = app.Services.GetRequiredService<WorkingDirectory>().Root,
-
-        // Where single documents are checked out, which is no longer inside the folder above: that
-        // one is hers and holds dossiers, this one is scratch and holds GUIDs. The shell guards
-        // openWorkingCopy against both, and a document opens from this one.
-        //
-        // Without the vault id, deliberately. This is emitted before the wizard has created a vault,
-        // so a path carrying the id would carry the empty one and refuse everything afterwards.
-        documentDirectory = WorkingDirectory.DocumentsRoot,
     }));
 });
 

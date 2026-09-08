@@ -131,6 +131,64 @@ public static class DossierFolderReader
                 .ThenBy(entry => entry.Name, NaturalOrder.Instance)]);
     }
 
+    /// <summary>
+    /// How many files the dossier holds and the few most recently touched, in one walk.
+    ///
+    /// <para>For the aperçu, which wants « derniers modifiés » and a count and nothing else. Reading
+    /// the full listing would weigh every subfolder separately, which is several walks of a tree that
+    /// runs to four thousand files in the largest of hers.</para>
+    /// </summary>
+    public static (int Files, IReadOnlyList<FolderEntry> Recent) Summarise(
+        string? folder,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            return (0, []);
+        }
+
+        var root = Path.GetFullPath(folder);
+        var files = 0;
+        var recent = new List<FolderEntry>();
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var name = Path.GetFileName(file);
+
+                if (IsNoise(name))
+                {
+                    continue;
+                }
+
+                files++;
+
+                var info = new FileInfo(file);
+
+                recent.Add(new FolderEntry(
+                    name,
+                    Relative(root, file),
+                    false,
+                    info.Length,
+                    info.LastWriteTimeUtc,
+                    MailFile.LooksLikeMail(file),
+                    Exhibits.NumberOf(name)));
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return (files, []);
+        }
+
+        return (
+            files,
+            [.. recent.OrderByDescending(entry => entry.ModifiedAt).Take(take)]);
+    }
+
     private static (int Files, long Bytes) Weigh(string folder, CancellationToken cancellationToken)
     {
         var files = 0;

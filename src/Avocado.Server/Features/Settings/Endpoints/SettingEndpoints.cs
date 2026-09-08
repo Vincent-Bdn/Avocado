@@ -1,7 +1,6 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Settings.Endpoints.Dtos;
 using Avocado.Server.Features.Settings.Infrastructure;
-using Avocado.Server.Features.Documents.Workspace;
 using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,10 +12,6 @@ public static class SettingEndpoints
     {
         routes.MapGet("/api/settings", GetSettings.HandleAsync).WithTags("Settings");
         routes.MapPut("/api/settings", UpdateSettings.HandleAsync).WithTags("Settings");
-
-        // Its own route: this belongs to the computer, not to the practice, and is stored on the
-        // machine rather than in the vault.
-        routes.MapPut("/api/settings/working-directory", SetWorkingDirectory.HandleAsync).WithTags("Settings");
 
         // Likewise: a property of the machine, read once and cached, and deliberately not folded into
         // /api/settings, which every screen loads and which has no business shelling out to fdesetup.
@@ -44,7 +39,6 @@ public static class GetSettings
         AvocadoDbContext database,
         IVaultStore vaultStore,
         TenantContext tenant,
-        WorkingDirectory workingDirectory,
         CancellationToken cancellationToken)
     {
         var stored = await database.PracticeSettings
@@ -54,11 +48,7 @@ public static class GetSettings
         return Results.Ok(new PracticeInfo(
             ReadLong(stored, PracticeSettingKeys.HourlyRateCents, PracticeSettingKeys.DefaultHourlyRateCents),
             PracticeAddresses.Parse(stored.GetValueOrDefault(PracticeSettingKeys.EmailAddresses)),
-            vaultStore.Get(tenant.VaultId).Paths.Root,
-            // The folder she chose, not the per-vault subfolder inside it: that subfolder is an
-            // implementation detail and offering it as the thing to change would be misleading.
-            workingDirectory.Root,
-            workingDirectory.IsOverridden));
+            vaultStore.Get(tenant.VaultId).Paths.Root));
     }
 
     private static long ReadLong(IReadOnlyDictionary<string, string> stored, string key, long fallback) =>

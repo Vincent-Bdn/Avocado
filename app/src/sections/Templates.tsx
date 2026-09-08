@@ -88,8 +88,8 @@ export function Templates() {
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
         Écrivez la lettre une fois dans Word, en laissant des repères entre doubles accolades là où le
         dossier doit s’écrire. Depuis l’onglet Documents d’un dossier, « Générer depuis un modèle »
-        remplit ces repères et dépose le résultat dans le coffre, où vous pouvez l’ouvrir et le
-        terminer.
+        remplit ces repères et écrit le résultat dans le répertoire du dossier, à côté de vos autres
+        fichiers, où vous pouvez l’ouvrir et le terminer.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">

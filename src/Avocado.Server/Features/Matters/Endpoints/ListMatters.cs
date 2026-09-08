@@ -100,9 +100,9 @@ public static class ListMatters
                 .OrderByDescending(activity => activity.OccurredAt)
                 .Select(activity => (DateTimeOffset?)activity.OccurredAt)
                 .FirstOrDefault(),
-            database.Documents
-                .Where(document => document.MatterId == matter.Id)
-                .Max(document => (DateTimeOffset?)document.AddedAt),
+            // Not read from the folder: this is a list of every dossier, and walking a folder each
+            // would be hundreds of directory scans to date one column.
+            null,
             database.TimeEntries
                 .Where(entry => entry.MatterId == matter.Id)
                 .Max(entry => (DateTimeOffset?)entry.CreatedAt),

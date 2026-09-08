@@ -54,9 +54,10 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
         }
         catch (MailFormatException exception)
         {
-            // A file named .msg that is not one, or a format this version does not understand. It is
-            // still a document in the dossier, which is the important part.
-            logger.LogWarning(exception, "Kept {File} as a plain document.", Path.GetFileName(path));
+            // A file named .msg that is not one, or a format this version does not understand. It
+            // stays exactly where it is in her folder, which is the important part: nothing was going
+            // to be moved or copied either way.
+            logger.LogWarning(exception, "No journal entry for {File}: it stays a file in her folder.", Path.GetFileName(path));
             return null;
         }
 
@@ -80,15 +81,6 @@ public sealed class MailIngest(ILogger<MailIngest> logger)
         };
 
         database.Activities.Add(activity);
-
-        // The message itself hangs off the entry, so opening the journal line opens the mail.
-        var document = await database.Documents.FindAsync([documentId], cancellationToken).ConfigureAwait(false);
-        if (document is not null)
-        {
-            document.ActivityId = activity.Id;
-            document.Type = "Courriel";
-            document.DocumentDate = DateOnly.FromDateTime(mail.SentAt.UtcDateTime);
-        }
 
         logger.LogInformation(
             "Filed « {Subject} » as a journal entry with {Count} attachment(s).",

@@ -11,16 +11,11 @@ public sealed record PracticeSettings(
     long HourlyRateCents,
     IReadOnlyList<string>? EmailAddresses = null);
 
-/// <param name="WorkingDirectory">
-/// Where documents are decrypted to while they are open in Word. Read-only: it is derived from the
-/// platform's per-user application-state folder, and it is shown rather than configured because a
-/// machine-local scratch folder is not a decision anyone has a basis to make.
+/// <param name="VaultDirectory">
+/// Where the coffre is: the journal, the tiers, the facturation, the temps passé and the modèles.
+/// Not the documents, which live in her own folders, one per dossier.
 /// </param>
 public sealed record PracticeInfo(
     long HourlyRateCents,
     IReadOnlyList<string> EmailAddresses,
-    string VaultDirectory,
-    string WorkingDirectory,
-
-    /// <summary>True when a command line fixed it, in which case Réglages shows it and cannot move it.</summary>
-    bool WorkingDirectoryIsFixed);
+    string VaultDirectory);
