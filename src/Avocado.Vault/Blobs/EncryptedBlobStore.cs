@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using Avocado.Vault.Crypto;
 
@@ -110,30 +111,50 @@ public sealed class EncryptedBlobStore : IBlobStore
             // Heap, not stackalloc: this is an async method and the buffer straddles awaits.
             var nonce = new byte[Aead.NonceSize];
 
+            // Turned off for the rest of the file by the first chunk that does not compress. See
+            // Compress: one wasted pass over a megabyte tells us what kind of file this is.
+            var worthCompressing = true;
+
             // One chunk of lookahead: a chunk can only be flagged final once we know nothing follows.
             var current = await ReadChunkAsync(content, cancellationToken).ConfigureAwait(false);
             while (true)
             {
                 var next = await ReadChunkAsync(content, cancellationToken).ConfigureAwait(false);
-                var isFinal = next.Length == 0;
+                var flags = next.Length == 0 ? ChunkFlags.Final : ChunkFlags.None;
 
+                // The hash and the size are the plaintext's, always, whatever is stored underneath.
+                // That is what keeps a blob's identity independent of the compressor: change the
+                // deflate implementation between two .NET versions and the same document still
+                // deduplicates against the copy stored last year.
                 hasher.AppendData(current);
                 size += current.Length;
+
+                var payload = current;
+
+                if (worthCompressing && Compress(current) is { } deflated)
+                {
+                    payload = deflated;
+                    flags |= ChunkFlags.Deflated;
+                }
+                else
+                {
+                    worthCompressing = false;
+                }
 
                 BlobFormat.WriteNonce(nonce, noncePrefix, chunkIndex);
 
                 var sealedChunk = Aead.SealWithNonce(
-                    blobKey, nonce, current, BlobFormat.AssociatedData(chunkIndex, isFinal));
+                    blobKey, nonce, payload, BlobFormat.AssociatedData(chunkIndex, flags));
 
                 var recordHeader = new byte[BlobFormat.RecordHeaderSize];
-                recordHeader[0] = isFinal ? (byte)1 : (byte)0;
+                recordHeader[0] = (byte)flags;
                 BinaryPrimitives.WriteInt32BigEndian(recordHeader.AsSpan(1), sealedChunk.Length);
 
                 await output.WriteAsync(recordHeader, cancellationToken).ConfigureAwait(false);
                 await output.WriteAsync(sealedChunk, cancellationToken).ConfigureAwait(false);
 
                 chunkIndex++;
-                if (isFinal)
+                if (flags.HasFlag(ChunkFlags.Final))
                 {
                     break;
                 }
@@ -144,6 +165,39 @@ public sealed class EncryptedBlobStore : IBlobStore
             await output.FlushAsync(cancellationToken).ConfigureAwait(false);
             return (hasher.GetHashAndReset(), size);
         }
+    }
+
+    /// <summary>
+    /// The chunk deflated, or null when compressing it is not worth it.
+    ///
+    /// <para><b>Attempted rather than decided by extension.</b> A list of « these compress, those do
+    /// not » is a list that is wrong for somebody: the same <c>.doc</c> extension covers the old
+    /// binary format, which halves, and a renamed PDF, which does not. Deflating a megabyte and
+    /// looking at the answer costs a fraction of a second and is never wrong.</para>
+    ///
+    /// <para>And it is only paid once per file: the caller stops asking after the first chunk that
+    /// comes back null. A <c>.docx</c> is a ZIP and a scan is already JPEG inside, so the first
+    /// megabyte of one settles the other nine.</para>
+    ///
+    /// <para>The 3% floor is there because a saving smaller than that is not a saving: it buys back
+    /// less than the slack in the file system's own block rounding, and it costs an inflate on every
+    /// read for the rest of the blob's life.</para>
+    /// </summary>
+    private static byte[]? Compress(byte[] plaintext)
+    {
+        if (plaintext.Length == 0)
+        {
+            return null;
+        }
+
+        using var output = new MemoryStream(plaintext.Length);
+
+        using (var deflate = new DeflateStream(output, CompressionLevel.Optimal, leaveOpen: true))
+        {
+            deflate.Write(plaintext);
+        }
+
+        return output.Length <= plaintext.Length - (plaintext.Length / 32) ? output.ToArray() : null;
     }
 
     private static async Task<byte[]> ReadChunkAsync(Stream source, CancellationToken cancellationToken)

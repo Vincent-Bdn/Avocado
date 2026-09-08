@@ -38,7 +38,8 @@ export function StepDisk({ onBack, onContinue }: { onBack: () => void; onContinu
 
           <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Ce qu’Avocado chiffre de son côté">
             Le coffre, où vivent votre journal, vos tiers, votre facturation et votre temps passé, et
-            vos sauvegardes, qui sont illisibles sans votre clé de récupération.
+            vos sauvegardes, qui sont illisibles sans votre clé de récupération. Vos documents y sont
+            copiés chaque nuit, chiffrés eux aussi : une clé USB de sauvegarde perdue ne se lit pas.
           </Point>
         </Points>
       </WizardScroll>

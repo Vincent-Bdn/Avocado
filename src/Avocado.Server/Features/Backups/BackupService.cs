@@ -27,6 +27,7 @@ public sealed class BackupService(
     VaultSession session,
     VaultDbContextFactory contexts,
     SinkFactory sinks,
+    FolderCapture capture,
     TimeProvider clock,
     ILogger<BackupService> logger) : BackgroundService
 {
@@ -36,12 +37,59 @@ public sealed class BackupService(
     /// <summary>How long a working day is allowed to go without a new snapshot.</summary>
     private static readonly TimeSpan SnapshotInterval = TimeSpan.FromMinutes(30);
 
+    /// <summary>
+    /// How long « Sauvegarder maintenant » will wait for a pass already in flight.
+    ///
+    /// <para>It used to wait forever, which was harmless while a pass was a file copy. A pass can now
+    /// spend an hour reading a practice for the first time, and an HTTP request that waits on that is
+    /// a window that has hung.</para>
+    /// </summary>
+    private static readonly TimeSpan ManualPatience = TimeSpan.FromSeconds(3);
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private long _lastSeenDatabaseStamp;
 
-    /// <summary>The window's « Sauvegarder maintenant ». Same code path as the timer, deliberately.</summary>
-    public Task<IReadOnlyList<DestinationOutcome>> RunNowAsync(CancellationToken cancellationToken) =>
-        RunAsync(force: true, cancellationToken);
+    /// <summary>
+    /// Set by the button, cleared by the pass that honours it. « Sauvegarder maintenant » asks for the
+    /// documents too, but it does not stand there while they are read: the next beat is at most thirty
+    /// seconds away and the screen shows the capture moving.
+    /// </summary>
+    private int _documentsRequested;
+
+    /// <summary>What woke the pass, which is not the same question as « how urgent is it ».</summary>
+    private enum Trigger
+    {
+        /// <summary>The timer. Snapshots when the database has moved; captures when the night is due.</summary>
+        Beat,
+
+        /// <summary>
+        /// « Sauvegarder maintenant ». Snapshots and pushes while she watches, and records that she
+        /// wants the documents read too, which the next beat does. An HTTP request is not somewhere
+        /// to spend three quarters of an hour.
+        /// </summary>
+        Manual,
+
+        /// <summary>
+        /// The way out. Snapshots and pushes, and deliberately never captures: the first capture of a
+        /// practice reads twelve gigabytes, and an application that takes twenty minutes to close is
+        /// an application that gets killed from the task manager, every time, by everyone.
+        /// </summary>
+        Shutdown,
+    }
+
+    /// <summary>
+    /// The window's « Sauvegarder maintenant ». Same code path as the timer, deliberately.
+    ///
+    /// <para>It snapshots and pushes here and now, because that is quick and it is what she is
+    /// watching for. The documents are asked for rather than read: the next beat picks the request up
+    /// and the screen follows it. The alternative is a button that appears to do nothing for
+    /// three quarters of an hour the first time it is pressed.</para>
+    /// </summary>
+    public Task<IReadOnlyList<DestinationOutcome>> RunNowAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Exchange(ref _documentsRequested, 1);
+        return RunAsync(Trigger.Manual, cancellationToken);
+    }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -51,7 +99,7 @@ public sealed class BackupService(
         {
             try
             {
-                await RunAsync(force: false, stoppingToken).ConfigureAwait(false);
+                await RunAsync(Trigger.Beat, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -74,7 +122,7 @@ public sealed class BackupService(
         // closes the laptop at six.
         try
         {
-            await RunAsync(force: true, CancellationToken.None).ConfigureAwait(false);
+            await RunAsync(Trigger.Shutdown, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception exception)
         {
@@ -82,8 +130,10 @@ public sealed class BackupService(
         }
     }
 
-    private async Task<IReadOnlyList<DestinationOutcome>> RunAsync(bool force, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<DestinationOutcome>> RunAsync(Trigger trigger, CancellationToken cancellationToken)
     {
+        var force = trigger != Trigger.Beat;
+
         if (session.State != VaultState.Unlocked || !session.TryGet(Guid.Empty, out var opened) || opened is null)
         {
             return [];
@@ -91,14 +141,26 @@ public sealed class BackupService(
 
         // One pass at a time. The timer and « Sauvegarder maintenant » can otherwise collide, and two
         // mirrors uploading the same blob to the same destination is at best wasted bandwidth.
-        if (!await _gate.WaitAsync(force ? Timeout.InfiniteTimeSpan : TimeSpan.Zero, cancellationToken).ConfigureAwait(false))
+        //
+        // Nothing waits indefinitely any more. A pass that is already reading the documents holds
+        // this for as long as that takes, and neither an HTTP request nor the shutdown path may be
+        // parked behind it: the request would hang the window, and the shutdown would make closing
+        // Avocado take an hour.
+        var patience = trigger switch
+        {
+            Trigger.Manual => ManualPatience,
+            Trigger.Shutdown => TimeSpan.FromSeconds(10),
+            _ => TimeSpan.Zero,
+        };
+
+        if (!await _gate.WaitAsync(patience, cancellationToken).ConfigureAwait(false))
         {
             return [];
         }
 
         try
         {
-            return await PassAsync(opened, force, cancellationToken).ConfigureAwait(false);
+            return await PassAsync(opened, trigger, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -108,17 +170,25 @@ public sealed class BackupService(
 
     private async Task<IReadOnlyList<DestinationOutcome>> PassAsync(
         OpenVault vault,
-        bool force,
+        Trigger trigger,
         CancellationToken cancellationToken)
     {
         await using var database = contexts.Create(vault.Id);
+
+        // Documents first, then the snapshot, then the push, and the order is the correctness. The
+        // snapshot carries the manifest of what was just captured, so it can only ever name blobs
+        // that are already on this disk; the mirror then uploads blobs before it uploads the
+        // snapshot. At no point does a backup exist that promises a document it does not hold.
+        var captured = await EnsureDocumentsAsync(vault, database, trigger, cancellationToken)
+            .ConfigureAwait(false);
+
+        var snapshot = EnsureSnapshot(vault, trigger != Trigger.Beat || captured);
 
         var destinations = await database.Set<BackupDestination>()
             .Where(destination => destination.IsEnabled)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var snapshot = EnsureSnapshot(vault, force);
         var results = new List<DestinationOutcome>();
 
         foreach (var destination in destinations)
@@ -129,6 +199,73 @@ public sealed class BackupService(
 
         await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return results;
+    }
+
+    /// <summary>
+    /// Copies the dossiers' folders into the coffre when tonight's window has come round, or when she
+    /// pressed the button. True when anything was read, which is what earns a fresh snapshot.
+    ///
+    /// <para>Failures here are logged and swallowed. A dossier on a disconnected drive, a folder
+    /// renamed at lunchtime, an antivirus holding a file: none of them is a reason for the database
+    /// snapshot and the off-machine push, which are the parts that protect the practice's records,
+    /// not to happen tonight. What the capture could not read is written into the report, and the
+    /// screen says so.</para>
+    /// </summary>
+    private async Task<bool> EnsureDocumentsAsync(
+        OpenVault vault,
+        AvocadoDbContext database,
+        Trigger trigger,
+        CancellationToken cancellationToken)
+    {
+        // Only ever on a beat. The other two are paths with something waiting at the end of them:
+        // an HTTP request, which would hang the window, and the shutdown, which would hold the
+        // application open. The button's request survives in _documentsRequested and the beat that
+        // follows it, at most thirty seconds later, is what honours it.
+        if (trigger != Trigger.Beat)
+        {
+            return false;
+        }
+
+        var (schedule, capturedAt, _) = await CaptureState.ReadAsync(database, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!schedule.IsEnabled)
+        {
+            return false;
+        }
+
+        // Taken, not peeked at: whether this pass honours the request or fails trying, the button has
+        // been answered and must not fire a second capture on the beat after.
+        var asked = Interlocked.Exchange(ref _documentsRequested, 0) == 1;
+
+
+        if (!asked && !schedule.IsDue(capturedAt, clock.GetLocalNow()))
+        {
+            return false;
+        }
+
+        try
+        {
+            var report = await capture.RunAsync(vault.Blobs, database, cancellationToken).ConfigureAwait(false);
+
+            await CaptureState.WriteAsync(database, report.CompletedAt, report, cancellationToken)
+                .ConfigureAwait(false);
+
+            await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            // The lid closed mid-pass. Whatever was captured is saved and consistent, and because
+            // the timestamp was not written, tomorrow's pass picks up the rest.
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Capturing the dossiers' documents failed.");
+            return false;
+        }
     }
 
     /// <summary>

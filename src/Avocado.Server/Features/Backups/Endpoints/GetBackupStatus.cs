@@ -16,6 +16,7 @@ public static class GetBackupStatus
         AvocadoDbContext database,
         IVaultStore vaults,
         SinkFactory sinks,
+        CaptureProgress capturing,
         CancellationToken cancellationToken)
     {
         var vault = vaults.Get(Guid.Empty);
@@ -84,7 +85,48 @@ public static class GetBackupStatus
             offMachine.Count > 0,
             views.Any(view => view is { IsEnabled: true, Status: "Ready" }),
             await MeasureExposureAsync(database, exposedSince, cancellationToken).ConfigureAwait(false),
+            await MeasureDocumentsAsync(database, capturing, cancellationToken).ConfigureAwait(false),
             views);
+    }
+
+    /// <summary>
+    /// What the sauvegarde currently holds of her own folders, and what it could not read last night.
+    ///
+    /// <para>Counted from the manifest rather than by walking the folders. The manifest is the thing
+    /// that will be restored, so it is the thing worth reporting: a screen that counted files on disk
+    /// would cheerfully say « 13 917 documents » about a practice whose backup contains none.</para>
+    /// </summary>
+    private static async Task<CapturedDocuments> MeasureDocumentsAsync(
+        AvocadoDbContext database,
+        CaptureProgress capturing,
+        CancellationToken cancellationToken)
+    {
+        var (schedule, capturedAt, report) = await CaptureState.ReadAsync(database, cancellationToken)
+            .ConfigureAwait(false);
+
+        var held = await database.CapturedFiles
+            .GroupBy(_ => 1)
+            .Select(group => new { Files = group.Count(), Bytes = group.Sum(file => file.SizeBytes) })
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var dossiers = await database.Matters
+            .CountAsync(matter => matter.DocumentsFolder != null, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new CapturedDocuments(
+            schedule.IsEnabled,
+            schedule.EffectiveHour,
+            held?.Files ?? 0,
+            held?.Bytes ?? 0,
+            dossiers,
+            capturedAt,
+            report?.IssueCount ?? 0,
+            report?.Unreachable ?? 0,
+            report?.Issues
+                .Select(issue => new CapturedProblem(issue.Dossier, issue.Path, issue.Reason))
+                .ToList() ?? [],
+            capturing.Current);
     }
 
     /// <summary>

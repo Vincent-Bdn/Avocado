@@ -31,6 +31,7 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<BillingCost> Costs => Set<BillingCost>();
     public DbSet<PracticeSetting> PracticeSettings => Set<PracticeSetting>();
     public DbSet<BackupDestination> BackupDestinations => Set<BackupDestination>();
+    public DbSet<Features.Backups.CapturedFile> CapturedFiles => Set<Features.Backups.CapturedFile>();
     public DbSet<DocumentTemplate> Templates => Set<DocumentTemplate>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

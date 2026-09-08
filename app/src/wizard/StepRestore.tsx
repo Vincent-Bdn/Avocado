@@ -37,6 +37,9 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
   const [point, setPoint] = useState<RestorePoint | null>(null)
   const [chosen, setChosen] = useState<Candidate | null>(null)
   const [destination, setDestination] = useState<string | null>(null)
+  const [ongoing, setOngoing] = useState<string | null>(null)
+  const [closed, setClosed] = useState<string | null>(null)
+  const [stage, setStage] = useState<'idle' | 'vault' | 'documents'>('idle')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -94,6 +97,7 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
 
     setBusy(true)
     setError(null)
+    setStage('vault')
 
     try {
       await post('/api/vault/restore', {
@@ -104,11 +108,20 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
         recoveryCode: code,
       })
 
+      // The documents come second and only if she said where. The coffre is a few megabytes and is
+      // what makes the application usable again; writing back twelve gigabytes of dossiers is a
+      // different operation, and one she is allowed to postpone until the disk is plugged in.
+      if (ongoing && closed) {
+        setStage('documents')
+        await post('/api/backups/documents/restore', { ongoing, closed })
+      }
+
       onRestored()
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
       setBusy(false)
+      setStage('idle')
     }
   }
 
@@ -219,7 +232,33 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
             </p>
           </Stage>
 
-          <Stage index={3} title="Votre clé de récupération" done={false}>
+          <Stage index={3} title="Où remettre vos documents ?" done={Boolean(ongoing && closed)}>
+            {/* Relative paths in the manifest, absolute paths chosen here. The folder they came from
+                was on a computer that no longer exists: its user name, its drive letter and its
+                arborescence are all gone, and writing to a path recorded a year ago is how a restore
+                scatters files where nobody looks. Two folders is the whole of what she decides. */}
+            <FolderPick
+              label="Dossiers en cours"
+              path={ongoing}
+              busy={busy}
+              onPick={setOngoing}
+            />
+            <FolderPick
+              label="Dossiers clôturés"
+              path={closed}
+              busy={busy}
+              onPick={setClosed}
+              hint={ongoing ? 'Le même dossier convient très bien.' : undefined}
+            />
+
+            <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+              Chaque dossier retrouvera son propre répertoire, avec ses sous-dossiers et ses pièces
+              rangés comme vous les aviez. Rien n’est jamais écrasé : un fichier déjà présent est
+              conservé tel quel. Vous pouvez laisser vide et le faire plus tard depuis Réglages.
+            </p>
+          </Stage>
+
+          <Stage index={4} title="Votre clé de récupération" done={false}>
             {/* The straightforward path, offered first. Someone who saved the sheet as a PDF should
                 not be made to transcribe fifty-four characters out of a file the computer can read. */}
             <div className="flex items-center gap-2">
@@ -262,10 +301,39 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
           onClick={() => void restore()}
         >
           {busy && <Loader2 size={14} className="animate-spin" />}
-          {busy ? 'Restauration…' : 'Restaurer et ouvrir Avocado'}
+          {stage === 'documents'
+            ? 'Restauration des documents…'
+            : busy
+              ? 'Restauration…'
+              : 'Restaurer et ouvrir Avocado'}
         </Button>
       </WizardGate>
     </>
+  )
+}
+
+function FolderPick({ label, path, busy, onPick, hint }: {
+  label: string
+  path: string | null
+  busy: boolean
+  onPick: (path: string) => void
+  hint?: string
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="secondary"
+        size="sm"
+        disabled={busy}
+        onClick={() => void window.avocado.chooseFolder(undefined, label).then((chosen) => chosen && onPick(chosen))}
+      >
+        <FolderOpen size={13} strokeWidth={2} />
+        {label}
+      </Button>
+      {path
+        ? <span className="truncate font-mono text-[11px] text-muted">{path}</span>
+        : hint && <span className="text-[11.5px] text-muted">{hint}</span>}
+    </div>
   )
 }
 

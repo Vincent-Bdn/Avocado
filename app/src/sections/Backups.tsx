@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, Check, HardDrive, Loader2, Plus, Trash2, Usb } from 'lucide-react'
+import { AlertCircle, Check, FolderOpen, HardDrive, Loader2, Plus, Trash2, Usb } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
+import { Select } from '../components/ui/select.js'
 import { cn } from '../lib/utils.js'
 
 /**
@@ -37,6 +38,25 @@ interface Exposure {
   minutes: number
 }
 
+interface CapturedProblem {
+  dossier: string
+  path: string
+  reason: string
+}
+
+interface CapturedDocuments {
+  isEnabled: boolean
+  hour: number
+  files: number
+  bytes: number
+  dossiers: number
+  capturedAt: string | null
+  unreadable: number
+  unreachable: number
+  examples: CapturedProblem[]
+  running: { dossier: number; dossiers: number; files: number; reference: string | null } | null
+}
+
 interface Status {
   exposedSince: string | null
   localSnapshotAt: string | null
@@ -45,6 +65,7 @@ interface Status {
   hasOffMachineDestination: boolean
   anyReady: boolean
   exposure: Exposure
+  documents: CapturedDocuments
   destinations: Destination[]
 }
 
@@ -171,6 +192,8 @@ export function Backups() {
           </Button>
         )}
       </div>
+
+      <Documents documents={status.documents} busy={busy} onChange={reload} />
 
       <Explainers localCount={status.localSnapshotCount} />
 
@@ -398,16 +421,16 @@ function Explainers({ localCount }: { localCount: number }) {
   return (
     <div className="grid gap-3 border-t border-line-subtle pt-3">
       <Explain title="Ce qu’une sauvegarde contient">
-        Votre journal, vos tiers, votre facturation, votre temps passé, vos modèles, et la copie
-        chiffrée de votre clé. Elle reste chiffrée de bout en bout : personne ne peut l’ouvrir sans
-        votre clé de récupération, pas même le service qui l’héberge.
+        Votre journal, vos tiers, votre facturation, votre temps passé, vos modèles, la copie chiffrée
+        de votre clé, et vos documents. Elle reste chiffrée de bout en bout : personne ne peut
+        l’ouvrir sans votre clé de récupération, pas même le service qui l’héberge.
       </Explain>
 
-      <Explain title="Ce qu’elle ne contient pas encore : vos documents">
-        Depuis qu’ils vivent dans vos propres répertoires, Avocado ne les recopie plus dans ses
-        sauvegardes. C’est en cours et ce sera le cas prochainement. D’ici là,{' '}
-        <strong>sauvegardez vos répertoires de documents comme vous le faisiez avant Avocado</strong>,
-        et ne comptez pas sur ces sauvegardes-ci pour eux.
+      <Explain title="Vos documents, alors qu’ils sont chez vous">
+        Vos fichiers restent dans vos répertoires, en clair, à vous. Avocado en prend simplement une
+        copie chiffrée et compressée chaque nuit, pour pouvoir vous les rendre. C’est la seule copie
+        de vos dossiers que personne ne peut lire en la trouvant, ce qui n’est pas le cas d’une clé
+        USB oubliée dans le métro.
       </Explain>
 
       <Explain title="Les copies locales, et pourquoi elles ne suffisent pas">
@@ -474,6 +497,170 @@ function Explainers({ localCount }: { localCount: number }) {
       </Explain>
     </div>
   )
+}
+
+/**
+ * Vos documents, in the Sauvegarde screen.
+ *
+ * <p>Three numbers and an hour. What she needs to know is whether her files are in the copy and when
+ * they were last looked at, and the one thing that must never be quiet is the count of what could not
+ * be read: a document the sauvegarde does not hold is a fact she is entitled to learn on a Tuesday
+ * rather than on the day she needs it.</p>
+ */
+function Documents({ documents, busy, onChange }: {
+  documents: CapturedDocuments
+  busy: boolean
+  onChange: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [restored, setRestored] = useState<string | null>(null)
+
+  const save = async (next: { isEnabled: boolean; hour: number }) => {
+    setSaving(true)
+    try {
+      await api('/api/backups/documents/schedule', { method: 'PUT', body: JSON.stringify(next) })
+      onChange()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /**
+   * The way back, outside a restore. It is the same operation the wizard runs, offered here because
+   * the wizard lets her postpone it: no disk plugged in that morning, no room on the laptop, or
+   * simply one thing at a time. It never overwrites, so offering it costs nothing.
+   */
+  async function putBack() {
+    const ongoing = await window.avocado.chooseFolder(undefined, 'Dossiers en cours')
+    if (!ongoing) return
+
+    const closed = await window.avocado.chooseFolder(ongoing, 'Dossiers clôturés, le même convient')
+    if (!closed) return
+
+    setSaving(true)
+    setRestored(null)
+    try {
+      const outcome = await post<{ files: number; dossiers: unknown[] }>(
+        '/api/backups/documents/restore',
+        { ongoing, closed },
+      )
+
+      setRestored(
+        `${outcome.files.toLocaleString('fr-FR')} fichier${plural(outcome.files)} rendu${plural(outcome.files)} à ${outcome.dossiers.length} dossier${plural(outcome.dossiers.length)}.`,
+      )
+      onChange()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const problems = documents.unreadable + documents.unreachable
+
+  return (
+    <div className="grid gap-2 border-t border-line-subtle pt-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="type-label text-ink-secondary">Vos documents</span>
+
+        <label className="flex items-center gap-1.5 text-[11.5px] text-muted">
+          <input
+            type="checkbox"
+            checked={documents.isEnabled}
+            disabled={busy || saving}
+            onChange={(event) => void save({ isEnabled: event.target.checked, hour: documents.hour })}
+          />
+          Copier chaque nuit à
+          <Select
+            value={documents.hour}
+            disabled={busy || saving || !documents.isEnabled}
+            onChange={(event) =>
+              void save({ isEnabled: documents.isEnabled, hour: Number(event.target.value) })
+            }
+          >
+            {Array.from({ length: 24 }, (_, hour) => (
+              <option key={hour} value={hour}>
+                {String(hour).padStart(2, '0')} h
+              </option>
+            ))}
+          </Select>
+        </label>
+      </div>
+
+      {documents.running ? (
+        <p className="m-0 flex max-w-[72ch] items-center gap-1.5 text-[11.5px] leading-[17px] text-muted">
+          <Loader2 size={13} className="animate-spin" />
+          Copie en cours, dossier {documents.running.dossier} sur {documents.running.dossiers}
+          {documents.running.reference ? ` (${documents.running.reference})` : ''}. La première fois
+          prend un moment ; vous pouvez continuer à travailler.
+        </p>
+      ) : (
+      <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+        {documents.files === 0 ? (
+          documents.dossiers === 0
+            ? 'Aucun dossier n’indique encore où vivent ses documents, il n’y a donc rien à copier.'
+            : 'Vos documents n’ont pas encore été copiés. Ce sera fait à la prochaine nuit, ou tout de suite avec « Sauvegarder maintenant ».'
+        ) : (
+          <>
+            {documents.files.toLocaleString('fr-FR')} fichier{plural(documents.files)} de{' '}
+            {documents.dossiers.toLocaleString('fr-FR')} dossier{plural(documents.dossiers)}, soit{' '}
+            {formatBytes(documents.bytes)} avant compression
+            {documents.capturedAt ? `, lus ${formatMoment(documents.capturedAt)}` : ''}.
+          </>
+        )}
+      </p>
+      )}
+
+      {documents.files > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" disabled={busy || saving} onClick={() => void putBack()}>
+            <FolderOpen size={13} strokeWidth={2} />
+            Remettre les documents sur ce disque
+          </Button>
+          {restored && <span className="text-[11.5px] text-muted">{restored}</span>}
+        </div>
+      )}
+
+      {problems > 0 && (
+        <div className="grid gap-1 rounded-sm bg-sunken px-2.5 py-2">
+          <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-ink">
+            <AlertCircle size={13} strokeWidth={2} className="text-warning" />
+            {documents.unreachable > 0 && (
+              <>
+                {documents.unreachable} dossier{plural(documents.unreachable)} introuvable
+                {plural(documents.unreachable)}
+                {documents.unreadable > 0 ? ', ' : ' la nuit dernière.'}
+              </>
+            )}
+            {documents.unreadable > 0 && (
+              <>
+                {documents.unreadable.toLocaleString('fr-FR')} fichier{plural(documents.unreadable)} illisible
+                {plural(documents.unreadable)}.
+              </>
+            )}
+          </span>
+
+          <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+            {documents.unreachable > 0
+              ? 'Un disque externe débranché, un lecteur réseau absent, un répertoire déplacé. Ce qui avait déjà été copié est intact : rien n’a été effacé.'
+              : 'Ces fichiers ne sont pas dans la sauvegarde. Ils seront repris à la prochaine nuit si ce qui les retenait les a relâchés.'}
+          </p>
+
+          <ul className="m-0 grid list-none gap-0.5 p-0">
+            {documents.examples.map((problem) => (
+              <li key={`${problem.dossier}/${problem.path}`} className="text-[11px] text-muted">
+                <span className="font-mono">{problem.dossier}</span> · {problem.path} · {problem.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`
+  if (bytes >= 1e6) return `${Math.round(bytes / 1e6).toLocaleString('fr-FR')} Mo`
+  return `${Math.max(1, Math.round(bytes / 1e3)).toLocaleString('fr-FR')} Ko`
 }
 
 function Explain({ title, children }: { title: string; children: React.ReactNode }) {

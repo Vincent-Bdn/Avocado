@@ -37,6 +37,7 @@ public sealed record BackupDestinationView(
 /// beside the vault is a destination worth running and is not safety, and one flag cannot say both.
 /// </param>
 /// <param name="Exposure">What that instant costs, in work. See <see cref="BackupExposure"/>.</param>
+/// <param name="Documents">What the sauvegarde holds of her own folders. See <see cref="CapturedDocuments"/>.</param>
 public sealed record BackupStatus(
     DateTimeOffset? ExposedSince,
     DateTimeOffset? LocalSnapshotAt,
@@ -45,7 +46,41 @@ public sealed record BackupStatus(
     bool HasOffMachineDestination,
     bool AnyReady,
     BackupExposure Exposure,
+    CapturedDocuments Documents,
     IReadOnlyList<BackupDestinationView> Destinations);
+
+/// <summary>
+/// The documents half, as the Sauvegarde screen needs to say it.
+///
+/// <para>Its own record because it answers a different question from the rest of the screen. The
+/// exposure above is about records, measured in journal entries and hours; this is about files, and
+/// the only figures that mean anything to her are how many, how much space, and when they were last
+/// read. <see cref="Unreadable"/> is the one that must never be hidden: a document the sauvegarde
+/// does not contain is a fact she is entitled to find out on a quiet Tuesday rather than on the day
+/// she needs it.</para>
+/// </summary>
+/// <param name="Dossiers">How many dossiers point at a folder at all. The rest carry no documents.</param>
+/// <param name="CapturedAt">When the last nightly pass finished. Null before the first one.</param>
+/// <param name="Hour">The hour it runs at, local.</param>
+/// <param name="Unreachable">Dossiers whose folder was not there that night, left untouched.</param>
+/// <param name="Examples">A handful of the failures, for the screen. <see cref="Unreadable"/> is the count.</param>
+/// <param name="Running">
+/// Non-null while a capture is under way. Only ever seen on the first night, which is the night it
+/// matters: without it, three quarters of an hour of reading looks exactly like nothing happening.
+/// </param>
+public sealed record CapturedDocuments(
+    bool IsEnabled,
+    int Hour,
+    int Files,
+    long Bytes,
+    int Dossiers,
+    DateTimeOffset? CapturedAt,
+    int Unreadable,
+    int Unreachable,
+    IReadOnlyList<CapturedProblem> Examples,
+    Infrastructure.CaptureRunning? Running);
+
+public sealed record CapturedProblem(string Dossier, string Path, string Reason);
 
 /// <summary>
 /// What has happened since the last copy left this machine, counted.
@@ -59,9 +94,10 @@ public sealed record BackupStatus(
 /// <para>Zero everywhere is a real and good answer: nothing has changed, so nothing is at risk, and
 /// the screen should say so plainly instead of nagging.</para>
 /// </summary>
-/// <para>Documents are not counted, because a backup no longer carries them: they live in her own
-/// folders and Avocado copies nothing of them yet. Counting what a sauvegarde does not contain would
-/// be the wrong reassurance twice over.</para>
+/// <para>Documents are not counted here. They are copied on their own schedule, once a night rather
+/// than continuously, so « depuis la dernière sauvegarde » would be answering a different question
+/// about them. <see cref="CapturedDocuments"/> says when they were last read, which is the honest
+/// version of the same reassurance.</para>
 public sealed record BackupExposure(int Activities, int TimeEntries, int Minutes)
 {
     public static BackupExposure None { get; } = new(0, 0, 0);

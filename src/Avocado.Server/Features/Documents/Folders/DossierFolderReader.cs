@@ -248,7 +248,12 @@ public static class DossierFolderReader
             || candidate.StartsWith(normalised + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsNoise(string name) =>
+    /// <summary>
+    /// Word's lock files and the operating system's own litter. Public because the sauvegarde walks
+    /// the same folders for a different reason and must reach the same verdict: a file the Documents
+    /// tab hides and the backup carries, or the reverse, is a discrepancy nobody could explain.
+    /// </summary>
+    public static bool IsNoise(string name) =>
         name.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase)
         || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)
         || name.Equals(".DS_Store", StringComparison.Ordinal)

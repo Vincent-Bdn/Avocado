@@ -41,4 +41,22 @@ public static class PracticeSettingKeys
     /// secretariat, and a message from any of them was sent by the cabinet.</para>
     /// </summary>
     public const string EmailAddresses = "practice.emailAddresses";
+
+    /// <summary>Whether the sauvegarde carries the dossiers' documents at all. On by default.</summary>
+    public const string CaptureDocuments = "backup.documents.enabled";
+
+    /// <summary>The hour, local, at which the nightly copy of the documents starts. 0 to 23.</summary>
+    public const string CaptureHour = "backup.documents.hour";
+
+    /// <summary>When the last one finished, so a missed night is caught up rather than skipped.</summary>
+    public const string CapturedAt = "backup.documents.capturedAt";
+
+    /// <summary>
+    /// What that pass found, as JSON, including the files it could not read.
+    ///
+    /// <para>Kept in the database rather than in memory on purpose. The whole point of running at ten
+    /// in the evening is that nobody is watching, so the report has to survive until morning, and past
+    /// a restart on the way.</para>
+    /// </summary>
+    public const string CaptureReport = "backup.documents.report";
 }

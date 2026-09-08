@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using Avocado.Vault.Crypto;
 
@@ -104,7 +105,8 @@ internal sealed class DecryptingBlobStream : Stream
             throw new VaultCorruptedException("This blob is truncated: it ends before its final chunk.", ex);
         }
 
-        var isFinal = recordHeader[0] == 1;
+        var flags = (ChunkFlags)recordHeader[0];
+        var isFinal = flags.HasFlag(ChunkFlags.Final);
         var sealedLength = BinaryPrimitives.ReadInt32BigEndian(recordHeader[1..]);
 
         if (sealedLength < Aead.TagSize || sealedLength > BlobFormat.ChunkSize + Aead.TagSize)
@@ -132,7 +134,7 @@ internal sealed class DecryptingBlobStream : Stream
                 _blobKey,
                 nonce,
                 sealedChunk,
-                BlobFormat.AssociatedData(_chunkIndex, isFinal),
+                BlobFormat.AssociatedData(_chunkIndex, flags),
                 plaintext);
         }
         catch (CryptographicException ex)
@@ -142,12 +144,54 @@ internal sealed class DecryptingBlobStream : Stream
                 ex);
         }
 
+        // Only after the tag has verified, never before: inflating is the one operation here that can
+        // be made to consume far more than it is given, and the authentication is what guarantees
+        // these bytes are the ones this vault wrote.
+        if (flags.HasFlag(ChunkFlags.Deflated))
+        {
+            plaintext = Inflate(plaintext);
+        }
+
         _plaintext = plaintext;
         _plaintextOffset = 0;
         _chunkIndex++;
         _sawFinalChunk = isFinal;
 
         return plaintext.Length > 0 || !isFinal;
+    }
+
+    /// <summary>
+    /// Undoes <c>EncryptedBlobStore.Compress</c>. Bounded by the chunk size the writer worked in,
+    /// which no honest chunk can exceed, so a blob that inflates past it is corrupt whatever its tag
+    /// said.
+    /// </summary>
+    private static byte[] Inflate(byte[] deflated)
+    {
+        using var source = new MemoryStream(deflated);
+        using var inflater = new DeflateStream(source, CompressionMode.Decompress);
+        using var plaintext = new MemoryStream(deflated.Length * 2);
+
+        var buffer = new byte[64 * 1024];
+        int read;
+
+        try
+        {
+            while ((read = inflater.Read(buffer)) > 0)
+            {
+                if (plaintext.Length + read > BlobFormat.ChunkSize)
+                {
+                    throw new VaultCorruptedException("This blob declares a chunk that inflates past its own limit.");
+                }
+
+                plaintext.Write(buffer, 0, read);
+            }
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new VaultCorruptedException("This blob holds a compressed chunk that cannot be read back.", ex);
+        }
+
+        return plaintext.ToArray();
     }
 
     public override void Flush() { }
