@@ -24,17 +24,28 @@ public static class FolderEndpoints
         return routes;
     }
 
+    /// <param name="q">
+    /// When given, the answer is every matching file in the whole dossier rather than one level of
+    /// it. The tree loads a level at a time, so a search done in the window would only ever see the
+    /// folders already opened.
+    /// </param>
     private static async Task<IResult> ListAsync(
         Guid matterId,
         string? path,
+        string? q,
         AvocadoDbContext database,
         CancellationToken cancellationToken)
     {
         var folder = await FolderOfAsync(database, matterId, cancellationToken);
 
-        return folder is null
-            ? Results.NotFound()
-            : Results.Ok(DossierFolderReader.Read(folder.Value.Folder, path, cancellationToken));
+        if (folder is null)
+        {
+            return Results.NotFound();
+        }
+
+        return Results.Ok(string.IsNullOrWhiteSpace(q)
+            ? DossierFolderReader.Read(folder.Value.Folder, path, cancellationToken)
+            : DossierFolderReader.Search(folder.Value.Folder, q.Trim(), take: 200, cancellationToken));
     }
 
     private static async Task<IResult> SetAsync(

@@ -138,6 +138,103 @@ public static class DossierFolderReader
     /// the full listing would weigh every subfolder separately, which is several walks of a tree that
     /// runs to four thousand files in the largest of hers.</para>
     /// </summary>
+    /// <summary>
+    /// Every file in the dossier whose name matches, wherever it is nested.
+    ///
+    /// <para><b>Why this is not done in the window.</b> The tree loads a level at a time, so the
+    /// renderer only ever holds the folders she has opened. Filtering those would answer « rien de ce
+    /// nom ici » about a dossier that contains exactly what she asked for, three folders down, which
+    /// is worse than no search at all: it does not fail, it lies.</para>
+    ///
+    /// <para>Matched without accents and without case, because « Piece » has to find « Pièce » and
+    /// nobody types the accents into a search box. Capped, because a dossier of 4 559 documents and a
+    /// query of « e » is not a list anyone reads.</para>
+    /// </summary>
+    public static FolderListing Search(
+        string? folder,
+        string query,
+        int take,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            return new FolderListing(folder, Missing: !string.IsNullOrWhiteSpace(folder), 0, 0, []);
+        }
+
+        var root = Path.GetFullPath(folder);
+        var needle = Fold(query);
+        var found = new List<FolderEntry>();
+        long bytes = 0;
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var name = Path.GetFileName(file);
+
+                if (IsNoise(name) || !Fold(name).Contains(needle, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var info = new FileInfo(file);
+                bytes += info.Length;
+
+                if (found.Count < take)
+                {
+                    found.Add(new FolderEntry(
+                        name,
+                        Relative(root, file),
+                        IsFolder: false,
+                        info.Length,
+                        new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+                        IsMail: name.EndsWith(".msg", StringComparison.OrdinalIgnoreCase)
+                                || name.EndsWith(".eml", StringComparison.OrdinalIgnoreCase),
+                        Exhibits.NumberOf(name)));
+                }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // A folder she cannot read is not a reason to return nothing: what was found still counts.
+        }
+
+        // Newest first. A search in a dossier is nearly always for something recent.
+        found.Sort((left, right) => right.ModifiedAt.CompareTo(left.ModifiedAt));
+
+        return new FolderListing(folder, Missing: false, found.Count, bytes, found);
+    }
+
+    /// <summary>
+    /// Accents and case removed. <c>Normalize(FormD)</c> is a no-op under InvariantGlobalization,
+    /// which is on, so the mapping is explicit; the same trap silently read every accented money
+    /// column in the Gestisoft import as zero.
+    /// </summary>
+    private static string Fold(string value)
+    {
+        var folded = new char[value.Length];
+
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = char.ToLowerInvariant(value[index]);
+
+            folded[index] = character switch
+            {
+                'à' or 'â' or 'ä' => 'a',
+                'é' or 'è' or 'ê' or 'ë' => 'e',
+                'î' or 'ï' => 'i',
+                'ô' or 'ö' => 'o',
+                'ù' or 'û' or 'ü' => 'u',
+                'ç' => 'c',
+                _ => character,
+            };
+        }
+
+        return new string(folded);
+    }
+
     public static (int Files, IReadOnlyList<FolderEntry> Recent) Summarise(
         string? folder,
         int take,

@@ -128,59 +128,9 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
         actions={actions}
       />
 
-      {/* Facturation left, échéances right, which is the way round she asked for: the money is what
-          she opens the application to look at, and the eye starts on the left. 1fr / 1.32fr keeps the
-          deadlines column wide enough to hold a label, its dossier and a distance without truncating
-          all three. */}
-      <div className="grid flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.32fr)] gap-4 overflow-y-auto px-5 py-4">
-        <div className="grid content-start gap-4">
-          {/* Above the unbilled card: « ai-je facturé ce que j'ai travaillé » comes before
-              « combien reste-t-il à demander ». */}
-          <HonorairesCard data={data.honoraires} />
-
-          <Chiffre exercices={data.exercices} />
-
-          <Unbilled data={data} onOpenMatter={onOpenMatter} />
-
-          <section>
-            <SectionTitle action="⌘K">Dossiers récemment touchés</SectionTitle>
-
-            <div className="overflow-hidden rounded-md border border-line-subtle">
-              {data.recentMatters.map((matter, index) => (
-                <button
-                  key={matter.id}
-                  type="button"
-                  onClick={() => onOpenMatter(matter.id)}
-                  className={cn(
-                    'flex h-[38px] w-full items-center gap-2.5 px-2.5 text-left hover:bg-hover',
-                    index > 0 && 'border-t border-line-subtle',
-                    index === 0 && 'bg-[#F8F9F6]',
-                  )}
-                >
-                  <span className="grid min-w-0 flex-1">
-                    <span
-                      className={cn('truncate text-[12.5px] leading-4', index === 0 && 'font-medium')}
-                    >
-                      {matter.name}
-                    </span>
-                    {/* The dossier name alone does not tell her where she was. */}
-                    <span className="truncate text-[11px] leading-[15px] text-muted">
-                      {matter.lastActivityType && `${activityLabels[matter.lastActivityType]} · `}
-                      {matter.lastActivitySummary}
-                    </span>
-                  </span>
-
-                  <span className="shrink-0 font-mono text-[10.5px] whitespace-nowrap text-muted tnum">
-                    {formatRelative(matter.lastActivityAt)}
-                  </span>
-                </button>
-              ))}
-
-              {data.recentMatters.length === 0 && (
-                <p className="m-0 px-2.5 py-3 type-caption text-muted">
-                  Aucun dossier ouvert pour l’instant.
-                </p>
-              )}
+      {/* 1.32fr / 1fr: the deadlines column has to hold a label, its dossier and a distance without
+          truncating all three, and the right column is a stack of two summaries. */}
+      <div className="grid flex-1 grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] gap-4 overflow-y-auto px-5 py-4">
         <section className="grid content-start">
           <SectionTitle count={data.deadlines.length}>Échéances des 30 prochains jours</SectionTitle>
 
@@ -238,7 +188,56 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
             </p>
           )}
         </section>
-      </div>
+
+        <div className="grid content-start gap-4">
+          {/* Above the unbilled card, same width: « ai-je facturé ce que j'ai travaillé » comes
+              before « combien reste-t-il à demander ». */}
+          <HonorairesCard data={data.honoraires} />
+
+          <Chiffre exercices={data.exercices} />
+
+          <Unbilled data={data} onOpenMatter={onOpenMatter} />
+
+          <section>
+            <SectionTitle action="⌘K">Dossiers récemment touchés</SectionTitle>
+
+            <div className="overflow-hidden rounded-md border border-line-subtle">
+              {data.recentMatters.map((matter, index) => (
+                <button
+                  key={matter.id}
+                  type="button"
+                  onClick={() => onOpenMatter(matter.id)}
+                  className={cn(
+                    'flex h-[38px] w-full items-center gap-2.5 px-2.5 text-left hover:bg-hover',
+                    index > 0 && 'border-t border-line-subtle',
+                    index === 0 && 'bg-[#F8F9F6]',
+                  )}
+                >
+                  <span className="grid min-w-0 flex-1">
+                    <span
+                      className={cn('truncate text-[12.5px] leading-4', index === 0 && 'font-medium')}
+                    >
+                      {matter.name}
+                    </span>
+                    {/* The dossier name alone does not tell her where she was. */}
+                    <span className="truncate text-[11px] leading-[15px] text-muted">
+                      {matter.lastActivityType && `${activityLabels[matter.lastActivityType]} · `}
+                      {matter.lastActivitySummary}
+                    </span>
+                  </span>
+
+                  <span className="shrink-0 font-mono text-[10.5px] whitespace-nowrap text-muted tnum">
+                    {formatRelative(matter.lastActivityAt)}
+                  </span>
+                </button>
+              ))}
+
+              {data.recentMatters.length === 0 && (
+                <p className="m-0 px-2.5 py-3 type-caption text-muted">
+                  Aucun dossier ouvert pour l’instant.
+                </p>
+              )}
+            </div>
           </section>
         </div>
       </div>

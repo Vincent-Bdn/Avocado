@@ -25,6 +25,19 @@
     </PackageReference>
     <PackageReference Include="MimeKit" Version="4.17.0" />
     <PackageReference Include="MsgReader" Version="6.1.0" />
+    <PackageReference Include="PDFsharp" Version="6.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Drawn onto a stamped pièce. PDFsharp carries no font of its own and throws
+      "No appropriate font found" for every family name, Helvetica included, unless a resolver is
+      registered: that failed on Windows exactly as readily as on Linux. IBM Plex Sans is the
+      interface's own typeface, is under the SIL Open Font License, and travels inside the binary so
+      that a pièce stamped on a Mac and one stamped on a PC carry the same glyphs. The licence sits
+      beside the file, as the OFL requires. See StampFont.
+    -->
+    <EmbeddedResource Include="Resources\IBMPlexSans.ttf" />
   </ItemGroup>
 
   <ItemGroup>
