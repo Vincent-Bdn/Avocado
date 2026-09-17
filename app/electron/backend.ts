@@ -10,8 +10,15 @@ export interface BackendHandshake {
   token: string
   /** Absent, Locked or Unlocked. The renderer decides between wizard and application from this. */
   vaultState: string
-  /** Where dossiers are opened, the folder the user chose. */
-  /** Where single documents are checked out. Separate from the above, and where a document opens from. */
+  /**
+   * This build's version, « 0.0.5 ».
+   *
+   * <p>It travels on the handshake rather than through a channel of its own, because the preload
+   * surface is a list somebody has to read and justify, and this is one string. Until it existed,
+   * nothing in the application said which version was running, so « I replaced the app and it did
+   * not work » was a sentence nobody could check, least of all the person saying it.</p>
+   */
+  version: string
 }
 
 const READY_PREFIX = 'AVOCADO_READY '
@@ -98,6 +105,34 @@ export class Backend {
         // recovery-key path, surface its own words rather than a generic failure.
         reject(new Error(stderr.join('').trim() || `Le service Avocado s’est arrêté (code ${code}).`))
       })
+    })
+  }
+
+  /**
+   * Asks the service to stop and waits for it to actually go.
+   *
+   * <p>The wait is the point. The backend's last act is a snapshot of the afternoon's work and a push
+   * to whatever destination is plugged in, and that runs in <c>IHostedService.StopAsync</c>. Killing
+   * the process and quitting immediately, which is what happened before, threw that away every time
+   * somebody closed the laptop at six.</p>
+   *
+   * <p>On Windows there is no SIGTERM and Node's kill is a hard terminate, so this resolves at once
+   * and the shutdown pass does not run. That is a known limitation rather than a silent one: the
+   * backup service is written so the next launch reconciles whatever the last one could not finish.</p>
+   */
+  drain(): Promise<void> {
+    const child = this.process
+
+    if (!child || child.exitCode !== null) {
+      this.process = null
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve) => {
+      child.once('exit', () => resolve())
+      child.kill('SIGTERM')
+    }).finally(() => {
+      this.process = null
     })
   }
 

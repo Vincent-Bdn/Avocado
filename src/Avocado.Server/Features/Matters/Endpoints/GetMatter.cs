@@ -74,6 +74,7 @@ public static class GetMatter
             matter.OpenedOn,
             matter.ClosedOn,
             matter.HourlyRateCents,
+            matter.FixedFeeCents,
             matter.CourtCaseNumber,
             matter.Classification,
             matter.Court,

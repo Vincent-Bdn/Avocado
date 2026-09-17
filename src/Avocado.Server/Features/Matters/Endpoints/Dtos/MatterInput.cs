@@ -16,6 +16,7 @@ public sealed record MatterInput(
     DateOnly? OpenedOn,
     long? HourlyRateCents,
     string? CourtCaseNumber,
+    long? FixedFeeCents = null,
     string? Classification = null,
     string? Court = null,
     bool IsFavourite = false)
@@ -28,6 +29,8 @@ public sealed record MatterInput(
             "Un dossier doit avoir un client.",
         { HourlyRateCents: < 0 } =>
             "Le taux horaire ne peut pas être négatif.",
+        { FixedFeeCents: < 0 } =>
+            "Le forfait ne peut pas être négatif.",
         // The two litigation fields only mean anything on a contentieux, and silently keeping a stale
         // n° RG on a dossier reclassified as conseil is how a header ends up lying.
         { Classification: var kind, CourtCaseNumber: not null } when !IsLitigation(kind) =>

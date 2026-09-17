@@ -39,6 +39,9 @@ export function MatterForm({ matter, onSaved, onCancel }: {
   const [courtCaseNumber, setCourtCaseNumber] = useState(matter?.courtCaseNumber ?? '')
   const [description, setDescription] = useState(matter?.description ?? '')
   const [rate, setRate] = useState(matter ? centsToAmount(matter.hourlyRateCents) : '')
+  const [forfait, setForfait] = useState(
+    matter?.fixedFeeCents ? centsToAmount(matter.fixedFeeCents) : '',
+  )
   const [favourite, setFavourite] = useState(matter?.isFavourite ?? false)
 
   /**
@@ -99,6 +102,7 @@ export function MatterForm({ matter, onSaved, onCancel }: {
         description: description.trim() || null,
         openedOn: matter?.openedOn.slice(0, 10) ?? null,
         hourlyRateCents: rateCents,
+        fixedFeeCents: parseAmountToCents(forfait),
         classification: classification.trim() || null,
         // Both only mean something on a contentieux, and the server refuses them elsewhere.
         court: litigation ? court.trim() || null : null,
@@ -231,6 +235,15 @@ export function MatterForm({ matter, onSaved, onCancel }: {
             value={reference}
             placeholder="attribuée automatiquement"
             onChange={(event) => setReference(event.target.value)}
+          />
+        </Field>
+
+        <Field label="Forfait convenu (€ HT, facultatif)">
+          <Input
+            value={forfait}
+            placeholder="3 000,00"
+            className="font-mono tnum"
+            onChange={(event) => setForfait(event.target.value)}
           />
         </Field>
 

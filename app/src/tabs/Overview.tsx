@@ -82,7 +82,17 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
           <Entry term="N° RG" value={matter.courtCaseNumber} mono />
           <Entry term="Ouvert le" value={date(matter.openedOn)} mono />
           {matter.closedOn && <Entry term="Clôturé le" value={date(matter.closedOn)} mono />}
-          <Entry term="Taux horaire" value={`${euros(matter.hourlyRateCents)} / heure`} mono last />
+          <Entry
+            term="Taux horaire"
+            value={`${euros(matter.hourlyRateCents)} / heure`}
+            mono
+            last={matter.fixedFeeCents === null}
+          />
+          {/* Only when there is one. A dossier facturé à l'heure has no forfait, and an empty row
+              saying so would be a line of nothing on every fiche in the cabinet. */}
+          {matter.fixedFeeCents !== null && (
+            <Entry term="Forfait convenu" value={`${euros(matter.fixedFeeCents)} HT`} mono last />
+          )}
         </dl>
 
         <SectionTitle

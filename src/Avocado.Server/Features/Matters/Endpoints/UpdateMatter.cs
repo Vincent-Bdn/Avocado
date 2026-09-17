@@ -47,6 +47,10 @@ public static class UpdateMatter
         matter.Court = CreateMatter.Trimmed(input.Court);
         matter.IsFavourite = input.IsFavourite;
 
+        // Unlike the taux horaire, this reprices nothing behind it: it is the price of the facture
+        // she has not issued yet, so changing it is simply changing her mind about a number.
+        matter.FixedFeeCents = input.FixedFeeCents;
+
         if (input.OpenedOn is { } openedOn)
         {
             matter.OpenedOn = openedOn;

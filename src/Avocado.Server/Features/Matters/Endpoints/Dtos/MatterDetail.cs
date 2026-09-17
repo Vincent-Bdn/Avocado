@@ -48,6 +48,8 @@ public sealed record MatterDetail(
     DateOnly OpenedOn,
     DateOnly? ClosedOn,
     long HourlyRateCents,
+    /// <summary>Le forfait convenu, en centimes. Null quand le dossier est facturé à l'heure.</summary>
+    long? FixedFeeCents,
     string? CourtCaseNumber,
     string? Classification,
     string? Court,

@@ -87,7 +87,10 @@ function applyContentSecurityPolicy(): void {
             // payloads at all.
             "img-src 'self'",
             "font-src 'self'",
-            `connect-src 'self' ${handshake?.url ?? ''} https://recherche-entreprises.api.gouv.fr`,
+            // Two hosts, and both are switchable off in Réglages: the annuaire, and the release
+            // feed that tells her a new version exists. Nothing is ever downloaded from the second
+            // one, the answer is a version number and she decides what to do about it.
+            `connect-src 'self' ${handshake?.url ?? ''} https://recherche-entreprises.api.gouv.fr https://api.github.com`,
             "object-src 'none'",
             "frame-src 'none'",
           ].join('; '),
@@ -119,7 +122,9 @@ app.whenReady().then(async () => {
     // The working folder is deliberately not imposed here any more. The backend resolves it from the machine's own
     // preference, which is what lets Réglages move it: a path forced in by the shell would have made
     // that setting permanently read-only.
-    handshake = await backend.start(vaultDirectory)
+    // The version is the shell's, not the backend's: it is the number on the .dmg the user
+    // downloaded, and therefore the one that answers « did the update take ».
+    handshake = { ...(await backend.start(vaultDirectory)), version: app.getVersion() }
 
     // Resolved before the window exists, so the renderer never has to ask twice or poll.
     ipcMain.handle('avocado:connection', () => handshake)
@@ -311,14 +316,18 @@ app.on('before-quit', (event) => {
     app.quit()
   }
 
-  // Five seconds, then go anyway. A quit that hangs on a stuck file handle is worse than a folder
-  // the next launch will reconcile.
+  // This used to ask the backend to close every checked-out document first, which mattered while
+  // documents were copied out of the coffre to be edited. They are not: they live in her own folders
+  // and are never checked out of anything, and the endpoint this called was deleted with the rest of
+  // that machinery. It has been a request to a route that answers 404 on every quit since.
+  //
+  // What the wait still buys is the backend's own shutdown pass, which snapshots the afternoon's work
+  // and pushes it to any destination that is plugged in. Five seconds, then go anyway: a quit that
+  // hangs is worse than a snapshot the next launch will take.
   const deadline = setTimeout(done, 5_000)
 
-  fetch(`${handshake.url}/api/checkouts/close-all`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${handshake.token}` },
-  })
+  backend
+    .drain()
     .catch(() => undefined)
     .finally(() => {
       clearTimeout(deadline)

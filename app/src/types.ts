@@ -77,6 +77,8 @@ export interface MatterDetail {
   openedOn: string
   closedOn: string | null
   hourlyRateCents: number
+  /** Le forfait convenu, en centimes. Null quand le dossier est facturé à l'heure. */
+  fixedFeeCents: number | null
   courtCaseNumber: string | null
   classification: string | null
   court: string | null

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, HandCoins, ListChecks, PenLine,
+  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, FileText, HandCoins, ListChecks, PenLine,
   Pencil, Trash2, X,
 } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
@@ -134,16 +134,22 @@ export function Billing({ matterId, isOpen, onChanged }: {
     onChanged()
   }
 
-  /** Says where the file went. An export that reports nothing is an export you have to go and check. */
-  async function exportDetail(invoice: BillingInvoice) {
+  /**
+   * Says where the file went. An export that reports nothing is an export you have to go and check.
+   *
+   * <p>Two formats, because they are two different jobs. The Word document is the annexe she sends
+   * with the facture, in her own layout. The spreadsheet is the one she works from: durations as
+   * numbers, a rate column and a montant column, to sort, re-sum and paste into the platform that
+   * issues the invoice.</p>
+   */
+  async function exportDetail(invoice: BillingInvoice, format: 'docx' | 'xlsx') {
+    const stem = `detail-facture-${invoice.externalReference ?? invoice.date.slice(0, 10)}`
+
     try {
-      const saved = await saveAs(
-        `/api/invoices/${invoice.id}/detail.docx`,
-        `detail-facture-${invoice.externalReference ?? invoice.date.slice(0, 10)}.docx`,
-      )
+      const saved = await saveAs(`/api/invoices/${invoice.id}/detail.${format}`, `${stem}.${format}`)
 
       if (saved) {
-        toasts.succeeded('Détail de facturation enregistré', saved)
+        toasts.succeeded('Détail enregistré', saved)
       }
     } catch (failure) {
       toasts.failed('Export impossible', messageOf(failure))
@@ -336,12 +342,20 @@ export function Billing({ matterId, isOpen, onChanged }: {
 
                 <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   {invoice.billedEntryCount > 0 && (
-                    <RowAction
-                      label="Détail de facturation (Excel), à joindre à la facture"
-                      onClick={() => void exportDetail(invoice)}
-                    >
-                      <FileSpreadsheet size={13} strokeWidth={1.75} />
-                    </RowAction>
+                    <>
+                      <RowAction
+                        label="Détail à joindre à la facture (Word)"
+                        onClick={() => void exportDetail(invoice, 'docx')}
+                      >
+                        <FileText size={13} strokeWidth={1.75} />
+                      </RowAction>
+                      <RowAction
+                        label="Détail des temps passés (Excel), pour préparer la facture"
+                        onClick={() => void exportDetail(invoice, 'xlsx')}
+                      >
+                        <FileSpreadsheet size={13} strokeWidth={1.75} />
+                      </RowAction>
+                    </>
                   )}
 
                   {isOpen && (

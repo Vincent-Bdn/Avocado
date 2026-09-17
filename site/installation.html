@@ -628,6 +628,55 @@
         </div>
       </section>
 
+      <section id="mettre-a-jour">
+        <p class="eyebrow">Plus tard</p>
+        <h2>Mettre à jour</h2>
+
+        <p>
+          Avocado ne se met pas à jour tout seul. Il vous dit qu’une version existe, dans Réglages,
+          rubrique « Version et mises à jour », et c’est vous qui décidez. <strong>Vos dossiers, votre
+          journal et vos sauvegardes ne sont jamais touchés</strong> : ils vivent ailleurs que
+          l’application, et la nouvelle version les reprend là où l’ancienne les avait laissés.
+        </p>
+
+        <div class="callout">
+          <p class="callout__title">D’abord, quittez Avocado</p>
+          <p>
+            Vraiment quitter, pas seulement fermer la fenêtre : sur Mac, menu Avocado, Quitter, ou
+            <kbd>⌘</kbd> <kbd>Q</kbd>. Remplacer une application pendant qu’elle tourne est la raison
+            n°1 pour laquelle une mise à jour « ne marche pas » : le fichier est remplacé, mais c’est
+            l’ancienne version qui continue de tourner, et elle se réinstalle en se refermant.
+          </p>
+        </div>
+
+        <ol class="steps">
+          <li>
+            <h3>Sur Mac</h3>
+            <p>
+              Téléchargez le nouveau <code>.dmg</code>, ouvrez-le, glissez Avocado sur Applications et
+              acceptez le remplacement. Puis <strong>refaites la ligne du Terminal</strong>, car macOS
+              repose ses étiquettes sur chaque fichier téléchargé, y compris sur une mise à jour :
+            </p>
+            <pre><code>xattr -cr /Applications/Avocado.app</code></pre>
+          </li>
+          <li>
+            <h3>Sur Windows</h3>
+            <p>
+              Relancez le programme d’installation téléchargé. Il remplace la version en place sans
+              rien vous demander d’autre.
+            </p>
+          </li>
+          <li>
+            <h3>Vérifiez que c’est bien fait</h3>
+            <p>
+              Ouvrez Avocado, puis Réglages, « Version et mises à jour ». Le numéro affiché est celui
+              qui tourne réellement. S’il n’a pas changé, c’est que le remplacement n’a pas eu lieu,
+              le plus souvent parce qu’Avocado n’était pas quitté.
+            </p>
+          </li>
+        </ol>
+      </section>
+
       <section>
         <h2>Désinstaller</h2>
         <p>

@@ -5,6 +5,13 @@ import { ApiError, api, post } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { Select } from './components/ui/select.js'
+import {
+  fetchLatest,
+  isNewer,
+  setUpdateChecksEnabled,
+  updateChecksEnabled,
+  type LatestVersion,
+} from './lib/updates.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
 import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
@@ -126,6 +133,16 @@ export function Settings() {
           onToggle={toggle}
         >
           <Templates />
+        </Section>
+
+        <Section
+          id="version"
+          title="Version et mises à jour"
+          summary="Ce qui est installé, et comment savoir qu’il existe mieux"
+          open={open === 'version'}
+          onToggle={toggle}
+        >
+          <About />
         </Section>
 
         <Section
@@ -419,6 +436,108 @@ function HourlyRate() {
       </p>
 
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+    </>
+  )
+}
+
+/**
+ * Ce qui est installé, et s’il existe mieux.
+ *
+ * <p>The version was shown nowhere at all until this existed, which made « j’ai remplacé
+ * l’application et ça n’a pas marché » a sentence nobody could check. It is the first line here for
+ * that reason: whatever else this section does, it answers that question.</p>
+ */
+function About() {
+  const [running, setRunning] = useState<string | null>(null)
+  const [latest, setLatest] = useState<LatestVersion | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [enabled, setEnabled] = useState(updateChecksEnabled)
+
+  useEffect(() => {
+    void window.avocado.connection().then((connection) => setRunning(connection.version))
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const controller = new AbortController()
+    void fetchLatest(controller.signal).then(setLatest)
+
+    return () => controller.abort()
+  }, [enabled])
+
+  async function checkNow() {
+    setChecking(true)
+    try {
+      // Forced: the once-a-day rule is there so the feed is not polled, not to stop her asking.
+      localStorage.removeItem('avocado.updates.lastCheck')
+      setLatest(await fetchLatest())
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const behind = latest !== null && running !== null && isNewer(latest.version, running)
+
+  return (
+    <>
+      <div className="flex flex-wrap items-baseline gap-2">
+        <span className="text-[12.5px] text-muted">Version installée</span>
+        <span className="font-mono text-[13px] tnum text-ink">{running ?? 'n/d'}</span>
+      </div>
+
+      {behind && latest && (
+        <div className="flex flex-wrap items-center gap-2.5 rounded-sm border border-[#E8D5AE] bg-warning-bg px-2.5 py-2">
+          <span className="text-[12.5px] text-ink">
+            La version <strong>{latest.version}</strong> est disponible.
+          </span>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => window.open(latest.url, '_blank', 'noopener,noreferrer')}
+          >
+            Voir les nouveautés
+          </Button>
+        </div>
+      )}
+
+      {enabled && !behind && latest !== null && (
+        <p className="m-0 text-[12.5px] text-success">Vous avez la dernière version.</p>
+      )}
+
+      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+        Avocado ne se met jamais à jour tout seul et ne télécharge rien : il demande une fois par
+        jour au dépôt public quel est le dernier numéro de version publié, et vous le dit. Rien
+        d’autre ne sort de votre ordinateur, pas même la version que vous utilisez. C’est vous qui
+        décidez d’installer, ou non.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-[12.5px]">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(event) => {
+              setUpdateChecksEnabled(event.target.checked)
+              setEnabled(event.target.checked)
+              if (!event.target.checked) setLatest(null)
+            }}
+          />
+          Vérifier si une nouvelle version est disponible
+        </label>
+
+        {enabled && (
+          <Button variant="secondary" size="sm" disabled={checking} onClick={() => void checkNow()}>
+            {checking ? 'Vérification…' : 'Vérifier maintenant'}
+          </Button>
+        )}
+      </div>
+
+      {!enabled && (
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          Aucune requête n’est faite. Les nouvelles versions sont annoncées sur le site.
+        </p>
+      )}
     </>
   )
 }

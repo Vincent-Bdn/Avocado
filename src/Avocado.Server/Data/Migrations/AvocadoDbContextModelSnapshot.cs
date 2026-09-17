@@ -549,6 +549,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("documents_folder");
 
+                    b.Property<long?>("FixedFeeCents")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("fixed_fee_cents");
+
                     b.Property<long>("HourlyRateCents")
                         .HasColumnType("INTEGER")
                         .HasColumnName("hourly_rate_cents");

@@ -49,9 +49,10 @@ la machine. Dans les sauvegardes, en revanche, c'est Avocado qui les chiffre.
 liée à cette machine et à cette session. La **clé de récupération**, neuf groupes de six caractères,
 est l'autre chemin et le seul qui traverse les machines. Il n'en existe aucune autre copie.
 
-**Une seule requête sort de la machine**, la recherche dans l'annuaire des entreprises, et elle se
-coupe d'un interrupteur. Pas de compte, pas de télémétrie, pas de synchronisation, pas de mise à jour
-silencieuse.
+**Deux requêtes sortent de la machine**, et chacune se coupe d'un interrupteur : la recherche dans
+l'annuaire des entreprises, et une fois par jour « existe-t-il une version plus récente ? », qui
+n'envoie aucun identifiant et ne télécharge rien. Pas de compte, pas de télémétrie, pas de
+synchronisation, pas d'installation automatique.
 
 Le détail, et ce que l'application refuse de faire, sont sur
 [la page « Vos données »](https://vincent-bdn.github.io/Avocado/donnees.html) et dans

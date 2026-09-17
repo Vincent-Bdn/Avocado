@@ -55,6 +55,7 @@ public static class CreateMatter
             Classification = Trimmed(input.Classification),
             Court = Trimmed(input.Court),
             IsFavourite = input.IsFavourite,
+            FixedFeeCents = input.FixedFeeCents,
         };
 
         matter.Parties.Add(new MatterParty

@@ -205,7 +205,14 @@ It is constrained on every side:
 - a switch turns it off entirely, no request is made, the field becomes plain text, and the word
   *annuaire* disappears from the interface.
 
-Nothing else. No account, no telemetry, no crash reporting, no update check, no analytics.
+**A second, and last: the release feed.** Once a day at most, the renderer asks GitHub's public
+releases endpoint for the latest version number and shows it in Réglages. It downloads nothing,
+installs nothing, sends no identifier and does not even say which version is running. It has its own
+switch, and off means no request. It exists because a beta cabinet spent a month on a build four
+releases old, reporting bugs that had been fixed in August: nothing in the application said which
+version was installed, and replacing an app on macOS gives no feedback at all.
+
+Nothing else. No account, no telemetry, no crash reporting, no automatic installation, no analytics.
 
 ---
 

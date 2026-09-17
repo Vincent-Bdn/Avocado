@@ -24,6 +24,21 @@ public class Matter
     public long HourlyRateCents { get; set; }
 
     /// <summary>
+    /// « Je négocie 3 000 € pour l'affaire », in cents. Null when the dossier is billed at the hour.
+    ///
+    /// <para><b>It prices the facture; it never prices the time.</b> The hours are still recorded at
+    /// the taux horaire and still add up to whatever they add up to, and the difference between that
+    /// and the forfait is the boni or the mali the fiche already shows. Recording 4 000 € of time
+    /// against a 3 000 € forfait is not a mistake to be corrected: it is the thing she wants to see,
+    /// because it is what tells her the next forfait of this kind should be 4 000.</para>
+    ///
+    /// <para>And once that facture exists, « reste à facturer » is zero. The hours belong to it, the
+    /// client owes the forfait, and the extra thousand euros of work is a lesson rather than a debt.
+    /// That arithmetic already worked; what was missing was anywhere to write the figure down.</para>
+    /// </summary>
+    public long? FixedFeeCents { get; set; }
+
+    /// <summary>
     /// N° RG, the court's docket number. Nullable because advisory work, drafting and transactions
     /// never reach a court, and the header omits the segment entirely rather than showing a dash.
     /// Indexed because when the greffe telephones they quote this, not a name.

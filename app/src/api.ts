@@ -2,7 +2,7 @@
 declare global {
   interface Window {
     avocado: {
-      connection: () => Promise<{ url: string; token: string; vaultState: string }>
+      connection: () => Promise<{ url: string; token: string; vaultState: string; version: string }>
       chooseFolder: (startIn?: string, title?: string) => Promise<string | null>
       chooseFile: (title: string, startIn?: string, extensions?: string[]) => Promise<string | null>
       revealFolder: (folder: string) => Promise<string | null>
