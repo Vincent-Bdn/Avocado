@@ -14,6 +14,7 @@ import {
 } from './lib/updates.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
+import { Unavailable } from './components/ui/unavailable.js'
 import { useToasts } from './components/ui/toast.js'
 import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
 import { Backups } from './sections/Backups.js'
@@ -587,8 +588,11 @@ function Stamp() {
 
   const reload = () => {
     void api<{ configured: boolean; options: StampOptions }>('/api/settings/stamp')
-      .then(setView)
-      .catch(() => setView(null))
+      .then((fetched) => { setView(fetched); setError(null) })
+      // Named, never swallowed. This used to set the view to null and the section then rendered
+      // nothing, so a 404 from an out-of-date backend looked like a feature that was simply empty.
+      .catch((failure: unknown) =>
+        setError(failure instanceof ApiError ? failure.message : String(failure)))
   }
 
   useEffect(reload, [])
@@ -653,7 +657,9 @@ function Stamp() {
     }
   }
 
-  if (view === null) return null
+  if (view === null) {
+    return error === null ? null : <Unavailable detail={error} onRetry={reload} />
+  }
 
   const options = view.options
 

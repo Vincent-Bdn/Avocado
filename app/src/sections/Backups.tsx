@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Check, FolderOpen, HardDrive, Loader2, Plus, Trash2, Usb } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
+import { Unavailable } from '../components/ui/unavailable.js'
 import { Select } from '../components/ui/select.js'
 import { cn } from '../lib/utils.js'
 
@@ -84,7 +85,12 @@ export function Backups() {
   const [pending, setPending] = useState<{ body: object; detail: string } | null>(null)
 
   const reload = useCallback(() => {
-    api<Status>('/api/backups').then(setStatus).catch(() => setStatus(null))
+    api<Status>('/api/backups')
+      .then((fetched) => { setStatus(fetched); setError(null) })
+      // A backup screen that renders nothing when it cannot load is the one screen that must never
+      // do that: « rien ne s'affiche » reads as « rien à sauvegarder ».
+      .catch((failure: unknown) =>
+        setError(failure instanceof ApiError ? failure.message : String(failure)))
     api<Volume[]>('/api/backups/volumes').then(setVolumes).catch(() => setVolumes([]))
   }, [])
 
@@ -131,7 +137,9 @@ export function Backups() {
       }),
     )
 
-  if (!status) return null
+  if (!status) {
+    return error === null ? null : <Unavailable detail={error} onRetry={reload} />
+  }
 
   const unconfigured = volumes.filter(
     (volume) => !status.destinations.some((destination) => destination.location === volume.path),
