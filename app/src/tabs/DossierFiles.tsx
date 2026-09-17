@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertCircle, ChevronRight, Folder, FolderOpen, Loader2, Paperclip, Search, X } from 'lucide-react'
-import { ApiError, api, post } from '../api.js'
+import { AlertCircle, ChevronRight, Folder, FolderOpen, Loader2, Search, Stamp, X } from 'lucide-react'
+import { ApiError, api } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { Input } from '../components/ui/input.js'
 import { useToasts } from '../components/ui/toast.js'
 import { FileGlyph } from './FileGlyph.js'
 import { EmptyState } from '../components/ui/empty-state.js'
 import { TabPanel } from './shared.js'
+import { VerserPiecesPanel, type Picked } from './VerserPieces.js'
 import { formatSize } from '../lib/urgency.js'
 import { cn } from '../lib/utils.js'
 
@@ -65,6 +66,9 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
   const [query, setQuery] = useState('')
   const [found, setFound] = useState<FolderEntry[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Files ticked for versement, by relative path, in the order she ticked them. */
+  const [picked, setPicked] = useState<Picked[]>([])
+  const [versing, setVersing] = useState(false)
   const toasts = useToasts()
 
   const reload = useCallback(() => {
@@ -103,6 +107,7 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
     setExpanded(new Set())
     setChildren({})
     setQuery('')
+    setPicked([])
   }, [folder])
 
   /**
@@ -177,25 +182,12 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
     await window.avocado.revealFile(`${folder}\\${entry.relativePath.replace(/\//g, '\\')}`)
   }
 
-  async function verser(entry: FolderEntry) {
-    setError(null)
-
-    try {
-      const { number } = await post<{ number: number; name: string }>(
-        `/api/matters/${matterId}/exhibits/verser`,
-        { relativePath: entry.relativePath, label: null },
-      )
-
-      toasts.succeeded(
-        `Versé comme pièce ${number}`,
-        'Une copie a été écrite dans le sous-dossier « Pièces ». L’original n’a pas bougé.',
-      )
-
-      reload()
-      onChanged()
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : String(failure))
-    }
+  function pick(entry: FolderEntry) {
+    setPicked((chosen) => chosen.some((file) => file.relativePath === entry.relativePath)
+      ? chosen.filter((file) => file.relativePath !== entry.relativePath)
+      // Appended, not sorted: the order she ticks them in is the order they are numbered, and a
+      // bordereau's order is an argument rather than a listing.
+      : [...chosen, { name: entry.name, relativePath: entry.relativePath }])
   }
 
   // The state every dossier starts in, and the only thing to do about it.
@@ -224,6 +216,7 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
       const isExpanded = expanded.has(entry.relativePath)
       const isLoading = loading.has(entry.relativePath)
       const inside = children[entry.relativePath]
+      const chosen = picked.some((file) => file.relativePath === entry.relativePath)
 
       const row = (
         <div
@@ -289,18 +282,22 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
             {when(entry.modifiedAt)}
           </span>
 
-          {/* Versement writes a numbered copy into « Pièces ». Not offered on a pièce, which is
-              already one, nor on a folder, nor on a dossier clôturé. */}
-          <span className="w-6 shrink-0">
+          {/* Ticked for versement. Not offered on a pièce, which is already one, nor on a folder,
+              nor on a dossier clôturé. The box stays visible once ticked, so a selection spread over
+              three open sub-folders is still visible as one. */}
+          <span className="grid h-6 w-6 shrink-0 place-items-center">
             {isOpen && !entry.isFolder && entry.exhibitNumber === null && (
-              <button
-                type="button"
-                title="Verser comme pièce : une copie numérotée dans « Pièces »"
-                onClick={() => void verser(entry)}
-                className="grid h-6 w-6 place-items-center rounded-[3px] text-ink-secondary opacity-0 hover:bg-hover focus-visible:opacity-100 group-hover:opacity-100"
-              >
-                <Paperclip size={13} strokeWidth={1.75} />
-              </button>
+              <input
+                type="checkbox"
+                aria-label={`Verser ${entry.name} comme pièce`}
+                title="Verser comme pièce"
+                checked={chosen}
+                onChange={() => pick(entry)}
+                className={cn(
+                  'cursor-pointer',
+                  !chosen && 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
+                )}
+              />
             )}
           </span>
         </div>
@@ -410,12 +407,66 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
             )}
           </div>
 
+          {picked.length > 0 && (
+            <div className="sticky bottom-0 flex flex-wrap items-center gap-2.5 rounded-md border border-brand bg-brand-subtle px-3 py-2">
+              <span className="text-[12.5px] text-brand-on-subtle">
+                {picked.length} fichier{picked.length > 1 ? 's' : ''} sélectionné
+                {picked.length > 1 ? 's' : ''}
+              </span>
+
+              <span className="flex-1" />
+
+              <Button variant="secondary" size="sm" onClick={() => setPicked([])}>
+                Tout décocher
+              </Button>
+
+              <Button size="sm" onClick={() => setVersing(true)}>
+                <Stamp size={13} strokeWidth={1.75} />
+                Verser comme pièces
+              </Button>
+            </div>
+          )}
+
           <p className="m-0 text-[11px] leading-4 text-muted">
             {listing.files.toLocaleString('fr-FR')} fichiers dans ce dossier,{' '}
             {(listing.bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go. Avocado
             les lit et ne les déplace pas ; il en copie une version chiffrée dans ses sauvegardes.
           </p>
         </>
+      )}
+
+      {versing && (
+        <VerserPiecesPanel
+          matterId={matterId}
+          picked={picked}
+          onClose={() => setVersing(false)}
+          onDone={(result) => {
+            setVersing(false)
+            setPicked([])
+
+            const written = result.pieces.filter((piece) => piece.error === null)
+
+            if (result.failed > 0) {
+              // Named rather than counted away: she has to know which one is not in the bordereau.
+              setError(
+                `${result.failed} fichier(s) non versé(s) : `
+                + result.pieces.filter((piece) => piece.error !== null)
+                  .map((piece) => `${piece.relativePath} (${piece.error})`).join(' · '),
+              )
+            }
+
+            toasts.succeeded(
+              `${written.length} pièce${written.length > 1 ? 's' : ''} versée${written.length > 1 ? 's' : ''}`,
+              result.bordereauPath === null
+                ? 'Copiées dans « Pièces ». Vos originaux n’ont pas bougé.'
+                : 'Le bordereau a été écrit à côté d’elles. Vos originaux n’ont pas bougé.',
+            )
+
+            // « Pièces » may have just been created, so the whole tree is re-read.
+            reload()
+            onChanged()
+          }}
+        />
       )}
     </TabPanel>
   )

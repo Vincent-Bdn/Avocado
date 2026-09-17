@@ -51,6 +51,18 @@ public static class PracticeSettingKeys
     /// </summary>
     public const string ExerciceStart = "practice.exerciceStart";
 
+    /// <summary>
+    /// The cabinet's stamp, as « sha256:size » pointing into the coffre's blobs.
+    ///
+    /// <para>In the coffre rather than beside it: it is encrypted, it goes into the sauvegarde, and
+    /// it comes back on a new machine. Most cabinets have one copy of that graphic and could not
+    /// redraw it.</para>
+    /// </summary>
+    public const string StampImage = "practice.stampImage";
+
+    /// <summary>Where the number sits on that image, and which corner of the page. JSON.</summary>
+    public const string StampOptions = "practice.stampOptions";
+
     /// <summary>Whether the sauvegarde carries the dossiers' documents at all. On by default.</summary>
     public const string CaptureDocuments = "backup.documents.enabled";
 

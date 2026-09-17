@@ -20,6 +20,7 @@ public static class FolderEndpoints
         group.MapGet("/matters/{matterId:guid}/folder", ListAsync);
         group.MapPut("/matters/{matterId:guid}/folder", SetAsync);
         group.MapPost("/matters/{matterId:guid}/exhibits/verser", VerserAsync);
+        group.MapPost("/matters/{matterId:guid}/exhibits/verser-batch", VerserPieces.HandleAsync);
 
         return routes;
     }

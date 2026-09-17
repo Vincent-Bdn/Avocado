@@ -20,6 +20,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Endpoint handlers return IResult, and asserting on what one carries needs the types that
+         describe it. The project reference brings the assemblies but not the framework. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Avocado.Server\Avocado.Server.csproj" />
   </ItemGroup>
 

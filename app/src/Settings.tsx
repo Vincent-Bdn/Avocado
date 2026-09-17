@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { ApiError, api, post } from './api.js'
+import { ApiError, api, blob, post, saveAs } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { Select } from './components/ui/select.js'
@@ -14,6 +14,7 @@ import {
 } from './lib/updates.js'
 import { PageHeader } from './components/ui/page-header.js'
 import { Panel } from './components/ui/panel.js'
+import { useToasts } from './components/ui/toast.js'
 import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
 import { Backups } from './sections/Backups.js'
 import { Import } from './sections/Import.js'
@@ -143,6 +144,16 @@ export function Settings() {
           onToggle={toggle}
         >
           <About />
+        </Section>
+
+        <Section
+          id="stamp"
+          title="Tampon des pièces"
+          summary="L’image du cabinet, et où le numéro se pose dessus"
+          open={open === 'stamp'}
+          onToggle={toggle}
+        >
+          <Stamp />
         </Section>
 
         <Section
@@ -539,6 +550,209 @@ function About() {
         </p>
       )}
     </>
+  )
+}
+
+interface StampOptions {
+  corner: 'TopRight' | 'TopLeft' | 'BottomRight' | 'BottomLeft'
+  widthPoints: number
+  marginPoints: number
+  numberXPercent: number
+  numberYPercent: number
+  numberSizePoints: number
+  everyPage: boolean
+}
+
+const CORNERS: { value: StampOptions['corner']; label: string }[] = [
+  { value: 'TopRight', label: 'en haut à droite' },
+  { value: 'TopLeft', label: 'en haut à gauche' },
+  { value: 'BottomRight', label: 'en bas à droite' },
+  { value: 'BottomLeft', label: 'en bas à gauche' },
+]
+
+/**
+ * Le tampon du cabinet.
+ *
+ * <p>The preview is the point. Lining a number up with the dotted line drawn on somebody else's logo
+ * is not something anyone gets right from three percentages typed into a form, so Avocado stamps a
+ * blank page with a plausible number and she nudges until it sits where it should. Without it these
+ * are four numbers guessed at, with a fifteen-pièce batch as the feedback loop.</p>
+ */
+function Stamp() {
+  const [view, setView] = useState<{ configured: boolean; options: StampOptions } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [image, setImage] = useState<string | null>(null)
+  const toasts = useToasts()
+
+  const reload = () => {
+    void api<{ configured: boolean; options: StampOptions }>('/api/settings/stamp')
+      .then(setView)
+      .catch(() => setView(null))
+  }
+
+  useEffect(reload, [])
+
+  /**
+   * Fetched as a blob, not pointed at with a src.
+   *
+   * <p>Every call to the backend carries this launch's bearer token, and an <img> would reach it
+   * without one and collect a 401. The same reason the download helper exists.</p>
+   */
+  useEffect(() => {
+    if (view?.configured !== true) {
+      setImage(null)
+      return
+    }
+
+    let url: string | null = null
+
+    void blob('/api/settings/stamp/image').then((fetched) => {
+      url = URL.createObjectURL(fetched)
+      setImage(url)
+    })
+
+    return () => {
+      if (url !== null) URL.revokeObjectURL(url)
+    }
+  }, [view?.configured])
+
+  async function choose() {
+    const path = await window.avocado.chooseFile('Choisir le tampon du cabinet', undefined, ['png', 'jpg', 'jpeg'])
+    if (!path) return
+
+    setBusy(true)
+    setError(null)
+
+    try {
+      await api('/api/settings/stamp', { method: 'PUT', body: JSON.stringify({ path }) })
+      reload()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function save(options: StampOptions) {
+    setView((current) => (current === null ? current : { ...current, options }))
+
+    try {
+      await api('/api/settings/stamp/options', { method: 'PUT', body: JSON.stringify(options) })
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    }
+  }
+
+  async function preview() {
+    try {
+      const saved = await saveAs('/api/settings/stamp/preview.pdf', 'apercu-tampon.pdf')
+      if (saved) toasts.succeeded('Aperçu enregistré', saved)
+    } catch (failure) {
+      toasts.failed('Aperçu impossible', failure instanceof ApiError ? failure.message : String(failure))
+    }
+  }
+
+  if (view === null) return null
+
+  const options = view.options
+
+  return (
+    <>
+      {toasts.view}
+
+      <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+        L’image de votre tampon, telle que vous l’utilisez déjà. Avocado écrit le numéro de pièce
+        par-dessus, à l’endroit que vous réglez ci-dessous : une seule image sert donc pour toutes
+        les pièces, et vous n’avez pas soixante variantes de votre logo à produire.
+      </p>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {image !== null && (
+          <img
+            src={image}
+            alt="Tampon du cabinet"
+            className="h-16 w-16 rounded-sm border border-line-subtle bg-app object-contain p-1"
+          />
+        )}
+
+        <Button variant="secondary" disabled={busy} onClick={() => void choose()}>
+          {view.configured ? 'Changer l’image' : 'Choisir une image'}
+        </Button>
+
+        {view.configured && (
+          <Button variant="secondary" onClick={() => void preview()}>Aperçu sur une page</Button>
+        )}
+      </div>
+
+      {view.configured && (
+        <>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <label className="flex items-center gap-1.5 text-[12.5px]">
+              Posé
+              <Select
+                value={options.corner}
+                onChange={(event) => void save({ ...options, corner: event.target.value as StampOptions['corner'] })}
+              >
+                {CORNERS.map((corner) => (
+                  <option key={corner.value} value={corner.value}>{corner.label}</option>
+                ))}
+              </Select>
+            </label>
+
+            <Nudge label="Largeur" value={options.widthPoints} unit="pt"
+              onChange={(widthPoints) => void save({ ...options, widthPoints })} />
+            <Nudge label="Marge" value={options.marginPoints} unit="pt"
+              onChange={(marginPoints) => void save({ ...options, marginPoints })} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="text-[12.5px] text-muted">Le numéro, dans le tampon :</span>
+            <Nudge label="depuis la gauche" value={options.numberXPercent} unit="%"
+              onChange={(numberXPercent) => void save({ ...options, numberXPercent })} />
+            <Nudge label="depuis le haut" value={options.numberYPercent} unit="%"
+              onChange={(numberYPercent) => void save({ ...options, numberYPercent })} />
+            <Nudge label="taille" value={options.numberSizePoints} unit="pt"
+              onChange={(numberSizePoints) => void save({ ...options, numberSizePoints })} />
+          </div>
+
+          <label className="flex items-center gap-2 text-[12.5px]">
+            <input
+              type="checkbox"
+              checked={options.everyPage}
+              onChange={(event) => void save({ ...options, everyPage: event.target.checked })}
+            />
+            Tamponner toutes les pages, et pas seulement la première
+          </label>
+        </>
+      )}
+
+      {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
+    </>
+  )
+}
+
+function Nudge({ label, value, unit, onChange }: {
+  label: string
+  value: number
+  unit: string
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
+      {label}
+      <Input
+        inputSize="sm"
+        className="w-[62px] text-right font-mono tnum"
+        inputMode="decimal"
+        value={String(value)}
+        onChange={(event) => {
+          const parsed = Number(event.target.value.replace(',', '.'))
+          if (Number.isFinite(parsed)) onChange(parsed)
+        }}
+      />
+      {unit}
+    </label>
   )
 }
 

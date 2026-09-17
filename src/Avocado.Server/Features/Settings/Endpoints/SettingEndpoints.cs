@@ -10,6 +10,8 @@ public static class SettingEndpoints
 {
     public static IEndpointRouteBuilder MapSettings(this IEndpointRouteBuilder routes)
     {
+        routes.MapStamp();
+
         routes.MapGet("/api/settings", GetSettings.HandleAsync).WithTags("Settings");
         routes.MapPut("/api/settings", UpdateSettings.HandleAsync).WithTags("Settings");
 

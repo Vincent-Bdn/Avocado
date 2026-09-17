@@ -65,6 +65,31 @@ public static class Exhibits
         return digits.Length > 0 && int.TryParse(digits, out var number) ? number : null;
     }
 
+    /// <summary>
+    /// « Pièce 12 - Attestation de M. Loubet.pdf » gives « Attestation de M. Loubet ».
+    ///
+    /// <para>What the bordereau lists. The libellé is written for a magistrate and the extension is
+    /// not part of it, so both the number and the suffix come off.</para>
+    /// </summary>
+    public static string? LabelOf(string fileName)
+    {
+        if (NumberOf(fileName) is null)
+        {
+            return null;
+        }
+
+        var separator = fileName.IndexOf(" - ", StringComparison.Ordinal);
+
+        if (separator < 0)
+        {
+            return null;
+        }
+
+        var label = Path.GetFileNameWithoutExtension(fileName[(separator + 3)..]).Trim();
+
+        return label.Length == 0 ? null : label;
+    }
+
     /// <summary>« Pièce 12 - Attestation de M. Loubet.pdf ».</summary>
     public static string FileName(int number, string? label, string sourceFileName)
     {
