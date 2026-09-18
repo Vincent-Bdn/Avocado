@@ -265,7 +265,7 @@ GET    /api/invoices/{id}/detail.xlsx
 GET    /api/backups                   /run · /volumes · /destinations
 PUT    /api/backups/documents/schedule
 POST   /api/backups/documents/restore
-GET    /api/templates                 POST · PUT /{id} · /{id}/content
+GET    /api/templates                 POST · DELETE /{id} · /{id}/content · /fields
 GET    /api/contacts                  PUT /{id} · /{id}/attachment
 GET    /api/dashboard · /api/search · /api/deadlines · /api/settings
 GET    /api/system/disk-encryption

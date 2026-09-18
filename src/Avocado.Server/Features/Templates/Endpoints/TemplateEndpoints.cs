@@ -9,29 +9,31 @@ namespace Avocado.Server.Features.Templates.Endpoints;
 
 public static class TemplateEndpoints
 {
+    /// <summary>
+    /// One modèle, for one thing: the détail that goes out with a facture.
+    ///
+    /// <para><b>This used to be a general system</b>, with a free-text « kind » on each template and
+    /// a « Générer depuis un modèle » endpoint for filling a lettre de mission. Two years of that
+    /// existed and nobody used it, for a reason that only became obvious when somebody tried: the
+    /// generation had no button anywhere in the window, and the kind, which is what decides whether a
+    /// template is ever used, could not be set while uploading. It had to be typed afterwards, into a
+    /// rename field, spelled exactly « Détail de facture ». A template uploaded the obvious way was
+    /// inert, and the screen gave no hint why.</para>
+    ///
+    /// <para>So there is no kind to get wrong, no catalogue to choose between and nothing to
+    /// generate. She drops the document she already sends, and it is used.</para>
+    /// </summary>
     public static IEndpointRouteBuilder MapTemplates(this IEndpointRouteBuilder routes)
     {
         var group = routes.MapGroup("/api/templates").WithTags("Templates");
 
         group.MapGet("/", ListTemplates.HandleAsync);
-        // Two catalogues, because a modèle is used for two different things. A lettre type fills
-        // the dossier's own wording; a « Détail de facture » fills a table that repeats per
-        // diligence. Offering both lists at once would advertise placeholders that come out blank.
-        group.MapGet("/fields", () => Results.Ok(new
-        {
-            lettre = TemplateFields.Catalogue
-                .Select(entry => new { field = entry.Field, example = entry.Description }),
-            detailKind = Billings.Infrastructure.BillingDetailTemplate.Kind,
-            detail = Billings.Infrastructure.BillingDetailTemplate.Catalogue
-                .Select(entry => new { field = entry.Field, example = entry.Description }),
-        }));
+        group.MapGet("/fields", () => Results.Ok(
+            Billings.Infrastructure.BillingDetailTemplate.Catalogue
+                .Select(entry => new { field = entry.Field, example = entry.Description })));
         group.MapPost("/", UploadTemplate.HandleAsync).DisableAntiforgery();
-        group.MapPut("/{id:guid}", RenameTemplate.HandleAsync);
         group.MapDelete("/{id:guid}", DeleteTemplate.HandleAsync);
         group.MapGet("/{id:guid}/content", DownloadTemplate.HandleAsync);
-
-        routes.MapPost("/api/matters/{matterId:guid}/documents/from-template/{templateId:guid}",
-            GenerateFromTemplate.HandleAsync).WithTags("Templates");
 
         return routes;
     }
@@ -98,16 +100,22 @@ public static class UploadTemplate
             blob = await vault.Blobs.PutAsync(content, cancellationToken);
         }
 
+        // Set here rather than asked for. It is the only kind there is, and having to type it was
+        // exactly what made an uploaded template do nothing.
         var template = new DocumentTemplate
         {
             Name = Trimmed(form["name"].ToString()) ?? Path.GetFileNameWithoutExtension(file.FileName),
-            Kind = Trimmed(form["kind"].ToString()),
+            Kind = Billings.Infrastructure.BillingDetailTemplate.Kind,
             FileName = file.FileName,
             BlobSha256 = blob.Sha256,
             SizeBytes = blob.SizeBytes,
         };
 
+        // One at a time: a second would leave « which of these is used » answerable only by reading
+        // the code. Uploading replaces.
+        database.Templates.RemoveRange(await database.Templates.ToListAsync(cancellationToken));
         database.Templates.Add(template);
+
         await database.SaveChangesAsync(cancellationToken);
 
         return Results.Created($"/api/templates/{template.Id}", new { template.Id });
@@ -115,42 +123,6 @@ public static class UploadTemplate
 
     private static string? Trimmed(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-}
-
-public sealed record TemplateInput(string Name, string? Kind);
-
-public static class RenameTemplate
-{
-    public static async Task<IResult> HandleAsync(
-        Guid id,
-        TemplateInput input,
-        AvocadoDbContext database,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(input.Name))
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["name"] = ["Donnez un nom au modèle."],
-            });
-        }
-
-        var template = await database.Templates
-            .FirstOrDefaultAsync(candidate => candidate.Id == id, cancellationToken);
-
-        if (template is null)
-        {
-            return Results.NotFound();
-        }
-
-        template.Name = input.Name.Trim();
-        template.Kind = string.IsNullOrWhiteSpace(input.Kind) ? null : input.Kind.Trim();
-        template.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await database.SaveChangesAsync(cancellationToken);
-
-        return Results.NoContent();
-    }
 }
 
 public static class DeleteTemplate

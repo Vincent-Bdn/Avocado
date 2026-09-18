@@ -129,8 +129,8 @@ export function Settings() {
 
         <Section
           id="templates"
-          title="Modèles de documents"
-          summary="Lettre de mission, courrier type…"
+          title="Modèle du détail de facture"
+          summary="Le document Word que vous joignez déjà à vos factures"
           open={open === 'templates'}
           onToggle={toggle}
         >

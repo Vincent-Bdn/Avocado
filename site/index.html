@@ -141,13 +141,17 @@
           Vous choisissez l’heure ; dix heures du soir par défaut.
         </p>
 
-        <h3>Les modèles</h3>
+        <h3>Le détail joint à vos factures</h3>
         <p>
-          Écrivez votre lettre de mission une fois, dans Word, en laissant des repères là où le
-          dossier doit s’écrire : <code>{{client.nom}}</code>,
-          <code>{{dossier.reference}}</code>, <code>{{dossier.tauxHoraire}}</code>. Depuis un
-          dossier, « Générer depuis un modèle » les remplit et dépose le résultat, que vous ouvrez et
-          terminez.
+          Le tableau des diligences que vos clients reçoivent avec la facture : la date, le temps
+          passé en heures décimales, ce qui a été fait. Avocado le produit à partir du temps que vous
+          avez saisi, en Word pour l’envoyer et en Excel pour le retravailler.
+        </p>
+        <p>
+          <strong>Dans votre propre mise en page.</strong> Donnez-lui une fois le document que vous
+          envoyez déjà, avec des repères comme <code>{{ligne.date}}</code> dans la ligne de tableau à
+          répéter : votre en-tête, votre logo et votre phrase de fin sont conservés tels quels. Sans
+          modèle, Avocado produit une mise en page simple qui fait l’affaire.
         </p>
 
         <h3>Les échéances</h3>
