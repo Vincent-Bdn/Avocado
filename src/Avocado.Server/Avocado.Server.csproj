@@ -25,7 +25,14 @@
     </PackageReference>
     <PackageReference Include="MimeKit" Version="4.17.0" />
     <PackageReference Include="MsgReader" Version="6.1.0" />
+    <PackageReference Include="PdfPig" Version="0.1.11" />
     <PackageReference Include="PDFsharp" Version="6.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The tests draw PDFs to read back, and drawing needs the font resolver, which is internal
+         and should stay that way: it is not part of what this assembly offers. -->
+    <InternalsVisibleTo Include="Avocado.Server.Tests" />
   </ItemGroup>
 
   <ItemGroup>
