@@ -82,10 +82,15 @@ function applyContentSecurityPolicy(): void {
             "default-src 'self'",
             "script-src 'self'",
             "style-src 'self' 'unsafe-inline'",
-            // No data: images any more. It was there for the recovery sheet's QR code, generated
-            // in-process as a data URI; with the QR gone, so is the reason to allow inline image
-            // payloads at all.
-            "img-src 'self'",
+            // No data: images. That was there for the recovery sheet's QR code, generated in-process
+            // as a data URI; with the QR gone, so is the reason to allow inline image payloads.
+            //
+            // blob:, though, is required and is not covered by 'self'. Anything the backend serves
+            // is fetched with this launch's bearer token and handed to the page as an object URL,
+            // because an <img src> would reach the API without the header and collect a 401. Without
+            // blob: here the cabinet's own stamp renders as a broken image in Réglages, silently,
+            // since a blocked image reports nothing to the page.
+            "img-src 'self' blob:",
             "font-src 'self'",
             // Two hosts, and both are switchable off in Réglages: the annuaire, and the release
             // feed that tells her a new version exists. Nothing is ever downloaded from the second
