@@ -163,6 +163,14 @@ export function Templates() {
             l’air terminé et ne l’est pas.
           </p>
 
+          <p className="m-0 mt-2 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+            <strong>Les lignes qui n’ont rien à dire disparaissent.</strong> Une ligne qui parle de la
+            remise, ou du n° RG, est retirée quand il n’y en a pas : vous n’aurez jamais
+            «&nbsp;Application d’une remise commerciale de&nbsp;» suivi de rien. Pour l’en-tête,
+            préférez «&nbsp;{'{{facture.intitule}}'}&nbsp;», qui écrit «&nbsp;n° 90&nbsp;» ou
+            «&nbsp;du 18/09/2026&nbsp;» selon que la facture porte un numéro ou non.
+          </p>
+
           <div className="mt-2.5 grid gap-1 sm:grid-cols-2">
             {fields.map((field) => (
               <div key={field.field} className="flex items-baseline gap-2 text-[11.5px]">

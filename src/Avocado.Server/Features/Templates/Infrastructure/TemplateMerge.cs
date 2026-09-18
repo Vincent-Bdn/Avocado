@@ -46,7 +46,7 @@ public static partial class TemplateMerge
     /// where a letter with a silent blank looks finished and is not.
     /// </summary>
     public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values) =>
-        Fill(template, values, repeated: null, prefix: null);
+        Fill(template, values, repeated: null, prefix: null, optional: null);
 
     /// <summary>
     /// Fills the template, repeating one table row per entry in <paramref name="repeated"/>.
@@ -63,11 +63,28 @@ public static partial class TemplateMerge
     /// row survive long enough to be copied. The model row is then removed: leaving it would print an
     /// empty line with « {{ligne.date}} » in it under every détail.</para>
     /// </summary>
+    /// <param name="optional">
+    /// Repères whose absence makes their whole line meaningless. A paragraph mentioning one of these
+    /// with nothing to put in it is removed rather than filled.
+    ///
+    /// <para>This exists because « Application d'une remise commerciale de {{remise.taux}} pour
+    /// fidélité client » is a sentence about a remise, and with no remise it is not a sentence at
+    /// all: filling it printed « Application d'une remise commerciale de  pour fidélité client » on
+    /// every détail that had no remise, which went to clients. Avocado cannot tell from the
+    /// surrounding French that the line is conditional, and asking her to rewrite her document with
+    /// a special marker is asking her to learn a templating language. Naming the few repères that are
+    /// genuinely optional costs nothing and works on the document she already wrote.</para>
+    ///
+    /// <para>Which is why the set has to stay small and deliberate. <c>{{taux}}</c> is not in it,
+    /// although it too can be empty: it sits inside the TOTAL line, and dropping that line because
+    /// two diligences carried different rates would remove the figure the whole page is about.</para>
+    /// </param>
     public static byte[] Fill(
         Stream template,
         IReadOnlyDictionary<string, string> values,
         IReadOnlyList<IReadOnlyDictionary<string, string>>? repeated,
-        string? prefix)
+        string? prefix,
+        IReadOnlySet<string>? optional = null)
     {
         using var buffer = new MemoryStream();
         template.CopyTo(buffer);
@@ -84,7 +101,7 @@ public static partial class TemplateMerge
                     Repeat(body, repeated, prefix);
                 }
 
-                Substitute(body, values);
+                Substitute(body, values, optional);
             }
 
             // Headers and footers are where the letterhead lives, so they matter as much as the body.
@@ -92,7 +109,7 @@ public static partial class TemplateMerge
             {
                 if (header.Header is { } part)
                 {
-                    Substitute(part, values);
+                    Substitute(part, values, optional);
                 }
             }
 
@@ -100,7 +117,7 @@ public static partial class TemplateMerge
             {
                 if (footer.Footer is { } part)
                 {
-                    Substitute(part, values);
+                    Substitute(part, values, optional);
                 }
             }
         }
@@ -132,7 +149,7 @@ public static partial class TemplateMerge
             foreach (var entry in entries)
             {
                 var copy = (TableRow)model.CloneNode(deep: true);
-                Substitute(copy, entry);
+                Substitute(copy, entry, optional: null);
 
                 model.Parent?.InsertBefore(copy, model);
             }
@@ -143,9 +160,13 @@ public static partial class TemplateMerge
         }
     }
 
-    private static void Substitute(DocumentFormat.OpenXml.OpenXmlElement root, IReadOnlyDictionary<string, string> values)
+    private static void Substitute(
+        DocumentFormat.OpenXml.OpenXmlElement root,
+        IReadOnlyDictionary<string, string> values,
+        IReadOnlySet<string>? optional)
     {
-        foreach (var paragraph in root.Descendants<Paragraph>())
+        // Materialised, because a paragraph that fills to nothing is removed as we go.
+        foreach (var paragraph in root.Descendants<Paragraph>().ToList())
         {
             var original = TextOf(paragraph);
 
@@ -170,6 +191,30 @@ public static partial class TemplateMerge
                 continue;
             }
 
+            // A line that was nothing but repères, and whose repères all came out empty, says
+            // nothing and is removed rather than printed blank.
+            //
+            // This is what makes an optional sentence possible at all. « Application d'une remise
+            // commerciale de {{remise.phrase}} » on its own line disappears when there is no remise,
+            // where filling it left « Application d'une remise commerciale de  » on every détail:
+            // a sentence with a hole in it, sent to a client.
+            //
+            // Only in the body. A table cell must contain at least one paragraph, and a document
+            // whose cell holds none is one Word refuses to open.
+            // Either the line said nothing but repères and they all came out empty, or it mentions
+            // a repère whose absence makes the whole line meaningless. See the `optional` parameter.
+            var meaningless =
+                (filled.Trim().Length == 0 && OnlyPlaceholders(original))
+                || Mentions(original, optional, values);
+
+            // Only in the body. A table cell must contain at least one paragraph, and a document
+            // whose cell holds none is one Word refuses to open.
+            if (meaningless && paragraph.Parent is Body)
+            {
+                paragraph.Remove();
+                continue;
+            }
+
             // The first run keeps the paragraph's formatting and takes the whole filled text; the
             // rest are emptied rather than removed, so nothing else in the paragraph shifts.
             SetText(runs[0], filled);
@@ -180,6 +225,35 @@ public static partial class TemplateMerge
             }
         }
     }
+
+    /// <summary>Whether the line leans on an optional repère that has nothing to say.</summary>
+    private static bool Mentions(
+        string original,
+        IReadOnlySet<string>? optional,
+        IReadOnlyDictionary<string, string> values)
+    {
+        if (optional is null || optional.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (Match match in Placeholder().Matches(original))
+        {
+            var field = match.Groups[1].Value;
+
+            if (optional.Contains(field)
+                && (!values.TryGetValue(field, out var value) || string.IsNullOrWhiteSpace(value)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether the line held repères and nothing else worth keeping.</summary>
+    private static bool OnlyPlaceholders(string text) =>
+        Placeholder().Replace(text, string.Empty).Trim().Length == 0;
 
     private static string TextOf(Paragraph paragraph) =>
         string.Concat(paragraph.Descendants<Text>().Select(text => text.Text));

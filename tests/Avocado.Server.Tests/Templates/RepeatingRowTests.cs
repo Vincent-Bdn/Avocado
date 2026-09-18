@@ -40,6 +40,12 @@ public class RepeatingRowTests
 
             body.AppendChild(Line("TOTAL : {{total}} HT correspondant à {{heures}} heures au taux horaire de {{taux}} HT"));
 
+            // As her own document writes it: the repère sits inside a French sentence, so the line
+            // is not « only repères » and only the optional set can remove it.
+            body.AppendChild(Line("Application d'une remise commerciale de {{remise.taux}} pour fidélité client"));
+            body.AppendChild(Line("{{remise.ramene}}"));
+            body.AppendChild(Line("N° RG : {{dossier.rg}}"));
+
             main.Document.Save();
         }
 
@@ -66,17 +72,23 @@ public class RepeatingRowTests
             System.Text.RegularExpressions.Regex.Replace(reader.ReadToEnd(), "<[^>]+>", string.Empty));
     }
 
-    private static byte[] Fill(IReadOnlyList<DetailLine> lines)
+    private static byte[] Fill(
+        IReadOnlyList<DetailLine> lines,
+        int? discount = null,
+        string? reason = null,
+        string? number = "90",
+        string? rg = "23/04567")
     {
         using var template = new MemoryStream(Template());
 
         return TemplateMerge.Fill(
             template,
             BillingDetailTemplate.Values(
-                "90", new DateOnly(2026, 9, 8), "700770-COULEYRE", "EDF ENR", "23/04567",
-                lines, null, null, lines.Sum(line => line.RateCents * line.Minutes / 60)),
+                number, new DateOnly(2026, 9, 8), "700770-COULEYRE", "EDF ENR", rg,
+                lines, discount, reason, lines.Sum(line => line.RateCents * line.Minutes / 60)),
             BillingDetailTemplate.Rows(lines),
-            BillingDetailTemplate.RowPrefix);
+            BillingDetailTemplate.RowPrefix,
+            BillingDetailTemplate.Optional);
     }
 
     [Fact]
@@ -113,6 +125,79 @@ public class RepeatingRowTests
         // The header row of her table is not a repeating row and must survive.
         Assert.Contains("Temps passé (heure)", text);
         Assert.Contains("Observations", text);
+    }
+
+    /// <summary>
+    /// The one that reached a client: « Application d'une remise commerciale de  pour fidélité
+    /// client » printed on every détail, because filling an empty value leaves the sentence around
+    /// it intact. A line that was nothing but repères, and whose repères are all empty, says nothing
+    /// and is removed.
+    /// </summary>
+    [Fact]
+    public void LeavesNoTraceOfTheRemiseWhenThereIsNone()
+    {
+        var text = Read(Fill([Diligence(1, 60, "Diligences")]));
+
+        Assert.DoesNotContain("remise", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Ramené", text);
+        // And the lines that do carry text are untouched.
+        Assert.Contains("TOTAL :", text);
+        Assert.Contains("DETAIL FACTURE", text);
+    }
+
+    [Fact]
+    public void WritesTheWholeRemiseSentenceWhenThereIsOne()
+    {
+        var text = Read(Fill([Diligence(1, 1215, "Diligences")], discount: 3_000, reason: "pour fidélité client"));
+
+        Assert.Contains("Application d'une remise commerciale de 30% pour fidélité client", text);
+        Assert.Contains("Ramené à", text);
+    }
+
+    /// <summary>
+    /// « N° RG : » followed by nothing, on every dossier that never went to court.
+    /// </summary>
+    [Fact]
+    public void DropsTheRgLineOnADossierThatHasNone()
+    {
+        Assert.Contains("N° RG : 23/04567", Read(Fill([Diligence(1, 60, "x")])));
+        Assert.DoesNotContain("N° RG", Read(Fill([Diligence(1, 60, "x")], rg: null)));
+    }
+
+    /// <summary>
+    /// The TOTAL line mentions {{taux}}, which is empty when the diligences do not share one rate.
+    /// It must survive: it states the figure the whole page exists for.
+    /// </summary>
+    [Fact]
+    public void KeepsTheTotalLineEvenWhenTheRateIsEmpty()
+    {
+        var mixed = new List<DetailLine>
+        {
+            new(new DateOnly(2026, 9, 1), 60, "Au taux du dossier", 20_000),
+            new(new DateOnly(2026, 9, 2), 60, "Au taux dérogatoire", 15_000),
+        };
+
+        var text = Read(Fill(mixed));
+
+        Assert.Contains("TOTAL : 350 € HT", text);
+    }
+
+    /// <summary>
+    /// A facture with no number printed « DETAIL FACTURE N° » and then nothing. The intitulé carries
+    /// its own wording so the heading reads either way.
+    /// </summary>
+    [Fact]
+    public void NamesAFactureThatHasNoNumberByItsDateInstead()
+    {
+        var withNumber = BillingDetailTemplate.Values(
+            "90", new DateOnly(2026, 9, 8), "R", "N", null, [Diligence(1, 60, "x")], null, null, 20_000);
+
+        var without = BillingDetailTemplate.Values(
+            null, new DateOnly(2026, 9, 8), "R", "N", null, [Diligence(1, 60, "x")], null, null, 20_000);
+
+        Assert.Equal("n° 90", withNumber["facture.intitule"]);
+        Assert.Equal("du 08/09/2026", without["facture.intitule"]);
+        Assert.Equal(string.Empty, without["facture.numero"]);
     }
 
     [Fact]

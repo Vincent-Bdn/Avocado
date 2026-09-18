@@ -23,9 +23,32 @@ public static class BillingDetailTemplate
     /// <summary>The row-level prefix. A table row mentioning any of these is cloned per diligence.</summary>
     public const string RowPrefix = "ligne";
 
+    /// <summary>
+    /// Repères whose absence makes their whole line meaningless, so the line goes rather than being
+    /// printed with a hole in it.
+    ///
+    /// <para>The remise, because « Application d'une remise commerciale de {{remise.taux}} pour
+    /// fidélité client » is a sentence about a remise and reads as broken French without one. And the
+    /// n° RG, because « N° RG : » followed by nothing is worse than no line at all in a dossier that
+    /// never went to court.</para>
+    ///
+    /// <para><b>Deliberately short.</b> <c>taux</c> can be empty too, when the diligences do not share
+    /// one rate, and it is not here: it sits inside the TOTAL sentence, and dropping that line would
+    /// remove the figure the whole page exists to state.</para>
+    /// </summary>
+    public static readonly IReadOnlySet<string> Optional = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "remise.taux",
+        "remise.motif",
+        "remise.phrase",
+        "remise.ramene",
+        "dossier.rg",
+    };
+
     public static readonly IReadOnlyList<(string Field, string Description)> Catalogue =
     [
-        ("facture.numero", "Le numéro de la facture, « 90 »"),
+        ("facture.numero", "Le numéro de la facture, « 90 ». Vide si elle n'en a pas"),
+        ("facture.intitule", "« n° 90 », ou « du 08/09/2026 » si la facture n'a pas de numéro"),
         ("facture.date", "Sa date, « 08/09/2026 »"),
         ("dossier.reference", "La référence du dossier, « 700770-COULEYRE »"),
         ("dossier.nom", "Son nom, « EDF ENR »"),
@@ -34,8 +57,10 @@ public static class BillingDetailTemplate
         ("total", "Le total des diligences, « 4.050 € »"),
         ("heures", "Le temps total, « 20,25 »"),
         ("taux", "Le taux horaire, vide si les lignes n'en partagent pas un seul"),
-        ("remise.taux", "La remise, « 30% ». Vide s'il n'y en a pas"),
-        ("remise.motif", "Son motif, « pour fidélité client »"),
+        ("remise.taux", "La remise seule, « 30% ». Vide s'il n'y en a pas"),
+        ("remise.motif", "Son motif seul, « pour fidélité client »"),
+        ("remise.phrase", "La phrase entière : « Application d'une remise commerciale de 30% pour fidélité client ». Sur sa propre ligne, elle disparaît s'il n'y a pas de remise"),
+        ("remise.ramene", "« Ramené à 2.835 € HT ». Sur sa propre ligne, disparaît aussi"),
         ("montant.facture", "Le montant réellement facturé, remise déduite"),
         ("ligne.date", "Dans la ligne qui se répète : la date de la diligence"),
         ("ligne.temps", "Son temps passé en heures décimales, « 0,75 »"),
@@ -61,6 +86,12 @@ public static class BillingDetailTemplate
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["facture.numero"] = invoiceReference ?? string.Empty,
+            // So a heading never dangles. « DETAIL FACTURE {{facture.intitule}} » reads correctly
+            // whether or not the facture has a number, where « N° {{facture.numero}} » prints
+            // « N° » followed by nothing on a facture that has none.
+            ["facture.intitule"] = invoiceReference is { Length: > 0 } reference
+                ? $"n° {reference}"
+                : $"du {invoiceDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}",
             ["facture.date"] = invoiceDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture),
             ["dossier.reference"] = matterReference,
             ["dossier.nom"] = matterName,
@@ -77,6 +108,17 @@ public static class BillingDetailTemplate
                 ? (discountBasisPoints.Value / 100m).ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',') + "%"
                 : string.Empty,
             ["remise.motif"] = discountReason ?? string.Empty,
+            // Whole sentences, so that a line carrying only one of them vanishes when there is no
+            // remise. Assembled from the same wording the built-in document uses, so the two agree.
+            ["remise.phrase"] = discountBasisPoints is > 0
+                ? $"Application d'une remise commerciale de "
+                  + (discountBasisPoints.Value / 100m).ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',')
+                  + "%"
+                  + (string.IsNullOrWhiteSpace(discountReason) ? string.Empty : $" {discountReason.Trim()}")
+                : string.Empty,
+            ["remise.ramene"] = discountBasisPoints is > 0
+                ? $"Ramené à {BillingDetailDocument.Euros(billedCents)} HT"
+                : string.Empty,
             ["montant.facture"] = BillingDetailDocument.Euros(billedCents),
         };
     }

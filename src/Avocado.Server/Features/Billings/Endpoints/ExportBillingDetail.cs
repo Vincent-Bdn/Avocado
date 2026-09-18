@@ -131,7 +131,8 @@ public static class ExportBillingDetail
                     invoice.DiscountReason,
                     invoice.AmountExclVatCents),
                 BillingDetailTemplate.Rows(lines),
-                BillingDetailTemplate.RowPrefix);
+                BillingDetailTemplate.RowPrefix,
+                BillingDetailTemplate.Optional);
         }
         catch (Exception exception) when (exception is VaultException or IOException or InvalidOperationException)
         {
