@@ -21,6 +21,13 @@ interface TemplateField {
   example: string
 }
 
+/** Two lists: a lettre fills the dossier's wording, a détail fills a table that repeats. */
+interface Catalogues {
+  lettre: TemplateField[]
+  detail: TemplateField[]
+  detailKind: string
+}
+
 const messageOf = (failure: unknown) =>
   failure instanceof ApiError ? failure.message : String(failure)
 
@@ -35,7 +42,7 @@ const messageOf = (failure: unknown) =>
  */
 export function Templates() {
   const [items, setItems] = useState<TemplateItem[]>([])
-  const [fields, setFields] = useState<TemplateField[]>([])
+  const [fields, setFields] = useState<Catalogues | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -50,7 +57,7 @@ export function Templates() {
   useEffect(reload, [reload])
 
   useEffect(() => {
-    api<TemplateField[]>('/api/templates/fields').then(setFields).catch(() => setFields([]))
+    api<Catalogues>('/api/templates/fields').then(setFields).catch(() => setFields(null))
   }, [])
 
   async function add(files: FileList) {
@@ -157,29 +164,55 @@ export function Templates() {
       )}
 
       {/* The catalogue is the documentation. Nothing else tells her what she is allowed to type. */}
-      <details className="rounded-md border border-line-subtle bg-app px-3.5 py-3">
-        <summary className="cursor-pointer text-[12.5px] font-medium">
-          Repères disponibles dans un modèle
-        </summary>
+      {fields !== null && (
+        <>
+          <details className="rounded-md border border-line-subtle bg-app px-3.5 py-3">
+            <summary className="cursor-pointer text-[12.5px] font-medium">
+              Repères disponibles dans une lettre
+            </summary>
 
-        <div className="mt-2.5 grid gap-1 sm:grid-cols-2">
-          {fields.map((field) => (
-            <div key={field.field} className="flex items-baseline gap-2 text-[11.5px]">
-              <code className="rounded-[3px] bg-sunken px-1.5 py-0.5 font-mono text-[11px]">
-                {`{{${field.field}}}`}
-              </code>
-              <span className="truncate text-muted">{field.example}</span>
-            </div>
-          ))}
-        </div>
+            <Repères fields={fields.lettre} />
 
-        <p className="m-0 mt-2.5 text-[11px] leading-4 text-muted">
-          Un repère inconnu est laissé tel quel dans la lettre plutôt que vidé : une lettre où il
-          reste « {'{{client.siret}}'} » est visiblement fausse, une lettre avec un blanc silencieux a
-          l’air terminée et ne l’est pas.
-        </p>
-      </details>
+            <p className="m-0 mt-2.5 text-[11px] leading-4 text-muted">
+              Un repère inconnu est laissé tel quel dans la lettre plutôt que vidé : une lettre où il
+              reste « {'{{client.siret}}'} » est visiblement fausse, une lettre avec un blanc
+              silencieux a l’air terminée et ne l’est pas.
+            </p>
+          </details>
+
+          <details className="rounded-md border border-line-subtle bg-app px-3.5 py-3">
+            <summary className="cursor-pointer text-[12.5px] font-medium">
+              Repères du détail de facture
+            </summary>
+
+            <p className="m-0 mt-2.5 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+              Donnez au modèle le type «&nbsp;<strong>{fields.detailKind}</strong>&nbsp;» et Avocado
+              s’en servira pour le détail joint à vos factures, à la place du sien. Mettez les repères
+              «&nbsp;ligne&nbsp;» dans <strong>une seule ligne de votre tableau</strong> : elle sera
+              répétée pour chaque diligence. Tout le reste de votre document, en-tête, logo et phrase
+              de fin, est conservé tel quel.
+            </p>
+
+            <Repères fields={fields.detail} />
+          </details>
+        </>
+      )}
     </>
+  )
+}
+
+function Repères({ fields }: { fields: TemplateField[] }) {
+  return (
+    <div className="mt-2.5 grid gap-1 sm:grid-cols-2">
+      {fields.map((field) => (
+        <div key={field.field} className="flex items-baseline gap-2 text-[11.5px]">
+          <code className="rounded-[3px] bg-sunken px-1.5 py-0.5 font-mono text-[11px]">
+            {`{{${field.field}}}`}
+          </code>
+          <span className="truncate text-muted">{field.example}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 

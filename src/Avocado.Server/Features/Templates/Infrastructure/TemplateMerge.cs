@@ -45,7 +45,29 @@ public static partial class TemplateMerge
     /// written rather than blanked: a letter with « {{client.siret}} » still in it is obviously wrong,
     /// where a letter with a silent blank looks finished and is not.
     /// </summary>
-    public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values)
+    public static byte[] Fill(Stream template, IReadOnlyDictionary<string, string> values) =>
+        Fill(template, values, repeated: null, prefix: null);
+
+    /// <summary>
+    /// Fills the template, repeating one table row per entry in <paramref name="repeated"/>.
+    ///
+    /// <para><b>Why a repeating row rather than a table Avocado builds.</b> The détail that goes out
+    /// with a facture is read by a client and sometimes by a juge taxateur, and every cabinet's is
+    /// different: its own letterhead, its own column widths, its own closing sentence. A table built
+    /// here is Avocado's table, and the next cabinet wants another one. So she gives Avocado the
+    /// document she already sends, marks the row that repeats by putting <c>{{ligne.…}}</c> in it,
+    /// and that row is cloned once per diligence. The logo, the fonts and the wording stay hers, and
+    /// nothing needs a release to change.</para>
+    ///
+    /// <para>The row is cloned before the scalars are substituted, so the placeholders in the model
+    /// row survive long enough to be copied. The model row is then removed: leaving it would print an
+    /// empty line with « {{ligne.date}} » in it under every détail.</para>
+    /// </summary>
+    public static byte[] Fill(
+        Stream template,
+        IReadOnlyDictionary<string, string> values,
+        IReadOnlyList<IReadOnlyDictionary<string, string>>? repeated,
+        string? prefix)
     {
         using var buffer = new MemoryStream();
         template.CopyTo(buffer);
@@ -57,6 +79,11 @@ public static partial class TemplateMerge
 
             if (main?.Document?.Body is { } body)
             {
+                if (repeated is not null && prefix is { Length: > 0 })
+                {
+                    Repeat(body, repeated, prefix);
+                }
+
                 Substitute(body, values);
             }
 
@@ -79,6 +106,41 @@ public static partial class TemplateMerge
         }
 
         return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// Clones every table row that mentions <c>{{prefix.…}}</c>, once per entry.
+    ///
+    /// <para>Rows are found before anything is changed, and the model row is removed only after its
+    /// copies are in place, so a table with two repeating rows, or a document with two tables, does
+    /// not lose track of where it was.</para>
+    /// </summary>
+    private static void Repeat(
+        DocumentFormat.OpenXml.OpenXmlElement root,
+        IReadOnlyList<IReadOnlyDictionary<string, string>> entries,
+        string prefix)
+    {
+        var marker = "{{" + prefix + ".";
+
+        var models = root.Descendants<TableRow>()
+            .Where(row => string.Concat(row.Descendants<Text>().Select(text => text.Text))
+                .Contains(marker, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        foreach (var model in models)
+        {
+            foreach (var entry in entries)
+            {
+                var copy = (TableRow)model.CloneNode(deep: true);
+                Substitute(copy, entry);
+
+                model.Parent?.InsertBefore(copy, model);
+            }
+
+            // Removed last. An empty détail therefore prints its table with no rows rather than one
+            // row reading « {{ligne.date}} », which is what she would have sent to the client.
+            model.Remove();
+        }
     }
 
     private static void Substitute(DocumentFormat.OpenXml.OpenXmlElement root, IReadOnlyDictionary<string, string> values)

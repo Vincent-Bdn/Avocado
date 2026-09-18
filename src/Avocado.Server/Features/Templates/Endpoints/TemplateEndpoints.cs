@@ -14,8 +14,17 @@ public static class TemplateEndpoints
         var group = routes.MapGroup("/api/templates").WithTags("Templates");
 
         group.MapGet("/", ListTemplates.HandleAsync);
-        group.MapGet("/fields", () => Results.Ok(
-            TemplateFields.Catalogue.Select(entry => new { field = entry.Field, example = entry.Description })));
+        // Two catalogues, because a modèle is used for two different things. A lettre type fills
+        // the dossier's own wording; a « Détail de facture » fills a table that repeats per
+        // diligence. Offering both lists at once would advertise placeholders that come out blank.
+        group.MapGet("/fields", () => Results.Ok(new
+        {
+            lettre = TemplateFields.Catalogue
+                .Select(entry => new { field = entry.Field, example = entry.Description }),
+            detailKind = Billings.Infrastructure.BillingDetailTemplate.Kind,
+            detail = Billings.Infrastructure.BillingDetailTemplate.Catalogue
+                .Select(entry => new { field = entry.Field, example = entry.Description }),
+        }));
         group.MapPost("/", UploadTemplate.HandleAsync).DisableAntiforgery();
         group.MapPut("/{id:guid}", RenameTemplate.HandleAsync);
         group.MapDelete("/{id:guid}", DeleteTemplate.HandleAsync);
