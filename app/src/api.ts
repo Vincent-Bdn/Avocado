@@ -3,6 +3,8 @@ declare global {
   interface Window {
     avocado: {
       connection: () => Promise<{ url: string; token: string; vaultState: string; version: string }>
+      /** Where a dropped file lives. Electron 34: File.path is gone, webUtils replaced it. */
+      pathForFile: (file: File) => string
       chooseFolder: (startIn?: string, title?: string) => Promise<string | null>
       chooseFile: (title: string, startIn?: string, extensions?: string[]) => Promise<string | null>
       revealFolder: (folder: string) => Promise<string | null>

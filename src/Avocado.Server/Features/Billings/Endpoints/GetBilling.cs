@@ -43,7 +43,8 @@ public static class GetBilling
                 database.TimeEntries.Count(entry => entry.InvoiceId == invoice.Id),
                 invoice.IsHistorical,
                 invoice.DiscountBasisPoints,
-                invoice.DiscountReason))
+                invoice.DiscountReason,
+                invoice.DocumentPath))
             .ToListAsync(cancellationToken);
 
         var ledger = await database.LedgerEntries

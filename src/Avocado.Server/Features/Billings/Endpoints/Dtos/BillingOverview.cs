@@ -18,7 +18,9 @@ public sealed record BillingInvoiceItem(
     /// <summary>Brought over for the history. Counts as facturé, never against « reste à facturer ».</summary>
     bool IsHistorical = false,
     int? DiscountBasisPoints = null,
-    string? DiscountReason = null);
+    string? DiscountReason = null,
+    /// <summary>The facture's own PDF, in her folder. Null while she has only typed it in.</summary>
+    string? DocumentPath = null);
 
 /// <param name="Kind">Derived from the stored sign, so the badge and the rendered ± cannot disagree.</param>
 /// <param name="AmountCents">Signed, as stored. The UI renders « + 1 200,00 € » / « − 105,00 € ».</param>

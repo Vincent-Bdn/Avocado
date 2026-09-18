@@ -295,6 +295,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("discount_reason");
 
+                    b.Property<string>("DocumentPath")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("document_path");
+
                     b.Property<string>("ExternalReference")
                         .HasMaxLength(120)
                         .HasColumnType("TEXT")

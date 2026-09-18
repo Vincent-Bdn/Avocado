@@ -4,6 +4,7 @@ import {
   Pencil, Trash2, X,
 } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
+import { DropFactures } from './DropFactures.js'
 import { Badge } from '../components/ui/badge.js'
 import { Button } from '../components/ui/button.js'
 import { Dialog, DialogActions, Field } from '../components/ui/dialog.js'
@@ -31,6 +32,8 @@ interface BillingInvoice {
   isHistorical: boolean
   discountBasisPoints: number | null
   discountReason: string | null
+  /** The facture's own PDF, in her folder. Null while she has only typed the line in. */
+  documentPath: string | null
   billedTimeCents: number
   varianceCents: number
   billedEntryCount: number
@@ -102,8 +105,10 @@ interface BillingOverview {
  * remains is knowable. Everything recorded here can be corrected: a figure you cannot fix is a figure
  * that gets worked around in a spreadsheet.
  */
-export function Billing({ matterId, isOpen, onChanged }: {
+export function Billing({ matterId, folder, isOpen, onChanged }: {
   matterId: string
+  /** The dossier's folder, so an attached facture can be opened. Null until she points at one. */
+  folder: string | null
   isOpen: boolean
   onChanged: () => void
 }) {
@@ -289,6 +294,22 @@ export function Billing({ matterId, isOpen, onChanged }: {
           </SplitButton>
         )}
 
+        {/* Below the buttons rather than above the list: dropping a facture is something she does
+            occasionally, and the list is what she came to read. */}
+        {isOpen && (
+          <DropFactures
+            matterId={matterId}
+            invoices={data.invoices.map((invoice) => ({
+              id: invoice.id,
+              date: invoice.date,
+              externalReference: invoice.externalReference,
+              amountExclVatCents: invoice.amountExclVatCents,
+              hasDocument: invoice.documentPath !== null,
+            }))}
+            onFiled={() => { refresh(); onChanged() }}
+          />
+        )}
+
         {billing === 'time' && (
           <BillTimeDialog
             matterId={matterId}
@@ -320,6 +341,19 @@ export function Billing({ matterId, isOpen, onChanged }: {
                 <RowDate>{new Date(invoice.date).toLocaleDateString('fr-FR')}</RowDate>
                 <RowMain>
                   <span>{invoice.externalReference ?? 'Sans référence'}</span>
+                  {/* Filed by dropping the PDF on this tab. Opening it is the whole point of having
+                      attached it: « la facture 92, c'était quoi déjà » answered without leaving the
+                      dossier. */}
+                  {invoice.documentPath !== null && folder !== null && (
+                    <RowAction
+                      label="Ouvrir la facture"
+                      onClick={() => void window.avocado.revealFile(
+                        `${folder}\${invoice.documentPath!.replace(/\//g, '\')}`)}
+                    >
+                      <FileText size={13} strokeWidth={1.75} />
+                    </RowAction>
+                  )}
+
                   {invoice.billedEntryCount > 0 && (
                     <Micro>
                       {invoice.billedEntryCount} ligne{invoice.billedEntryCount > 1 ? 's' : ''} de temps

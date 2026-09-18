@@ -235,7 +235,12 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           />
         )}
         {tab === 'billing' && (
-          <Billing matterId={matterId} isOpen={matter.isOpen} onChanged={refreshAll} />
+          <Billing
+            matterId={matterId}
+            folder={matter.documentsFolder}
+            isOpen={matter.isOpen}
+            onChanged={refreshAll}
+          />
         )}
 
         {/* The aperçu shows all of this with room to breathe, and the onglet Parties owns the parties,

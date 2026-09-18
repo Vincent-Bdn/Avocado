@@ -72,6 +72,19 @@ public class BillingInvoice
     /// <summary>« pour fidélité client ». Free text, because the reason is hers.</summary>
     public string? DiscountReason { get; set; }
 
+    /// <summary>
+    /// The facture itself, as a file in her dossier's folder: « Factures/FACTURE_92_CLIENT.pdf ».
+    ///
+    /// <para>Relative, like everything else Avocado records about her documents, so it survives the
+    /// folder moving or the practice being restored onto another machine. Null while a facture has
+    /// only ever been typed in, which is most of them until she starts dropping the PDFs in.</para>
+    ///
+    /// <para><b>A path, not a blob.</b> Her factures belong with the rest of the dossier, where she
+    /// can find them in Explorer without Avocado. Copying them into the coffre would put a second
+    /// copy somewhere she cannot open, which is the arrangement ten lawyers rejected.</para>
+    /// </summary>
+    public string? DocumentPath { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
     /// <summary>Positive = boni (billed above the recorded time), negative = mali.</summary>
