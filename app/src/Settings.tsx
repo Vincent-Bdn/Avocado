@@ -49,7 +49,10 @@ function pickTwo(): [number, number] {
  */
 export function Settings() {
   const [key, setKey] = useState<RecoveryKeyState | null>(null)
-  const [open, setOpen] = useState<string | null>('rate')
+  // Nothing open to begin with. It used to land on the taux horaire, which was a reasonable way to
+  // show the page was not broken back when it was eleven undifferentiated rows. Grouped, the map is
+  // the thing worth seeing first, and one section already expanded pushes a third of it off screen.
+  const [open, setOpen] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const reload = () => {
@@ -66,154 +69,170 @@ export function Settings() {
 
   return (
     <Panel>
-      <PageHeader title="Réglages" meta={<span>Clé de récupération et contrôle du coffre</span>} />
+      <PageHeader title="Réglages" meta={<span>Le cabinet, vos données, l’application</span>} />
 
       <div className="flex-1 overflow-y-auto">
         {error && <p className="px-4 py-3 text-danger">{error}</p>}
 
-        <Section
-          id="storage"
-          title="Emplacements"
-          summary="Coffre et dossier de travail"
-          open={open === 'storage'}
-          onToggle={toggle}
+        <Group
+          title="Le cabinet"
+          summary="Ce que vous facturez, et ce que vos documents portent"
         >
-          <Storage />
-        </Section>
-
-        <Section
-          id="chiffrement"
-          title="Chiffrement du disque"
-          summary="Ce qui protège vos dossiers si l’ordinateur est perdu ou volé"
-          open={open === 'chiffrement'}
-          onToggle={toggle}
-        >
-          <DiskEncryptionBanner />
-
-          <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-            Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les
-            déplace pas et ne les enferme pas. Sur cette machine, c’est donc le chiffrement du disque
-            qui les protège, et c’est le système qui s’en charge.
-          </p>
-        </Section>
-
-        <Section
-          id="addresses"
-          title="Vos adresses électroniques"
-          summary="Ce qui distingue un courriel reçu d’un courriel envoyé"
-          open={open === 'addresses'}
-          onToggle={toggle}
-        >
-          <OwnAddresses />
-        </Section>
-
-        <Section
-          id="backups"
-          title="Sauvegarde"
-          summary="Où vos dossiers sont copiés, et à quel rythme"
-          open={open === 'backups'}
-          onToggle={toggle}
-        >
-          <Backups />
-        </Section>
-
-        <Section
-          id="import"
-          title="Importer depuis Gestisoft"
-          summary="Reprendre les dossiers exportés"
-          open={open === 'import'}
-          onToggle={toggle}
-        >
-          <Import />
-        </Section>
-
-        <Section
-          id="templates"
-          title="Modèle du détail de facture"
-          summary="Le document Word que vous joignez déjà à vos factures"
-          open={open === 'templates'}
-          onToggle={toggle}
-        >
-          <Templates />
-        </Section>
-
-        <Section
-          id="version"
-          title="Version et mises à jour"
-          summary="Ce qui est installé, et comment savoir qu’il existe mieux"
-          open={open === 'version'}
-          onToggle={toggle}
-        >
-          <About />
-        </Section>
-
-        <Section
-          id="stamp"
-          title="Tampon des pièces"
-          summary="L’image du cabinet, et où le numéro se pose dessus"
-          open={open === 'stamp'}
-          onToggle={toggle}
-        >
-          <Stamp />
-        </Section>
-
-        <Section
-          id="rate"
-          title="Taux horaire du cabinet"
-          summary="Point de départ des nouveaux dossiers"
-          open={open === 'rate'}
-          onToggle={toggle}
-        >
-          <HourlyRate />
-        </Section>
-
-        {key && !key.code && (
           <Section
-            id="renew"
-            title="Clé de récupération"
-            summary="Non consultable sur ce coffre"
-            open={open === 'renew'}
+            id="rate"
+            title="Taux horaire et exercice"
+            summary="Le point de départ des nouveaux dossiers, et l’année de votre chiffre d’affaires"
+            open={open === 'rate'}
             onToggle={toggle}
           >
-            <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-              Ce coffre a été créé avant que la clé ne soit conservée : elle ne peut donc plus être
-              affichée ni contrôlée. Éditez-en une nouvelle pour retrouver ces deux possibilités. La
-              fiche imprimée que vous détenez reste valable jusque-là.
-            </p>
-
-            <Regenerate onDone={reload} />
+            <HourlyRate />
           </Section>
-        )}
 
-        {key?.code && (
-          <>
-            <Section
-              id="check"
-              title="Contrôle de la clé"
-              summary="Vérifier que votre fiche est bien la bonne"
-              open={open === 'check'}
-              onToggle={toggle}
-            >
-              <QuarterlyCheck />
-            </Section>
+          <Section
+            id="addresses"
+            title="Vos adresses électroniques"
+            summary="Ce qui distingue un courriel reçu d’un courriel envoyé"
+            open={open === 'addresses'}
+            onToggle={toggle}
+          >
+            <OwnAddresses />
+          </Section>
 
+          <Section
+            id="templates"
+            title="Modèle du détail de facture"
+            summary="Le document Word que vous joignez déjà à vos factures"
+            open={open === 'templates'}
+            onToggle={toggle}
+          >
+            <Templates />
+          </Section>
+
+          <Section
+            id="stamp"
+            title="Tampon des pièces"
+            summary="L’image du cabinet, et où le numéro se pose dessus"
+            open={open === 'stamp'}
+            onToggle={toggle}
+          >
+            <Stamp />
+          </Section>
+        </Group>
+
+        <Group
+          title="Vos données"
+          summary="Où elles vivent, et ce qui vous les rendrait"
+        >
+          <Section
+            id="backups"
+            title="Sauvegarde"
+            summary="Où vos dossiers sont copiés, et à quel rythme"
+            open={open === 'backups'}
+            onToggle={toggle}
+          >
+            <Backups />
+          </Section>
+
+          {key && !key.code && (
             <Section
               id="renew"
-              title="Renouveler la clé"
-              summary={key.fingerprint ? `Empreinte ${key.fingerprint}` : undefined}
+              title="Clé de récupération"
+              summary="Non consultable sur ce coffre"
               open={open === 'renew'}
               onToggle={toggle}
             >
-              <p className="m-0 text-[12.5px] leading-[19px] text-muted">
-                Clé actuelle : empreinte{' '}
-                <span className="font-mono text-ink">{key.fingerprint}</span>
-                {key.createdAt && `, créée le ${new Date(key.createdAt).toLocaleDateString('fr-FR')}`}.
+              <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+                Ce coffre a été créé avant que la clé ne soit conservée : elle ne peut donc plus être
+                affichée ni contrôlée. Éditez-en une nouvelle pour retrouver ces deux possibilités. La
+                fiche imprimée que vous détenez reste valable jusque-là.
               </p>
 
               <Regenerate onDone={reload} />
             </Section>
-          </>
-        )}
+          )}
+
+          {key?.code && (
+            <>
+              <Section
+                id="check"
+                title="Contrôle de la clé"
+                summary="Vérifier que votre fiche est bien la bonne"
+                open={open === 'check'}
+                onToggle={toggle}
+              >
+                <QuarterlyCheck />
+              </Section>
+
+              <Section
+                id="renew"
+                title="Renouveler la clé"
+                summary={key.fingerprint ? `Empreinte ${key.fingerprint}` : undefined}
+                open={open === 'renew'}
+                onToggle={toggle}
+              >
+                <p className="m-0 text-[12.5px] leading-[19px] text-muted">
+                  Clé actuelle : empreinte{' '}
+                  <span className="font-mono text-ink">{key.fingerprint}</span>
+                  {key.createdAt && `, créée le ${new Date(key.createdAt).toLocaleDateString('fr-FR')}`}.
+                </p>
+
+                <Regenerate onDone={reload} />
+              </Section>
+            </>
+          )}
+
+          <Section
+            id="chiffrement"
+            title="Chiffrement du disque"
+            summary="Ce qui protège vos dossiers si l’ordinateur est perdu ou volé"
+            open={open === 'chiffrement'}
+            onToggle={toggle}
+          >
+            <DiskEncryptionBanner />
+
+            <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
+              Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les
+              déplace pas et ne les enferme pas. Sur cette machine, c’est donc le chiffrement du disque
+              qui les protège, et c’est le système qui s’en charge.
+            </p>
+          </Section>
+
+          <Section
+            id="storage"
+            title="Emplacements"
+            summary="Coffre et dossier de travail"
+            open={open === 'storage'}
+            onToggle={toggle}
+          >
+            <Storage />
+          </Section>
+        </Group>
+
+        <Group
+          title="L’application"
+          summary="La version installée, et ce qui vient d’ailleurs"
+        >
+          <Section
+            id="version"
+            title="Version et mises à jour"
+            summary="Ce qui est installé, et comment savoir qu’il existe mieux"
+            open={open === 'version'}
+            onToggle={toggle}
+          >
+            <About />
+          </Section>
+
+          <Section
+            id="import"
+            title="Importer depuis Gestisoft"
+            summary="Reprendre les dossiers exportés"
+            open={open === 'import'}
+            onToggle={toggle}
+          >
+            <Import />
+          </Section>
+        </Group>
+
       </div>
     </Panel>
   )
@@ -768,6 +787,36 @@ const MONTHS = [
 ]
 
 /** Full-width row, separated by rules rather than boxed: this list is meant to grow. */
+/**
+ * A theme, and the sections under it.
+ *
+ * <p>Réglages had grown to eleven sections in one flat list, in the order they happened to be
+ * written, so finding « le tampon des pièces » meant reading all eleven titles. Three themes answer
+ * the question she actually arrives with, which is never « which setting is this » but « where would
+ * this live »: what the cabinet is, where its data is, and what the application itself is doing.</p>
+ *
+ * <p>The groups stay open. They are not a second thing to expand before reaching the thing she came
+ * for; they are headings, and their whole job is to be read at a glance.</p>
+ */
+function Group({ title, summary, children }: {
+  title: string
+  summary: string
+  children: ReactNode
+}) {
+  return (
+    <section className="border-b border-line-strong last:border-b-0">
+      <header className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 bg-sunken px-4 py-2">
+        <h2 className="m-0 type-label text-ink-secondary">{title}</h2>
+        <p className="m-0 text-[11.5px] leading-4 text-muted">{summary}</p>
+      </header>
+
+      {/* The last section in a group drops its own rule: the group's already closes it, and two
+          lines a pixel apart read as a mistake. */}
+      <div className="[&>section:last-child]:border-b-0">{children}</div>
+    </section>
+  )
+}
+
 function Section({ id, title, summary, open, onToggle, children }: {
   id: string
   title: string
