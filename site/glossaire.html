@@ -39,12 +39,11 @@
       <section class="hero">
         <h1>Glossaire</h1>
         <p class="lede">
-          Les mots que le reste du site emploie, en français ordinaire. Chacun est suivi de la seule
-          chose qui compte vraiment : ce qu’il change pour vous et votre cabinet.
+          Les mots que le reste du site emploie, en français ordinaire, et ce que chacun change pour
+          votre cabinet.
         </p>
         <p class="hero__meta">
-          Vous n’avez pas besoin de connaître ces mots pour vous servir d’Avocado. Vous en avez
-          besoin pour décider si vous lui confiez vos dossiers, ce qui n’est pas la même question.
+          Inutiles pour se servir d’Avocado. Utiles pour décider si vous lui confiez vos dossiers.
         </p>
 
         <ul class="sommaire">
@@ -76,43 +75,37 @@
           <h3>Chiffrement</h3>
           <p class="terme__aussi">On dit aussi, à tort, « cryptage ».</p>
           <p>
-            Brouiller un fichier de façon à ce qu’il devienne une suite de caractères sans aucun
-            sens, et qu’on ne puisse le remettre en ordre qu’avec la bonne clé. Un document chiffré
-            n’est pas caché ni protégé par un mot de passe qu’on pourrait contourner : il est
-            <em>transformé</em>. Sans la clé, il n’y a rien à contourner, il n’y a rien.
+            Brouiller un fichier pour qu’il devienne une suite de caractères sans aucun sens, qu’on ne
+            remet en ordre qu’avec la bonne clé. Un document chiffré n’est pas caché ni protégé par un
+            mot de passe : il est <em>transformé</em>. Sans la clé, il n’y a rien à contourner.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Un ordinateur portable oublié dans un train,
-            un disque dur envoyé en réparation, une clé USB perdue : dans les trois cas, ce qui est
-            chiffré ne raconte rien à personne. C’est la différence entre un incident matériel et une
-            violation du secret professionnel.
+            <strong>Pourquoi ça vous concerne.</strong> Portable oublié dans un train, disque envoyé
+            en réparation, clé USB perdue : ce qui est chiffré ne raconte rien à personne. C’est la
+            différence entre un incident matériel et une violation du secret professionnel.
           </p>
         </article>
 
         <article class="terme" id="cle">
           <h3>Clé de chiffrement</h3>
           <p>
-            La suite de caractères qui permet de remettre le fichier en ordre. Ce n’est pas un mot de
-            passe que vous choisissez : c’est une valeur tirée au hasard par la machine, bien trop
-            longue pour être retenue ou devinée. Dans Avocado, elle est rangée par votre système
-            d’exploitation, attachée à votre ordinateur et à votre session, ce qui fait que vous
+            La suite de caractères qui remet le fichier en ordre. Pas un mot de passe que vous
+            choisissez, mais une valeur tirée au hasard, trop longue pour être retenue ou devinée.
+            Votre système la range, attachée à cet ordinateur et à votre session, d’où le fait que vous
             n’avez rien à saisir au quotidien.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Personne d’autre que vous ne l’a. Ni moi, ni
-            un serveur, ni un service d’assistance. C’est ce qui rend la promesse « je ne peux pas
-            lire vos dossiers » vérifiable plutôt que déclarative, et c’est aussi ce qui rend le
-            point suivant vital.
+            <strong>Pourquoi ça vous concerne.</strong> Personne d’autre que vous ne l’a : ni moi, ni
+            un serveur, ni un service d’assistance. C’est ce qui rend le point suivant vital.
           </p>
         </article>
 
         <article class="terme" id="cle-recuperation">
           <h3>Clé de récupération</h3>
           <p>
-            La même clé, écrite sur du papier pour un humain : neuf groupes de six caractères, avec
-            un QR code, sur une feuille A4 qu’Avocado vous fait imprimer à l’installation. Elle
-            existe pour une seule situation, celle où votre ordinateur n’est plus là pour ranger la
-            clé à votre place.
+            La même clé, écrite pour un humain : neuf groupes de six caractères et un QR code, sur une
+            feuille A4 imprimée à l’installation. Elle existe pour le jour où votre ordinateur n’est
+            plus là pour ranger la clé à votre place.
           </p>
           <p>
             <strong>Il n’en existe aucune autre copie.</strong> Ce n’est pas un mot de passe qu’on
@@ -121,8 +114,8 @@
           </p>
           <p class="terme__vous">
             <strong>Pourquoi ça vous concerne.</strong> C’est le seul chemin qui traverse les
-            machines. Rangez cette feuille comme vous rangeriez l’original d’un acte : dans un
-            endroit sûr, et <strong>pas au même endroit que votre sauvegarde</strong>.
+            machines. Rangez-la comme l’original d’un acte, et
+            <strong>pas au même endroit que votre sauvegarde</strong>.
             <a href="donnees.html#deux-choses">Les deux ensemble vous sauvent, séparément aucune ne
             sert.</a>
           </p>
@@ -132,38 +125,33 @@
           <h3>Coffre</h3>
           <p class="terme__aussi">Dans le jargon : « vault ».</p>
           <p>
-            Le dossier de votre disque où Avocado range son propre travail : le journal, les tiers,
-            la facturation, le temps passé, vos modèles. Un dossier ordinaire, que vous choisissez à
-            l’installation et que vous pouvez ouvrir, déplacer et copier comme n’importe quel autre.
-            Simplement, ce qu’il contient est chiffré, en permanence, y compris quand l’application
-            est fermée.
+            Le dossier où Avocado range son propre travail : journal, tiers, facturation, temps passé,
+            modèles. Un dossier ordinaire, que vous choisissez à l’installation et pouvez déplacer ou
+            copier. Ce qu’il contient est simplement chiffré en permanence, y compris application
+            fermée.
           </p>
           <p>
-            <strong>Vos documents n’y sont pas.</strong> Ils restent dans vos propres répertoires,
-            classés comme vous l’entendez : Avocado les lit, il ne les enferme pas. Les
-            <a href="#sauvegarde">sauvegardes</a>, elles, en emportent une copie chiffrée, pour
-            pouvoir vous les rendre.
+            <strong>Vos documents n’y sont pas.</strong> Ils restent dans vos répertoires : Avocado
+            les lit, il ne les enferme pas. Les <a href="#sauvegarde">sauvegardes</a> en emportent une
+            copie chiffrée.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Tout votre cabinet est à un seul endroit,
-            que vous connaissez. Sauvegarder Avocado, c’est copier ce dossier, et rien d’autre. Il
-            n’y a pas de fichiers éparpillés à retrouver dans les recoins de Windows.
+            <strong>Pourquoi ça vous concerne.</strong> Tout votre cabinet est à un seul endroit.
+            Sauvegarder Avocado, c’est copier ce dossier, et rien d’autre.
           </p>
         </article>
 
         <article class="terme" id="base">
           <h3>Base de données</h3>
           <p>
-            Le fichier qui contient les <em>informations</em>, par opposition aux documents : vos
-            dossiers, vos tiers, vos entrées de journal, vos heures, vos échéances. C’est un tableau
-            géant, très rapide à interroger, et c’est ce qui permet à une recherche de vous répondre
-            instantanément sur huit cents dossiers.
+            Le fichier qui contient les <em>informations</em>, par opposition aux documents :
+            dossiers, tiers, entrées de journal, heures, échéances. Un tableau géant, très rapide à
+            interroger, d’où une recherche instantanée sur huit cents dossiers.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> C’est le fichier fragile de l’ensemble : il
-            est écrit en permanence pendant que vous travaillez. C’est la raison pour laquelle
-            Avocado refuse de vivre dans un dossier synchronisé, et la raison pour laquelle il en
-            prend une copie avant toute mise à jour.
+            <strong>Pourquoi ça vous concerne.</strong> C’est le fichier fragile : il est écrit en
+            permanence pendant que vous travaillez. D’où le refus de vivre dans un dossier synchronisé,
+            et la copie prise avant toute mise à jour.
           </p>
         </article>
       </section>
@@ -176,24 +164,22 @@
           <h3>Sauvegarde</h3>
           <p class="terme__aussi">En anglais : « backup ».</p>
           <p>
-            Une copie de vos données rangée <strong>ailleurs que dans votre ordinateur</strong>. Ce
-            dernier point est toute la définition. Une copie sur le même disque ne protège de rien :
-            le disque qui meurt emporte l’original et la copie du même geste. Une clé USB, un disque
-            externe, un espace en ligne : voilà des sauvegardes.
+            Une copie de vos données rangée <strong>ailleurs que dans votre ordinateur</strong>, ce
+            dernier point étant toute la définition. Une copie sur le même disque ne protège de rien :
+            le disque qui meurt emporte l’original et la copie du même geste.
           </p>
           <p>
-            Avocado les fait tout seul, pendant que vous travaillez, dès que la destination est là.
-            Ce qu’il ne peut pas faire à votre place, c’est brancher la clé.
+            Avocado les fait tout seul, dès que la destination est là. Ce qu’il ne peut pas faire à
+            votre place, c’est brancher la clé.
           </p>
           <p>
-            Une sauvegarde contient tout : le journal, les tiers, la facturation, le temps passé, les
-            modèles, <strong>et vos documents</strong>, recopiés chaque nuit depuis vos répertoires.
-            Le tout chiffré, illisible sans votre clé de récupération.
+            Une sauvegarde contient tout : journal, tiers, facturation, temps passé, modèles,
+            <strong>et vos documents</strong>, recopiés chaque nuit. Le tout chiffré, illisible sans
+            votre clé de récupération.
           </p>
           <p class="terme__vous">
             <strong>Pourquoi ça vous concerne.</strong> C’est la moitié de ce qui vous permet de
-            reprendre votre activité après un vol ou un incendie, l’autre moitié étant la clé de
-            récupération. Sans destination configurée, Avocado sauvegarde dans le vide.
+ reprendre après un vol ou un incendie, l’autre moitié étant la clé de récupération. Sans destination configurée, Avocado sauvegarde dans le vide.
             <a href="donnees.html#deux-choses">Le détail est ici.</a>
           </p>
         </article>
@@ -203,9 +189,8 @@
           <p>
             Ce que font OneDrive, Dropbox ou Google Drive : maintenir un dossier identique entre
             plusieurs machines, en recopiant chaque modification au fil de l’eau.
-            <strong>Ce n’est pas une sauvegarde</strong>, et c’est la confusion la plus coûteuse en
-            informatique : un fichier supprimé par erreur, ou abîmé, est fidèlement recopié abîmé
-            partout, en quelques secondes.
+            <strong>Ce n’est pas une sauvegarde</strong> : un fichier supprimé par erreur, ou abîmé,
+            est fidèlement recopié abîmé partout.
           </p>
           <p class="terme__vous">
             <strong>Pourquoi ça vous concerne.</strong> Vous pouvez très bien envoyer vos
@@ -219,14 +204,12 @@
           <h3>Instantané</h3>
           <p class="terme__aussi">En anglais : « snapshot ».</p>
           <p>
-            Une photographie de votre base à un moment donné, gardée sous sa date, avec la liste
-            des documents tels qu’ils étaient à cette minute-là. Avocado en prend régulièrement, et
-            en garde plusieurs, de sorte qu’on puisse revenir à hier ou à la semaine dernière.
+            Une photographie de votre base à un moment donné, gardée sous sa date. Avocado en prend
+            régulièrement et en garde plusieurs, pour revenir à hier ou à la semaine dernière.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> C’est ce qui rattrape une fausse manœuvre,
-            pas une catastrophe. Les instantanés restés sur votre disque meurent avec lui : ce sont
-            des archives, pas une sécurité. Seuls ceux qui sont partis vers une sauvegarde comptent.
+            <strong>Pourquoi ça vous concerne.</strong> Cela rattrape une fausse manœuvre, pas une
+            catastrophe : les instantanés restés sur votre disque meurent avec lui.
           </p>
         </article>
       </section>
@@ -238,14 +221,12 @@
         <article class="terme" id="local">
           <h3>Local</h3>
           <p>
-            Qui se passe sur votre ordinateur, sans passer par Internet. Un logiciel local
-            fonctionne dans le train, dans une salle des pas perdus sans réseau, et le jour où votre
-            opérateur est en panne.
+            Qui se passe sur votre ordinateur, sans passer par Internet. Un logiciel local fonctionne
+            dans le train, dans une salle des pas perdus, et le jour où votre opérateur est en panne.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Avocado est local. Vos dossiers ne
-            dépendent d’aucune connexion, d’aucun abonnement en cours de validité et d’aucune
-            entreprise encore en activité.
+            <strong>Pourquoi ça vous concerne.</strong> Avocado est local : vos dossiers ne dépendent
+            d’aucune connexion, d’aucun abonnement et d’aucune entreprise encore en activité.
           </p>
         </article>
 
@@ -254,15 +235,13 @@
           <p class="terme__aussi">« Cloud », « SaaS », « en ligne ».</p>
           <p>
             Un ordinateur qui appartient à quelqu’un d’autre, dans un bâtiment que vous ne verrez
-            jamais, et sur lequel vos données sont déposées. C’est le fonctionnement de la quasi-
-            totalité des logiciels vendus aujourd’hui par abonnement : vous n’installez presque rien,
-            parce que le logiciel et vos données sont chez l’éditeur.
+            jamais, et sur lequel vos données sont déposées. C’est le fonctionnement de presque tous
+            les logiciels vendus par abonnement.
           </p>
           <p class="terme__vous">
             <strong>Pourquoi ça vous concerne.</strong> Confier des données couvertes par le secret
-            professionnel à un tiers n’est pas interdit, mais cela s’encadre : contrat de
-            sous-traitance, localisation des données, sort en cas de faillite ou de rachat. Avocado
-            n’a pas de serveur, ce qui fait disparaître la question au lieu de la traiter.
+            professionnel à un tiers n’est pas interdit, mais cela s’encadre : contrat, localisation,
+            sort en cas de faillite. Avocado n’a pas de serveur, ce qui fait disparaître la question.
           </p>
         </article>
 
@@ -270,16 +249,13 @@
           <h3>Chiffrement du disque</h3>
           <p class="terme__aussi">BitLocker sur Windows, FileVault sur Mac.</p>
           <p>
-            Une protection fournie par votre système d’exploitation, qui chiffre
-            <em>tout</em> l’ordinateur : vos dossiers Avocado, mais aussi vos courriels, vos fichiers
-            Word, vos téléchargements. Elle s’active une fois dans les réglages du système et ne se
-            remarque plus ensuite.
+            Une protection de votre système d’exploitation, qui chiffre <em>tout</em> l’ordinateur :
+            vos dossiers Avocado, mais aussi vos courriels et vos fichiers Word. Elle s’active une fois
+            et ne se remarque plus.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Avocado protège ce qu’Avocado contient, pas
-            le reste de votre machine. Activer BitLocker ou FileVault est probablement la meilleure
-            demi-heure que vous puissiez consacrer à la sécurité de votre cabinet, et c’est gratuit
-            et déjà installé.
+            <strong>Pourquoi ça vous concerne.</strong> Avocado protège ce qu’Avocado contient, pas le
+            reste de votre machine. Activer BitLocker ou FileVault est gratuit et déjà installé.
           </p>
         </article>
 
@@ -287,15 +263,13 @@
           <h3>Télémétrie</h3>
           <p>
             Les informations qu’un logiciel renvoie à son éditeur pendant que vous vous en servez :
-            quelles fonctions vous utilisez, combien de temps, quelles erreurs surviennent. C’est
-            très répandu, souvent activé par défaut, et rarement lisible dans les conditions
-            d’utilisation.
+            quelles fonctions, combien de temps, quelles erreurs. Très répandu, souvent activé par
+            défaut.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Avocado n’en envoie aucune, ce qui se
-            vérifie dans le code plutôt que sur parole. Rien ne sort de votre machine sauf, si vous
-            le laissez actif, l’interrogation de l’annuaire des entreprises quand vous cherchez une
-            société.
+            <strong>Pourquoi ça vous concerne.</strong> Avocado n’en envoie aucune, ce qui se vérifie
+            dans le code. Rien ne sort de votre machine, sauf l’annuaire des entreprises si vous le
+            laissez actif.
           </p>
         </article>
       </section>
@@ -307,9 +281,8 @@
         <article class="terme" id="installeur">
           <h3>Installeur</h3>
           <p>
-            Le petit programme qui met le logiciel en place sur votre ordinateur : il copie les
-            fichiers, pose un raccourci sur le bureau et inscrit l’application dans la liste des
-            programmes installés. Une fois son travail fait, il ne sert plus à rien et vous pouvez
+            Le programme qui met le logiciel en place : il copie les fichiers, pose un raccourci et
+            inscrit l’application dans la liste des programmes installés. Son travail fait, vous pouvez
             supprimer le fichier téléchargé.
           </p>
           <p class="terme__vous">
@@ -323,11 +296,10 @@
         <article class="terme" id="signature">
           <h3>Signature de code</h3>
           <p>
-            Un certificat payant, acheté chaque année, qui permet à Windows et à macOS d’afficher le
-            nom de l’éditeur au lieu de « éditeur inconnu ». C’est une carte d’identité, pas un
-            contrôle de qualité : elle dit qui a produit le fichier, elle ne dit
-            <strong>rien</strong> sur ce que le fichier fait. Un logiciel malveillant signé reste un
-            logiciel malveillant.
+            Un certificat payant, acheté chaque année, qui permet à Windows et macOS d’afficher le nom
+            de l’éditeur au lieu de « éditeur inconnu ». Une carte d’identité, pas un contrôle de
+            qualité : elle ne dit <strong>rien</strong> sur ce que le fichier fait. Un logiciel
+            malveillant signé reste un logiciel malveillant.
           </p>
           <p class="terme__vous">
             <strong>Pourquoi ça vous concerne.</strong> Avocado n’est pas signé, parce que le
@@ -343,14 +315,13 @@
           <p class="terme__aussi">« Somme de contrôle », « hash », « SHA-256 ».</p>
           <p>
             Une suite de caractères calculée à partir d’un fichier, qui change du tout au tout si un
-            seul octet du fichier change. On la publie à côté du fichier : si l’empreinte de ce que
-            vous avez téléchargé correspond à celle qui est publiée, vous avez bien le fichier
-            d’origine, intact.
+            seul octet change. Publiée à côté du fichier : si celle de votre téléchargement correspond,
+            vous avez bien le fichier d’origine, intact.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> C’est ce qui remplace, en mieux et
-            gratuitement, la carte d’identité payante du point précédent : la signature dit qui a
-            fabriqué, l’empreinte prouve que rien n’a été modifié depuis.
+            <strong>Pourquoi ça vous concerne.</strong> C’est ce qui remplace la carte d’identité
+            payante du point précédent : la signature dit qui a fabriqué, l’empreinte prouve que rien
+            n’a bougé depuis.
             <a href="installation.html#empreintes">La marche à suivre, si le cœur vous en dit.</a>
           </p>
         </article>
@@ -364,17 +335,15 @@
           <h3>Logiciel libre, code source, AGPL</h3>
           <p class="terme__aussi">« Open source ».</p>
           <p>
-            Le <strong>code source</strong> est le texte qu’écrit le développeur et à partir duquel
-            le logiciel est fabriqué. Le publier, c’est permettre à n’importe qui de lire ce que le
-            programme fait réellement, y compris ce qu’il fait de vos données. L’<strong>AGPL</strong>
-            est la licence choisie ici : elle autorise chacun à lire, modifier et redistribuer
+            Le <strong>code source</strong> est le texte qu’écrit le développeur et à partir duquel le
+            logiciel est fabriqué. Le publier permet à n’importe qui de lire ce que le programme fait
+            de vos données. L’<strong>AGPL</strong> autorise chacun à lire, modifier et redistribuer
             Avocado, à condition de publier ses modifications sous la même licence.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Deux garanties concrètes. Vous n’avez pas à
-            me croire sur parole, puisqu’un développeur de votre connaissance peut vérifier. Et
-            personne ne peut refermer ce logiciel pour le revendre : si le projet s’arrête, le code
-            reste, et quelqu’un d’autre peut le reprendre.
+            <strong>Pourquoi ça vous concerne.</strong> Vous n’avez pas à me croire sur parole : un
+            développeur de votre connaissance peut vérifier. Et personne ne peut refermer ce logiciel
+            pour le revendre ; si le projet s’arrête, le code reste.
           </p>
         </article>
 
@@ -382,16 +351,14 @@
           <h3>Responsable de traitement, sous-traitant</h3>
           <p>
             Deux rôles du RGPD. Le <strong>responsable de traitement</strong> décide pourquoi et
-            comment des données personnelles sont utilisées : pour les dossiers de votre cabinet,
-            c’est vous. Le <strong>sous-traitant</strong> est le prestataire qui les manipule pour
-            votre compte, typiquement un éditeur de logiciel qui héberge vos données, et cela impose
-            un contrat écrit entre vous.
+            comment des données personnelles sont utilisées : pour votre cabinet, c’est vous. Le
+            <strong>sous-traitant</strong> les manipule pour votre compte, typiquement un éditeur qui
+            héberge vos données, ce qui impose un contrat écrit.
           </p>
           <p class="terme__vous">
-            <strong>Pourquoi ça vous concerne.</strong> Avocado n’héberge rien et ne reçoit rien : il
-            n’y a donc pas de sous-traitant, pas de contrat à conclure avec moi et pas de transfert
-            de données à documenter. Votre responsabilité, elle, reste entière, et rien de tout cela
-            ne la diminue.
+            <strong>Pourquoi ça vous concerne.</strong> Avocado n’héberge rien : pas de sous-traitant,
+            pas de contrat à conclure avec moi, pas de transfert à documenter. Votre responsabilité,
+            elle, reste entière.
             <a href="donnees.html#rgpd">Ce qui reste de votre côté.</a>
           </p>
         </article>
@@ -400,9 +367,9 @@
       <section>
         <h2>Un mot vous manque ?</h2>
         <p>
-          Si vous butez sur un terme quelque part sur ce site ou dans l’application,
+          Si vous butez sur un terme, ici ou dans l’application,
           <a href="https://github.com/Vincent-Bdn/Avocado/issues">dites-le</a> : c’est un défaut du
-          texte, pas une lacune de votre part, et cela se corrige.
+          texte, et cela se corrige.
         </p>
         <div class="actions">
           <a class="button" href="installation.html">Installer Avocado</a>

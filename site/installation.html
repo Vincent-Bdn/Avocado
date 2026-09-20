@@ -39,12 +39,11 @@
       <section class="hero">
         <h1>Installer Avocado</h1>
         <p class="lede">
-          Téléchargez le fichier qui correspond à votre ordinateur, ouvrez-le, et laissez-vous
-          guider. Comptez cinq minutes, dont trois pour mettre votre clé de récupération à l’abri.
+          Téléchargez le fichier qui correspond à votre ordinateur et ouvrez-le. Cinq minutes, dont
+          trois pour mettre votre clé de récupération à l’abri.
         </p>
         <p class="hero__meta">
-          Il n’y a rien à installer d’autre au préalable. Pas de compte à créer, pas de clé de
-          licence, pas de carte bancaire.
+          Rien d’autre à installer. Pas de compte, pas de clé de licence, pas de carte bancaire.
         </p>
       </section>
 
@@ -52,8 +51,7 @@
         <p class="eyebrow">Étape 1</p>
         <h2>Télécharger</h2>
         <p>
-          Votre système est mis en avant automatiquement. Si vous ne savez pas lequel choisir, celui
-          qui porte la pastille verte est le bon.
+          Dans le doute, celui qui porte la pastille verte est le bon.
         </p>
 
         <div class="os-cards" id="os-cards">
@@ -151,12 +149,11 @@
         <h2>Windows va vous avertir. Voici quoi faire.</h2>
 
         <p>
-          Au moment d’ouvrir le fichier, Windows affiche un écran bleu foncé qui dit avoir protégé
-          votre ordinateur. <strong>Ce n’est pas un virus détecté.</strong> Windows dit simplement
-          qu’il ne reconnaît pas l’éditeur du logiciel, parce qu’Avocado n’est pas signé
-          numériquement.
-          <a href="#pourquoi-avertissement">L’explication est plus bas</a>, et elle tient à une
-          histoire d’argent, pas de sécurité.
+          Windows affiche un écran bleu foncé qui dit avoir protégé votre ordinateur.
+          <strong>Ce n’est pas un virus détecté</strong> : Windows ne reconnaît pas l’éditeur, parce
+          qu’Avocado n’est pas signé numériquement.
+          <a href="#pourquoi-avertissement">L’explication est plus bas</a>, et c’est une histoire
+          d’argent, pas de sécurité.
         </p>
 
         <ol class="steps">
@@ -170,8 +167,7 @@
           <li>
             <h3>Cliquez sur « Informations complémentaires »</h3>
             <p>
-              C’est le petit lien en dessous du texte. Il est discret exprès, et sans lui le seul
-              bouton visible est celui qui annule tout.
+              Le petit lien sous le texte. Sans lui, le seul bouton visible annule tout.
             </p>
 
             <div class="dialog">
@@ -192,9 +188,8 @@
           <li>
             <h3>Puis sur « Exécuter quand même »</h3>
             <p>
-              Le bouton apparaît une fois le lien cliqué. L’installation démarre et se termine toute
-              seule, sans rien demander : ni mot de passe administrateur, ni dossier à choisir.
-              Avocado s’installe pour votre session Windows uniquement.
+              Le bouton apparaît une fois le lien cliqué. L’installation se termine toute seule, sans
+              mot de passe administrateur ni dossier à choisir.
             </p>
 
             <div class="dialog">
@@ -212,8 +207,8 @@
           <li>
             <h3>Avocado s’ouvre</h3>
             <p>
-              Un raccourci a été posé sur votre bureau et dans le menu Démarrer. Vous ne reverrez
-              plus jamais cet avertissement.
+              Un raccourci est posé sur le bureau et dans le menu Démarrer. Vous ne reverrez plus cet
+              avertissement.
             </p>
           </li>
         </ol>
@@ -221,9 +216,8 @@
         <div class="callout callout--info">
           <p class="callout__title">Si votre navigateur bloque le téléchargement</p>
           <p>
-            Chrome et Edge affichent parfois « Ce fichier est rarement téléchargé » et proposent de
-            le supprimer. Dans la liste des téléchargements du navigateur, choisissez
-            « Conserver ». C’est le même mécanisme et la même raison.
+            Chrome et Edge affichent parfois « Ce fichier est rarement téléchargé ». Dans la liste des
+            téléchargements, choisissez « Conserver ».
           </p>
         </div>
       </section>
@@ -233,19 +227,16 @@
         <h2>macOS refuse d’ouvrir Avocado. Une commande le débloque.</h2>
 
         <p>
-          Avocado n’est pas signé par Apple : la signature coûte cent dollars par an et suppose un
-          compte développeur, ce qu’un logiciel gratuit et vérifiable n’a pas. macOS le constate et
-          refuse. Il faut lire le message pour ce qu’il dit exactement :
-          <strong>Apple n’a pas vérifié</strong> cette application. Ce n’est pas
-          « Apple a vérifié et c’est dangereux ».
+          Avocado n’est pas signé par Apple : la signature coûte cent dollars par an. macOS le
+          constate et refuse. Le message dit que <strong>Apple n’a pas vérifié</strong> cette
+          application, pas qu’elle est dangereuse.
         </p>
 
         <ol class="steps">
           <li>
             <h3>Ouvrez le fichier .dmg et glissez Avocado dans Applications</h3>
             <p>
-              Une fenêtre s’ouvre avec l’icône d’Avocado d’un côté et le dossier Applications de
-              l’autre. Faites glisser l’une sur l’autre, puis fermez la fenêtre.
+              Faites glisser l’icône sur le dossier Applications, puis fermez la fenêtre.
             </p>
           </li>
           <li>
@@ -259,17 +250,16 @@
             <pre><code>xattr -cr /Applications/Avocado.app</code></pre>
 
             <p>
-              Elle retire les étiquettes que macOS a posées sur le fichier en le téléchargeant. Elle
-              ne modifie pas Avocado, elle ne touche à rien d’autre sur le Mac, et elle n’est à faire
-              qu’une fois. Ne lancez jamais une commande de ce genre sur un logiciel dont vous ne
-              savez pas d’où il vient : ici, vous pouvez lire le code qui a produit le fichier.
+              Elle retire les étiquettes que macOS a posées au téléchargement. Elle ne modifie pas
+              Avocado et n’est à faire qu’une fois. Ne lancez jamais ce genre de commande sur un logiciel
+              dont vous ignorez la provenance : ici, le code qui a produit le fichier est public.
             </p>
           </li>
           <li>
             <h3>Avocado s’ouvre</h3>
             <p>
-              Depuis le Launchpad ou le dossier Applications, normalement. Les lancements suivants ne
-              demandent plus rien.
+              Depuis le Launchpad ou le dossier Applications. Les lancements suivants ne demandent
+              plus rien.
             </p>
           </li>
         </ol>
@@ -296,10 +286,9 @@
           </div>
 
           <p>
-            Celui-là inscrit Avocado dans Réglages Système, Confidentialité et sécurité, section
-            « Sécurité », où apparaît un bouton <strong>« Ouvrir quand même »</strong>. Si vous le
-            voyez, il fait le même travail que la commande. Cliquez sur « Terminé », jamais sur
-            « Déplacer vers la corbeille ».
+            Celui-là inscrit Avocado dans Réglages Système, Confidentialité et sécurité, où apparaît
+            un bouton <strong>« Ouvrir quand même »</strong> qui fait le même travail que la commande.
+            Cliquez sur « Terminé », jamais sur « Déplacer vers la corbeille ».
           </p>
 
           <div class="dialog">
@@ -317,23 +306,20 @@
           </div>
 
           <p>
-            Celui-là est un refus sec. Rien n’apparaît dans les Réglages, il n’y a pas de bouton
-            « Ouvrir quand même », et le fichier n’est pourtant pas endommagé : macOS parle ainsi
-            d’une application dont la signature ne correspond plus, ce qui arrive à une application non
-            signée qu’il a marquée au téléchargement.
+            Un refus sec : rien dans les Réglages, aucun bouton « Ouvrir quand même ». Le fichier
+            n’est pourtant pas endommagé ; macOS parle ainsi d’une application non signée qu’il a
+            marquée au téléchargement.
           </p>
           <p>
-            Lequel des deux apparaît dépend du Mac et de la version d’Avocado. La commande fonctionne
-            dans les deux cas, le bouton dans un seul : c’est pour cela qu’elle est donnée en premier.
+            La commande fonctionne dans les deux cas, le bouton dans un seul : d’où l’ordre.
           </p>
         </details>
 
         <h3 id="quel-mac">Quel Mac ai-je ?</h3>
         <p>
-          Menu Pomme en haut à gauche, puis « À propos de ce Mac ». Si la ligne « Puce » mentionne
-          Apple M1, M2, M3 ou M4, prenez la version <strong>Apple Silicon</strong>. Si elle
-          mentionne un processeur Intel, prenez la version <strong>Intel</strong>. Dans le doute,
-          Apple Silicon : c’est le cas de tous les Mac vendus depuis fin 2020.
+          Menu Pomme, « À propos de ce Mac ». Une ligne « Puce » Apple M1 à M4 :
+          <strong>Apple Silicon</strong>. Un processeur Intel : <strong>Intel</strong>. Dans le
+          doute, Apple Silicon, le cas de tous les Mac vendus depuis fin 2020.
         </p>
       </section>
 
@@ -342,10 +328,8 @@
         <h2>Sans installeur, si vous préférez.</h2>
 
         <p>
-          Un installeur est un programme qui écrit sur votre disque et pose des raccourcis. Si vous
-          préférez ne rien laisser s’installer, chaque version existe aussi en simple archive à
-          décompresser. L’application est identique, elle ne s’enregistre nulle part, et
-          <strong>la supprimer se fait en jetant le dossier</strong>.
+          Chaque version existe aussi en archive à décompresser. L’application est identique, ne
+          s’enregistre nulle part, et <strong>se supprime en jetant le dossier</strong>.
         </p>
 
         <div class="table-scroll">
@@ -411,9 +395,8 @@
         <div class="callout">
           <p class="callout__title">Vos dossiers ne sont pas dans l’application</p>
           <p>
-            Que vous passiez par l’installeur ou par l’archive, votre travail vit dans un dossier
-            séparé que vous choisissez au premier lancement. Supprimer l’application n’efface rien,
-            et la réinstaller retrouve tout.
+            Dans les deux cas, votre travail vit dans un dossier séparé choisi au premier lancement.
+            Supprimer l’application n’efface rien.
           </p>
         </div>
       </section>
@@ -429,31 +412,28 @@
         </p>
 
         <p>
-          Avocado est gratuit et le restera. Facturer une licence pour financer un certificat serait
-          une drôle de façon de commencer, et payer de ma poche une redevance annuelle à deux
-          entreprises pour avoir le droit de donner un logiciel ne me paraît pas mieux. L’avertissement
-          est le prix de ce choix, et il est assumé.
+          Avocado est gratuit et le restera. Payer une redevance annuelle à deux entreprises pour
+          avoir le droit de donner un logiciel ne me paraît pas une bonne façon de commencer.
+          L’avertissement est le prix de ce choix.
         </p>
 
         <p>
-          Ce que cet avertissement ne dit pas, il faut aussi le savoir :
-          <strong>il ne signifie pas qu’un antivirus a trouvé quelque chose.</strong> Il signifie que
-          le fichier n’a pas de carte d’identité payante. C’est aussi, pour la même raison, ce qui
-          pousse certains antivirus à bloquer l’installeur, Avast en particulier :
-          <a href="#antivirus">la marche à suivre est dans la section précédente</a>. Trois choses, à
-          la place, sont vérifiables :
+          <strong>Il ne signifie pas qu’un antivirus a trouvé quelque chose</strong>, mais que le
+          fichier n’a pas de carte d’identité payante. C’est aussi ce qui pousse certains antivirus à
+          bloquer l’installeur, Avast en particulier :
+          <a href="#antivirus">la marche à suivre est dans la section précédente</a>. Trois choses
+          sont vérifiables à la place :
         </p>
 
         <ul class="facts">
           <li>
             <strong>Le code est public.</strong> Tout ce que fait Avocado est lisible sur
-            <a href="https://github.com/Vincent-Bdn/Avocado">GitHub</a>, y compris par un confrère
-            qui aurait un ami développeur.
+            <a href="https://github.com/Vincent-Bdn/Avocado">GitHub</a>.
           </li>
           <li>
             <strong>Les fichiers sont construits en public.</strong> Chaque version est compilée par
-            GitHub à partir du code publié, pas sur mon ordinateur. Le journal de construction est
-            consultable, et personne ne peut y glisser quoi que ce soit entre les deux.
+            GitHub à partir du code publié, pas sur mon ordinateur, et le journal de construction est
+            consultable.
           </li>
           <li>
             <strong>Une empreinte accompagne chaque fichier</strong>, ce qui permet de vérifier que
@@ -472,25 +452,22 @@
         <h2>Avast, et les autres, peuvent bloquer l’installation.</h2>
 
         <p>
-          Avast est le cas le plus fréquent, et le plus insistant : il peut mettre l’installeur en
-          quarantaine sans rien demander, ou l’envoyer à l’analyse et refuser de le lancer pendant ce
-          temps. Norton, McAfee et Bitdefender font parfois la même chose.
+          Avast est le plus insistant : il met l’installeur en quarantaine sans rien demander, ou
+          l’envoie à l’analyse. Norton, McAfee et Bitdefender font parfois la même chose.
         </p>
 
         <p>
           La raison est celle de l’avertissement de Windows, et elle ne tient pas au contenu du
           fichier : un programme récent, non signé, téléchargé par peu de monde n’a pas de
-          réputation. Les antivirus comptent les installations avant de faire confiance, et un
-          logiciel neuf n’en a aucune. Ce que le vôtre affiche est une présomption statistique, pas
-          une détection : il ne dit pas avoir trouvé quelque chose dans le fichier, il dit ne pas le
-          connaître.
+          réputation. C’est une présomption statistique, pas une détection : votre antivirus ne dit
+          pas avoir trouvé quelque chose, il dit ne pas connaître.
         </p>
 
         <p>
           <strong>Avant de passer outre, vérifiez l’empreinte du fichier.</strong> C’est la seule
           chose qui distingue « mon antivirus ne connaît pas ce logiciel » de « ce fichier n’est pas
           celui que je croyais télécharger ».
-          <a href="#empreintes">La marche à suivre est juste en dessous</a>, elle prend une minute.
+          <a href="#empreintes">La marche à suivre est juste en dessous.</a>
         </p>
 
         <ol class="steps">
@@ -527,25 +504,22 @@
         <p>
           Ne désactivez pas votre antivirus pour installer un logiciel, celui-ci ou un autre. Une
           exception visée sur un fichier dont vous avez vérifié l’empreinte est un choix précis ;
-          éteindre la protection de la machine le temps d’une installation en est un autre, beaucoup
-          plus large, et il vous expose à tout ce qui passera pendant ce temps.
+          éteindre la protection de la machine vous expose à tout ce qui passera pendant ce temps.
         </p>
 
         <p>
-          Pour rendre service au suivant : Avast accepte les signalements de faux positifs sur
+          Avast accepte les signalements de faux positifs sur
           <a href="https://www.avast.com/false-positive-file-form.php">son formulaire dédié</a>.
-          Quelques signalements suffisent en général à faire disparaître le blocage pour tout le
-          monde.
+          Quelques signalements suffisent à faire disparaître le blocage pour tout le monde.
         </p>
       </section>
 
       <section id="empreintes">
         <h2>Vérifier que le fichier téléchargé est le bon</h2>
         <p>
-          Facultatif, et réservé à qui veut aller au bout. Chaque version publie un fichier
-          <code>SHA256SUMS</code> qui contient l’empreinte de tous les fichiers. Si l’empreinte de
-          votre téléchargement correspond, c’est bien le fichier qui est sorti de la construction
-          publique, intact.
+          Facultatif. Chaque version publie un fichier <code>SHA256SUMS</code> contenant l’empreinte
+          de tous les fichiers. Si celle de votre téléchargement correspond, c’est bien le fichier
+          sorti de la construction publique, intact.
         </p>
 
         <details>
@@ -567,21 +541,20 @@
         <h2>Au premier lancement</h2>
 
         <p>
-          Un assistant vous pose deux questions et vous montre une chose à vérifier. Il n’y en aura
-          pas d’autres, et vous ne le reverrez plus.
+          Un assistant pose deux questions et montre une chose à vérifier. Vous ne le reverrez
+          plus.
         </p>
 
         <ol class="steps">
           <li>
             <h3>Où vivra le coffre</h3>
             <p>
-              Un dossier sur votre disque, qui contiendra le journal, les tiers, la facturation, le
-              temps passé et vos modèles, chiffrés. Celui qui vous est proposé convient.
+              Un dossier sur votre disque, contenant journal, tiers, facturation, temps passé et
+              modèles, chiffrés. Celui qui vous est proposé convient.
             </p>
             <p>
-              <strong>Vos documents, eux, n’y entrent pas</strong> : ils restent dans les répertoires
-              où vous les rangez déjà, et vous direz à chaque dossier où se trouve le sien. Il n’y a
-              rien à déplacer, ni maintenant ni jamais.
+              <strong>Vos documents, eux, n’y entrent pas</strong> : ils restent dans les répertoires où
+              vous les rangez déjà, et vous direz à chaque dossier où se trouve le sien.
             </p>
             <p>
               L’assistant refusera de le placer dans OneDrive, Dropbox ou Google Drive, et vous
@@ -593,26 +566,24 @@
           <li>
             <h3>Votre clé de récupération</h3>
             <p>
-              Neuf groupes de six caractères, présentés sur une feuille A4 avec un QR code. Vous
-              l’imprimez, vous l’enregistrez sur une clé USB, ou les deux. L’assistant ne vous
-              laissera pas passer avant.
+              Neuf groupes de six caractères, sur une feuille A4 avec un QR code. Vous l’imprimez, vous
+              l’enregistrez sur une clé USB, ou les deux ; l’assistant ne vous laissera pas passer
+              avant.
             </p>
             <p>
-              C’est le seul chemin qui traverse les machines : c’est elle qui rouvrira vos dossiers
-              sur un ordinateur neuf, après un vol ou une panne.
+              C’est elle qui rouvrira vos dossiers sur un ordinateur neuf.
             </p>
           </li>
           <li>
             <h3>Le chiffrement de votre disque</h3>
             <p>
-              Pas une question, une vérification. Puisque vos documents restent dans vos propres
-              répertoires, ce qui les protège sur cette machine est BitLocker sur Windows ou
-              FileVault sur Mac. Avocado vous dit s’il est actif et vous emmène au bon réglage sinon.
+              Pas une question, une vérification. Vos documents restant dans vos répertoires, ce qui les
+              protège ici est BitLocker ou FileVault. Avocado vous dit s’il est actif et vous emmène au
+              bon réglage sinon.
             </p>
             <p>
               Vous pouvez continuer sans, et l’activer plus tard : Réglages, Chiffrement du disque.
-              C’est le seul réglage de cette liste qui ne concerne pas qu’Avocado, et le seul qui
-              protège aussi tout le reste de votre ordinateur.
+              C’est le seul de cette liste qui protège aussi le reste de votre ordinateur.
             </p>
           </li>
         </ol>
@@ -621,8 +592,8 @@
           <p class="callout__title">Il n’existe aucune autre copie de cette clé</p>
           <p>
             Ce n’est pas un mot de passe qu’on réinitialise, et je n’ai aucun moyen de la retrouver
-            pour vous. Vos sauvegardes sont chiffrées avec elle : sans la clé, sur une machine autre
-            que la vôtre, elles sont définitivement illisibles. Prenez les trois minutes.
+            pour vous. Sans elle, vos sauvegardes sont définitivement illisibles ailleurs que sur cette
+            machine. Prenez les trois minutes.
             <a href="donnees.html">Ce que cela protège exactement.</a>
           </p>
         </div>
@@ -633,19 +604,18 @@
         <h2>Mettre à jour</h2>
 
         <p>
-          Avocado ne se met pas à jour tout seul. Il vous dit qu’une version existe, dans Réglages,
-          rubrique « Version et mises à jour », et c’est vous qui décidez. <strong>Vos dossiers, votre
-          journal et vos sauvegardes ne sont jamais touchés</strong> : ils vivent ailleurs que
-          l’application, et la nouvelle version les reprend là où l’ancienne les avait laissés.
+          Avocado ne se met pas à jour tout seul : il signale qu’une version existe, dans Réglages,
+          « Version et mises à jour », et vous décidez. <strong>Vos dossiers, votre journal et vos
+          sauvegardes ne sont jamais touchés</strong> : ils vivent ailleurs que l’application.
         </p>
 
         <div class="callout">
           <p class="callout__title">D’abord, quittez Avocado</p>
           <p>
             Vraiment quitter, pas seulement fermer la fenêtre : sur Mac, menu Avocado, Quitter, ou
-            <kbd>⌘</kbd> <kbd>Q</kbd>. Remplacer une application pendant qu’elle tourne est la raison
-            n°1 pour laquelle une mise à jour « ne marche pas » : le fichier est remplacé, mais c’est
-            l’ancienne version qui continue de tourner, et elle se réinstalle en se refermant.
+            <kbd>⌘</kbd> <kbd>Q</kbd>. Remplacer une application pendant qu’elle tourne est la première
+            raison pour laquelle une mise à jour « ne marche pas » : l’ancienne version continue de
+            tourner et se réinstalle en se refermant.
           </p>
         </div>
 
@@ -669,9 +639,8 @@
           <li>
             <h3>Vérifiez que c’est bien fait</h3>
             <p>
-              Ouvrez Avocado, puis Réglages, « Version et mises à jour ». Le numéro affiché est celui
-              qui tourne réellement. S’il n’a pas changé, c’est que le remplacement n’a pas eu lieu,
-              le plus souvent parce qu’Avocado n’était pas quitté.
+              Réglages, « Version et mises à jour » : le numéro affiché est celui qui tourne réellement.
+              S’il n’a pas changé, Avocado n’était pas quitté.
             </p>
           </li>
         </ol>
@@ -685,18 +654,16 @@
         </p>
         <p>
           Dans les trois cas, <strong>le dossier qui contient votre travail n’est pas touché</strong>.
-          Si vous voulez aussi l’effacer, supprimez-le vous-même, en sachant qu’aucune copie n’existe
-          ailleurs.
+          Pour l’effacer aussi, supprimez-le vous-même : aucune copie n’existe ailleurs.
         </p>
       </section>
 
       <section>
         <h2>Ça ne marche pas</h2>
         <p>
-          Ouvrez un signalement sur
-          <a href="https://github.com/Vincent-Bdn/Avocado/issues">la page des problèmes</a> en
-          disant quel système vous utilisez et ce que vous avez vu à l’écran. Un compte GitHub
-          gratuit suffit, et une phrase suffit aussi.
+          Ouvrez un signalement sur <a href="https://github.com/Vincent-Bdn/Avocado/issues">la page
+          des problèmes</a> : votre système, et ce que vous avez vu à l’écran. Un compte GitHub
+          gratuit suffit.
         </p>
       </section>
     </main>
