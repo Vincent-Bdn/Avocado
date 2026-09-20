@@ -9,11 +9,9 @@ import { cn } from '../lib/utils.js'
 /**
  * Réglages → Sauvegarde.
  *
- * This screen is also the documentation, because there is nowhere else. A lawyer has no reason to
- * know what a backup is made of, why a small JSON file appears on her USB key, or why the vault must
- * not live in Google Drive while its backups happily can. None of that is obvious, all of it changes
- * what she does, and a manual nobody opens is not where it belongs. So the explanations sit next to
- * the thing they explain, in the register the rest of Réglages already uses.
+ * The few explanations kept here are the ones that change what she does: what a backup holds, why a
+ * JSON file appears on her USB key, why the vault must not live in Google Drive while its backups
+ * happily can. Everything else was cut.
  */
 
 interface Destination {
@@ -164,8 +162,7 @@ export function Backups() {
 
         {status.destinations.length === 0 && (
           <p className="m-0 max-w-[72ch] rounded-sm bg-sunken px-2.5 py-2 text-[11.5px] leading-[17px] text-muted">
-            Aucune destination pour l’instant. Tout ce que vous saisissez n’existe donc qu’ici, sur
-            cet ordinateur.
+            Aucune destination : tout n’existe qu’ici, sur cet ordinateur.
           </p>
         )}
       </div>
@@ -242,9 +239,8 @@ function SameMachineWarning({ detail, onCancel, onAccept }: {
       </p>
 
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-warning opacity-90">
-        Si vous copiez ce dossier ailleurs par un autre moyen, une tâche planifiée, un disque Time
-        Machine, un outil de votre cabinet, alors c'est un choix valable et Avocado n'a aucun moyen de
-        le savoir. Sinon, préférez une clé USB ou un dossier synchronisé.
+        Si vous le copiez ailleurs par un autre moyen, c'est un choix valable. Sinon, préférez une
+        clé USB ou un dossier synchronisé.
       </p>
 
       <div className="flex gap-1.5">
@@ -301,17 +297,15 @@ function Headline({ status }: { status: Status }) {
         {safe
           ? 'Vous ne perdriez rien : tout votre travail existe ailleurs.'
           : onlyHere
-            ? 'Nous ne pouvons pas le dire : vos sauvegardes sont sur cet ordinateur.'
+            ? 'Impossible à dire : vos sauvegardes sont sur cet ordinateur.'
             : nothingChanged
-              ? 'Rien pour l’instant, le coffre est vide. Choisissez une destination avant de commencer à y travailler.'
+              ? 'Rien : le coffre est vide. Choisissez une destination.'
               : describeLoss(exposure)}
       </div>
 
       {onlyHere && (
         <div className="text-[11.5px] leading-[17px] opacity-90">
-          Une copie a bien été écrite, mais dans un dossier de cette machine. Si vous la recopiez
-          ailleurs par un moyen qu’Avocado ne voit pas, tout va bien. Sinon, ajoutez une clé USB ou un
-          dossier synchronisé, et cette phrase deviendra une certitude.
+          Ajoutez une clé USB ou un dossier synchronisé.
         </div>
       )}
 
@@ -319,8 +313,8 @@ function Headline({ status }: { status: Status }) {
         {status.exposedSince
           ? `Dernière copie hors de cet ordinateur : ${formatMoment(status.exposedSince)}`
           : status.hasOffMachineDestination
-            ? 'Destination configurée, mais aucune copie ne lui a encore été envoyée.'
-            : 'Aucune copie n’est jamais sortie de cet ordinateur.'}
+            ? 'Destination configurée, aucune copie envoyée.'
+            : 'Aucune copie n’est sortie de cet ordinateur.'}
       </div>
     </div>
   )
@@ -421,87 +415,38 @@ const statusLabel: Record<Destination['status'], string> = {
   Denied: 'écriture refusée',
 }
 
-/**
- * Everything a person would reasonably wonder and has no way to find out. Written as prose rather
- * than as tooltips: these are things you read once, at the moment you set this up, and never again.
- */
+/** The few things worth knowing here, read once au moment de la mise en place. */
 function Explainers({ localCount }: { localCount: number }) {
   return (
     <div className="grid gap-3 border-t border-line-subtle pt-3">
       <Explain title="Ce qu’une sauvegarde contient">
-        Votre journal, vos tiers, votre facturation, votre temps passé, vos modèles, la copie chiffrée
-        de votre clé, et vos documents. Elle reste chiffrée de bout en bout : personne ne peut
-        l’ouvrir sans votre clé de récupération, pas même le service qui l’héberge.
+        Journal, tiers, facturation, temps passé, modèles, documents, et la copie chiffrée de votre
+        clé. Le tout chiffré : personne ne l’ouvre sans votre clé de récupération.
       </Explain>
 
-      <Explain title="Vos documents, alors qu’ils sont chez vous">
-        Vos fichiers restent dans vos répertoires, en clair, à vous. Avocado en prend simplement une
-        copie chiffrée et compressée chaque nuit, pour pouvoir vous les rendre. C’est la seule copie
-        de vos dossiers que personne ne peut lire en la trouvant, ce qui n’est pas le cas d’une clé
-        USB oubliée dans le métro.
+      <Explain title="Les copies locales">
+        {localCount > 0 ? `${localCount} copies datées` : 'Des copies datées'} de votre base restent
+        dans le coffre, pour revenir en arrière. Elles disparaissent avec le disque : c’est à cela
+        que servent les destinations ci-dessus.
       </Explain>
 
-      <Explain title="Les copies locales, et pourquoi elles ne suffisent pas">
-        Avocado garde en permanence {localCount > 0 ? `${localCount} copies datées` : 'des copies datées'} de
-        votre base dans le coffre lui-même. Elles servent à revenir en arrière : une fiche modifiée
-        par erreur ce matin, une manipulation malheureuse hier. Elles ne protègent de rien d’autre,
-        puisqu’elles disparaissent avec le disque qui les porte. C’est à cela que servent les
-        destinations ci-dessus, et à rien d’autre.
-      </Explain>
-
-      <Explain title="Le petit fichier sur votre clé USB">
-        En préparant un support, Avocado y dépose un fichier nommé{' '}
-        <code className="font-mono text-[11px]">.avocado-sink.json</code>. Il ne contient aucune
-        donnée du cabinet : juste un identifiant et le nom que vous avez donné au support. Il existe
-        parce qu’une clé USB n’a pas d’adresse fixe : elle est E:\ aujourd’hui et F:\ demain selon ce
-        qui est branché. Sans ce repère, Avocado ne pourrait que faire confiance à la lettre du
-        lecteur, et finirait un jour par écrire vos sauvegardes sur la clé d’un client. Vous pouvez le
-        supprimer : le support cessera simplement d’être reconnu.
+      <Explain title="Le fichier sur votre clé USB">
+        Avocado y dépose <code className="font-mono text-[11px]">.avocado-sink.json</code> : un
+        identifiant et un nom, aucune donnée du cabinet. Une clé change de lettre selon ce qui est
+        branché ; sans ce repère, Avocado écrirait un jour sur la clé d’un client. Vous pouvez le
+        supprimer, le support ne sera plus reconnu.
       </Explain>
 
       <Explain title="Google Drive, Dropbox, OneDrive">
-        Avocado ne se connecte pas à ces services par un compte : il écrit dans le dossier que leur
-        logiciel garde synchronisé sur cet ordinateur, et c’est ce logiciel qui l’envoie dans le nuage.
-        Rien à autoriser, aucun mot de passe à confier, et le jour où vous changez de service, il n’y a
-        qu’un dossier à redésigner.
-      </Explain>
-
-      <div className="grid gap-1">
-        <span className="type-label text-ink-secondary">Mettre en place Google Drive, en trois temps</span>
-        <ol className="m-0 grid list-decimal gap-1 pl-4 text-[11.5px] leading-[17px] text-muted">
-          <li>
-            Installez « Google Drive pour ordinateur » depuis{' '}
-            <span className="font-mono text-[11px]">google.com/drive/download</span>, puis connectez-vous
-            à votre compte Google. C’est un logiciel de Google, pas d’Avocado.
-          </li>
-          <li>
-            Il ajoute un dossier « Google Drive » à cet ordinateur, souvent sous la forme d’un nouveau
-            lecteur. Créez-y un dossier, « Sauvegardes Avocado » par exemple.
-          </li>
-          <li>
-            Revenez ici, « Ajouter un dossier », et désignez-le. La première copie part aussitôt.
-          </li>
-        </ol>
-        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-          Pour vérifier que cela fonctionne vraiment : après la première sauvegarde, ouvrez
-          drive.google.com depuis n’importe quel navigateur. Si le dossier et son contenu y sont, la
-          copie a bien quitté cet ordinateur. C’est la seule preuve qui compte, et elle prend dix
-          secondes. OneDrive et Dropbox se mettent en place de la même façon.
-        </p>
-      </div>
-
-      <Explain title="Ce que ces services voient de vos dossiers">
-        Rien. Tout ce qu’Avocado écrit est déjà chiffré avant d’être posé dans le dossier : Google,
-        Microsoft ou Dropbox hébergent des fichiers qu’ils ne peuvent pas ouvrir, et personne chez eux
-        ne peut lire un nom de client ni une pièce. Seule votre clé de récupération les rouvre. C’est
-        aussi pourquoi cette clé doit rester ailleurs que dans ce même nuage.
+        Avocado écrit dans le dossier que leur logiciel synchronise sur cet ordinateur : rien à
+        autoriser, aucun mot de passe. Installez-le, créez-y un dossier, puis « Ajouter un dossier »
+        ici. Ils hébergent des fichiers qu’ils ne peuvent pas ouvrir, d’où l’intérêt de garder votre
+        clé de récupération ailleurs.
       </Explain>
 
       <Explain title="À quel rythme">
-        Automatiquement : à l’ouverture, régulièrement tant que vous travaillez, à la fermeture, et
-        dès qu’une destination réapparaît. Rebrancher la clé suffit, il n’y a rien à lancer. Seul ce
-        qui a changé est envoyé, donc une sauvegarde qui suit de peu la précédente prend quelques
-        secondes, même avec des milliers de documents.
+        À l’ouverture, pendant que vous travaillez, à la fermeture, et dès qu’une destination
+        réapparaît. Seul ce qui a changé est envoyé.
       </Explain>
     </div>
   )
@@ -597,15 +542,14 @@ function Documents({ documents, busy, onChange }: {
         <p className="m-0 flex max-w-[72ch] items-center gap-1.5 text-[11.5px] leading-[17px] text-muted">
           <Loader2 size={13} className="animate-spin" />
           Copie en cours, dossier {documents.running.dossier} sur {documents.running.dossiers}
-          {documents.running.reference ? ` (${documents.running.reference})` : ''}. La première fois
-          prend un moment ; vous pouvez continuer à travailler.
+          {documents.running.reference ? ` (${documents.running.reference})` : ''}.
         </p>
       ) : (
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
         {documents.files === 0 ? (
           documents.dossiers === 0
-            ? 'Aucun dossier n’indique encore où vivent ses documents, il n’y a donc rien à copier.'
-            : 'Vos documents n’ont pas encore été copiés. Ce sera fait à la prochaine nuit, ou tout de suite avec « Sauvegarder maintenant ».'
+            ? 'Aucun dossier n’indique où sont ses documents : rien à copier.'
+            : 'Pas encore copiés. Ce sera fait cette nuit, ou maintenant avec « Sauvegarder maintenant ».'
         ) : (
           <>
             {documents.files.toLocaleString('fr-FR')} fichier{plural(documents.files)} de{' '}
@@ -648,8 +592,8 @@ function Documents({ documents, busy, onChange }: {
 
           <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
             {documents.unreachable > 0
-              ? 'Un disque externe débranché, un lecteur réseau absent, un répertoire déplacé. Ce qui avait déjà été copié est intact : rien n’a été effacé.'
-              : 'Ces fichiers ne sont pas dans la sauvegarde. Ils seront repris à la prochaine nuit si ce qui les retenait les a relâchés.'}
+              ? 'Disque débranché, lecteur réseau absent, répertoire déplacé. Ce qui était déjà copié est intact.'
+              : 'Ces fichiers ne sont pas dans la sauvegarde. Ils seront repris cette nuit.'}
           </p>
 
           <ul className="m-0 grid list-none gap-0.5 p-0">

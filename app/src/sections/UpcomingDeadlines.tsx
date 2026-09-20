@@ -70,8 +70,7 @@ export function UpcomingDeadlines({ onOpenMatter }: { onOpenMatter: (id: string)
 
         {items.length === 0 && (
           <EmptyState title="Rien à surveiller">
-            Les audiences et les délais que vous notez dans un dossier apparaissent ici, du plus
-            urgent au plus lointain.
+            Les audiences et délais notés dans un dossier apparaissent ici.
           </EmptyState>
         )}
 

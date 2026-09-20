@@ -152,9 +152,7 @@ function ClosedNotice() {
           <strong>Ce dossier est clôturé, le journal est donc figé.</strong>
         </p>
         <p className="m-0 mt-1 text-[12.5px] leading-[19px] text-muted">
-          Les entrées, les documents et les heures saisies restent consultables et cherchables. Rien
-          n’a été supprimé. Pour reprendre l’écriture, rouvrez le dossier : la date de clôture est
-          effacée, le dossier repasse « en cours » et le journal note la réouverture.
+          Tout reste consultable. Pour reprendre l’écriture, rouvrez le dossier.
         </p>
       </div>
     </div>

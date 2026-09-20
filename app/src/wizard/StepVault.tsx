@@ -59,8 +59,7 @@ export function StepVault({ suggested, onBack, onPrepared }: {
 
         <WizardLead>
           Un seul dossier sur ce disque tiendra votre journal, vos tiers, votre facturation et votre
-          temps passé, chiffré en permanence. Vos documents, eux, ne bougent pas : ils restent dans
-          les répertoires où vous les rangez déjà.
+          temps passé, chiffré en permanence. Vos documents ne bougent pas.
         </WizardLead>
 
         <div className="mt-[22px]">
@@ -120,8 +119,8 @@ export function StepVault({ suggested, onBack, onPrepared }: {
                   <strong className="font-medium text-ink">
                     Les sauvegardes dans le dossier synchronisé
                   </strong>
-                  . Avocado y dépose une copie chiffrée, fermée et cohérente : c’est exactement
-                  l’usage pour lequel la synchronisation est faite.
+                  . Avocado y dépose une copie chiffrée et fermée, ce pour quoi la synchronisation
+                  est faite.
                 </ArrangementLine>
               </div>
 

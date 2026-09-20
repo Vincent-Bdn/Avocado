@@ -118,7 +118,7 @@ export function Parties({ matter, isOpen, onChanged }: {
           </Button>
 
           <span className="text-[11.5px] leading-[17px] text-muted">
-            Un tiers du carnet, et le rôle qu’il joue dans ce dossier. Le rôle est libre : écrivez-le
+            Un tiers du carnet, et son rôle ici. Le rôle est libre : écrivez-le
             comme vous le diriez.
           </span>
         </div>

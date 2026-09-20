@@ -180,7 +180,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
               Déposez ici vos factures en PDF
             </span>
             <span className="type-caption text-muted">
-              Avocado les lit et vous montre ce qu’il a compris. Rien n’est enregistré sans vous.
+              Avocado les lit. Rien n’est enregistré sans vous.
             </span>
           </>
         )}
@@ -224,15 +224,14 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                 {!item.read.balances && (
                   <p className="m-0 flex items-start gap-1.5 text-[11.5px] leading-[17px] text-warning">
                     <AlertTriangle size={13} strokeWidth={2} className="mt-px shrink-0" />
-                    Les montants lus ne s’additionnent pas : vérifiez le montant HT ci-dessous.
+                    Les montants lus ne s’additionnent pas : vérifiez le montant HT.
                   </p>
                 )}
 
                 {item.wrongClient && (
                   <p className="m-0 flex items-start gap-1.5 text-[11.5px] leading-[17px] text-warning">
                     <AlertTriangle size={13} strokeWidth={2} className="mt-px shrink-0" />
-                    Cette facture est au nom de {item.read.clientName}, qui n’est pas le client de ce
-                    dossier. Déposée sur le bon dossier ?
+                    Facture au nom de {item.read.clientName}, pas le client de ce dossier.
                   </p>
                 )}
 
@@ -294,7 +293,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                       </label>
                       <label
                         className="flex items-center gap-1.5 text-[12px]"
-                        title="Son temps n’a jamais été saisi ici : elle compte comme facturée sans être déduite du reste à facturer."
+                        title="Son temps n’a jamais été saisi ici : facturée, sans être déduite du reste à facturer."
                       >
                         <input
                           type="checkbox"

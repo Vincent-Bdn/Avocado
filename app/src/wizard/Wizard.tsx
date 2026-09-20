@@ -130,33 +130,30 @@ function StepWelcome({ onContinue, onRestore }: { onContinue: () => void; onRest
         <WizardTitle>Bonjour, et bienvenue dans Avocado.</WizardTitle>
 
         <WizardLead>
-          Trois minutes de réglages, puis vous n’entendrez plus parler de tout ceci. Deux choses
-          méritent votre attention : <strong>où vivront vos dossiers</strong>, et{' '}
+          Deux questions, puis vous n’entendrez plus parler de tout ceci :{' '}
+          <strong>où vivront vos dossiers</strong>, et{' '}
           <strong>comment les retrouver si cet ordinateur disparaît</strong>.
         </WizardLead>
 
         <Points>
           <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Tout reste sur votre ordinateur">
-            Aucun serveur, aucun compte, aucune synchronisation. Le secret professionnel n’a rien à
-            négocier avec un hébergeur.
+            Aucun serveur, aucun compte, aucune synchronisation.
           </Point>
 
           <Point icon={<FolderOpen size={16} strokeWidth={1.75} />} title="Vos documents restent dans vos dossiers">
-            Là où vous les rangez déjà, sous les noms que vous leur donnez. Avocado les lit et ne les
-            déplace pas. Le reste, journal, tiers, facturation, vit dans un coffre chiffré.
+            Là où vous les rangez déjà : Avocado les lit et ne les déplace pas. Le reste, journal,
+            tiers, facturation, vit dans un coffre chiffré.
           </Point>
 
           <Point icon={<Clock size={16} strokeWidth={1.75} />} title="Aucun mot de passe à retenir au quotidien">
-            La clé est gardée par votre système et liée à cette machine et à votre session. Vous
-            ouvrez l’application, elle s’ouvre.
+            Votre système garde la clé, liée à cette machine et à votre session.
           </Point>
 
           <Point
             icon={<ShieldCheck size={16} strokeWidth={1.75} />}
             title="Une clé de récupération, à mettre à l’abri une bonne fois"
           >
-            C’est elle qui rendra vos sauvegardes lisibles sur une autre machine. Nous y viendrons à
-            la troisième étape.
+            Elle seule rend vos sauvegardes lisibles sur une autre machine. Troisième étape.
           </Point>
         </Points>
 
@@ -269,9 +266,8 @@ function StepDone({ directory, created, onCommit, onFinish }: {
           <span className="type-label text-ink-secondary">Où vos sauvegardes seront écrites</span>
 
           <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-ink-secondary">
-            Le coffre vit sur cet ordinateur. Si celui-ci est volé, tombe en panne ou prend l’eau, il
-            part avec lui : c’est une copie ailleurs, et elle seule, qui vous permettra de rouvrir vos
-            dossiers. Avocado s’en chargera tout seul, mais il lui faut un endroit.
+            Le coffre vit sur cet ordinateur et part avec lui. Seule une copie ailleurs vous rendra
+            vos dossiers. Avocado s’en charge, mais il lui faut un endroit.
           </p>
 
           {drives.map((drive) => (
@@ -298,11 +294,8 @@ function StepDone({ directory, created, onCommit, onFinish }: {
           />
 
           <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-            Un dossier synchronisé est ici une bonne réponse, alors qu’il était refusé pour le coffre.
-            Ce n’est pas une contradiction : une sauvegarde est un fichier fermé, que la
-            synchronisation recopie sans risque, là où le coffre est une base ouverte en permanence
-            qu’elle finirait par abîmer. Tout est chiffré dans les deux cas, et votre clé de
-            récupération reste le seul moyen de le rouvrir.
+            Un dossier synchronisé convient ici, alors qu’il était refusé pour le coffre : une
+            sauvegarde est un fichier fermé, que la synchronisation recopie sans risque.
           </p>
         </div>
 
@@ -310,8 +303,8 @@ function StepDone({ directory, created, onCommit, onFinish }: {
           <div className="mt-3 grid gap-2 rounded-md border border-[#E8D5AE] bg-warning-bg px-3 py-2.5">
             <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-warning">{sameMachine}</p>
             <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-warning opacity-90">
-              Si ce dossier est recopié ailleurs par un moyen qu’Avocado ne voit pas, c’est un choix
-              valable. Sinon, préférez une clé USB ou un dossier synchronisé.
+              Si vous le recopiez ailleurs par un autre moyen, c’est un choix valable. Sinon,
+              préférez une clé USB ou un dossier synchronisé.
             </p>
             <div className="flex gap-1.5">
               <Button size="sm" variant="secondary" onClick={() => void chooseFolder()}>

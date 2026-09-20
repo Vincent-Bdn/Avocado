@@ -131,9 +131,8 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
         <WizardTitle>Retrouver vos dossiers.</WizardTitle>
 
         <WizardLead>
-          Il vous faut deux choses : la sauvegarde, sur une clé, un disque ou dans un dossier
-          synchronisé, et <strong>votre clé de récupération</strong>. Elles ne servent qu’ensemble :
-          la sauvegarde est chiffrée, et rien d’autre ne l’ouvre.
+          Il vous faut la sauvegarde, sur une clé, un disque ou un dossier synchronisé, et{' '}
+          <strong>votre clé de récupération</strong>. L’une ne sert pas sans l’autre.
         </WizardLead>
 
         <ol className="m-0 grid list-none gap-4 p-0">
@@ -148,9 +147,8 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
 
             {candidates?.length === 0 && (
               <p className="m-0 text-[12px] leading-[18px] text-warning">
-                Aucune sauvegarde Avocado dans ce dossier. Si votre clé en contient une, choisissez sa
-                racine plutôt qu’un sous-dossier : Avocado range ses copies dans un dossier
-                « avocado » qu’il saura retrouver seul.
+                Aucune sauvegarde Avocado ici. Choisissez la racine de la clé plutôt qu’un
+                sous-dossier.
               </p>
             )}
 
@@ -227,8 +225,8 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
             </div>
 
             <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-              Un dossier vide, sur le disque de cet ordinateur. Pas dans un dossier synchronisé : le
-              coffre est une base ouverte en permanence, qu’une synchronisation finirait par abîmer.
+              Un dossier vide, sur le disque de cet ordinateur. Pas un dossier synchronisé : le
+              coffre est une base ouverte en permanence.
             </p>
           </Stage>
 
@@ -248,13 +246,12 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
               path={closed}
               busy={busy}
               onPick={setClosed}
-              hint={ongoing ? 'Le même dossier convient très bien.' : undefined}
+              hint={ongoing ? 'Le même dossier convient.' : undefined}
             />
 
             <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-              Chaque dossier retrouvera son propre répertoire, avec ses sous-dossiers et ses pièces
-              rangés comme vous les aviez. Rien n’est jamais écrasé : un fichier déjà présent est
-              conservé tel quel. Vous pouvez laisser vide et le faire plus tard depuis Réglages.
+              Chaque dossier retrouve son répertoire, rangé comme vous l’aviez. Rien n’est écrasé.
+              Vous pouvez laisser vide et le faire plus tard depuis Réglages.
             </p>
           </Stage>
 
@@ -277,9 +274,7 @@ export function StepRestore({ onBack, onRestored }: { onBack: () => void; onRest
               spellCheck={false}
             />
             <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-              Les neuf groupes de votre feuille. La casse et les tirets n’ont pas d’importance. Elle
-              est vérifiée avant que quoi que ce soit ne soit téléchargé, donc une erreur de frappe ne
-              vous coûtera que de la retaper.
+              Les neuf groupes de votre feuille. La casse et les tirets n’ont pas d’importance.
             </p>
           </Stage>
         </ol>

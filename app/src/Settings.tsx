@@ -76,12 +76,12 @@ export function Settings() {
 
         <Group
           title="Le cabinet"
-          summary="Ce que vous facturez, et ce que vos documents portent"
+          summary="Taux, adresses, modèles, tampon"
         >
           <Section
             id="rate"
             title="Taux horaire et exercice"
-            summary="Le point de départ des nouveaux dossiers, et l’année de votre chiffre d’affaires"
+            summary="Le taux par défaut et l’année comptable"
             open={open === 'rate'}
             onToggle={toggle}
           >
@@ -91,7 +91,7 @@ export function Settings() {
           <Section
             id="addresses"
             title="Vos adresses électroniques"
-            summary="Ce qui distingue un courriel reçu d’un courriel envoyé"
+            summary="Reçu ou envoyé, au journal"
             open={open === 'addresses'}
             onToggle={toggle}
           >
@@ -101,7 +101,7 @@ export function Settings() {
           <Section
             id="templates"
             title="Modèle du détail de facture"
-            summary="Le document Word que vous joignez déjà à vos factures"
+            summary="Le document Word joint à vos factures"
             open={open === 'templates'}
             onToggle={toggle}
           >
@@ -111,7 +111,7 @@ export function Settings() {
           <Section
             id="stamp"
             title="Tampon des pièces"
-            summary="L’image du cabinet, et où le numéro se pose dessus"
+            summary="L’image et la place du numéro"
             open={open === 'stamp'}
             onToggle={toggle}
           >
@@ -121,12 +121,12 @@ export function Settings() {
 
         <Group
           title="Vos données"
-          summary="Où elles vivent, et ce qui vous les rendrait"
+          summary="Sauvegarde, clé, chiffrement"
         >
           <Section
             id="backups"
             title="Sauvegarde"
-            summary="Où vos dossiers sont copiés, et à quel rythme"
+            summary="Où vos dossiers sont copiés"
             open={open === 'backups'}
             onToggle={toggle}
           >
@@ -142,9 +142,8 @@ export function Settings() {
               onToggle={toggle}
             >
               <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-                Ce coffre a été créé avant que la clé ne soit conservée : elle ne peut donc plus être
-                affichée ni contrôlée. Éditez-en une nouvelle pour retrouver ces deux possibilités. La
-                fiche imprimée que vous détenez reste valable jusque-là.
+                Ce coffre est antérieur à la conservation de la clé : elle ne peut plus être
+                affichée ni contrôlée. Éditez-en une nouvelle. Votre fiche reste valable jusque-là.
               </p>
 
               <Regenerate onDone={reload} />
@@ -156,7 +155,7 @@ export function Settings() {
               <Section
                 id="check"
                 title="Contrôle de la clé"
-                summary="Vérifier que votre fiche est bien la bonne"
+                summary="Vérifier votre fiche"
                 open={open === 'check'}
                 onToggle={toggle}
               >
@@ -184,16 +183,15 @@ export function Settings() {
           <Section
             id="chiffrement"
             title="Chiffrement du disque"
-            summary="Ce qui protège vos dossiers si l’ordinateur est perdu ou volé"
+            summary="Si l’ordinateur est perdu ou volé"
             open={open === 'chiffrement'}
             onToggle={toggle}
           >
             <DiskEncryptionBanner />
 
             <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-              Vos documents restent dans vos dossiers, là où vous travaillez déjà. Avocado ne les
-              déplace pas et ne les enferme pas. Sur cette machine, c’est donc le chiffrement du disque
-              qui les protège, et c’est le système qui s’en charge.
+              Vos documents restent dans vos répertoires : Avocado ne les déplace pas. Sur cette
+              machine, c’est le chiffrement du disque qui les protège.
             </p>
           </Section>
 
@@ -210,12 +208,12 @@ export function Settings() {
 
         <Group
           title="L’application"
-          summary="La version installée, et ce qui vient d’ailleurs"
+          summary="Version et import"
         >
           <Section
             id="version"
             title="Version et mises à jour"
-            summary="Ce qui est installé, et comment savoir qu’il existe mieux"
+            summary="La version installée"
             open={open === 'version'}
             onToggle={toggle}
           >
@@ -265,9 +263,8 @@ function Storage() {
           {settings.vaultDirectory}
         </code>
         <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-          Tout y est chiffré : le journal, les tiers, la facturation, le temps passé, les modèles.
-          Vos documents, eux, restent dans vos propres répertoires. C’est ce dossier qu’il faut
-          sauvegarder, et c’est votre clé de récupération qui le rouvrira ailleurs.
+          Tout y est chiffré : journal, tiers, facturation, temps passé, modèles. Vos documents
+          restent dans vos répertoires. C’est ce dossier qu’il faut sauvegarder.
         </p>
       </div>
 
@@ -328,14 +325,11 @@ function OwnAddresses() {
   return (
     <>
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Une par ligne. Un courriel dont l’expéditeur est l’une d’elles est classé « envoyé » au
-        journal, les autres « reçu ». Sans rien ici, tout arrive en « reçu » et se corrige au coup par
-        coup.{' '}
+        Une par ligne. Un courriel parti de l’une d’elles est classé « envoyé », les autres
+        « reçu ».{' '}
         <strong className="font-medium text-ink-secondary">
-          Écrivez @votre-cabinet.fr pour prendre tout le domaine d’un coup
-        </strong>{' '}
-        : c’est plus sûr que de lister vos confrères un par un, et cela vaudra encore pour le
-        prochain qui arrive.
+          @votre-cabinet.fr prend tout le domaine d’un coup.
+        </strong>
       </p>
 
       <textarea
@@ -409,9 +403,8 @@ function HourlyRate() {
   return (
     <>
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Ce taux ne sert qu’à pré-remplir un nouveau dossier. Chaque dossier garde ensuite le sien, et
-        chaque ligne de temps peut porter un taux dérogatoire : le modifier ici ne retarife jamais du
-        travail déjà saisi.
+        Pré-remplit les nouveaux dossiers. Chaque dossier garde ensuite le sien : le modifier ici ne
+        retarife rien de déjà saisi.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -462,8 +455,7 @@ function HourlyRate() {
       </div>
 
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-        C’est la date à laquelle votre chiffre d’affaires repart de zéro, sur l’accueil. Le 1er janvier
-        si votre exercice suit l’année civile.
+        La date à laquelle votre chiffre d’affaires repart de zéro sur l’accueil.
       </p>
 
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
@@ -537,10 +529,8 @@ function About() {
       )}
 
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Avocado ne se met jamais à jour tout seul et ne télécharge rien : il demande une fois par
-        jour au dépôt public quel est le dernier numéro de version publié, et vous le dit. Rien
-        d’autre ne sort de votre ordinateur, pas même la version que vous utilisez. C’est vous qui
-        décidez d’installer, ou non.
+        Avocado ne se met jamais à jour tout seul. Une fois par jour, il demande au dépôt public le
+        dernier numéro publié, et rien d’autre ne sort de votre ordinateur.
       </p>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -687,9 +677,8 @@ function Stamp() {
       {toasts.view}
 
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        L’image de votre tampon, telle que vous l’utilisez déjà. Avocado écrit le numéro de pièce
-        par-dessus, à l’endroit que vous réglez ci-dessous : une seule image sert donc pour toutes
-        les pièces, et vous n’avez pas soixante variantes de votre logo à produire.
+        Votre tampon, tel que vous l’utilisez déjà. Avocado écrit le numéro de pièce par-dessus, à
+        l’endroit réglé ci-dessous.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -880,8 +869,7 @@ function QuarterlyCheck() {
   return (
     <>
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px]">
-        Retrouvez votre fiche, et recopiez deux groupes. Un dispositif de secours jamais testé est un
-        dispositif qui ne marche pas.
+        Retrouvez votre fiche et recopiez deux groupes.
       </p>
 
       <div className="flex flex-wrap gap-4">
@@ -912,7 +900,7 @@ function QuarterlyCheck() {
       {passed && (
         <p className="m-0 flex items-center gap-1.5 text-[12.5px] text-success">
           <Check size={13} strokeWidth={2.5} />
-          Votre fiche est la bonne. Rangez-la où vous l’avez prise.
+          Votre fiche est la bonne.
         </p>
       )}
 
@@ -982,8 +970,8 @@ function Regenerate({ onDone }: { onDone: () => void }) {
           <strong className="text-[12.5px] font-semibold">Ce qui change</strong>
           <p className="m-0 text-[12px] leading-[18px]">
             Les sauvegardes faites <strong className="font-semibold">à partir de maintenant</strong>{' '}
-            s’ouvriront avec la nouvelle clé. Les sauvegardes plus anciennes continueront d’exiger
-            l’ancienne : gardez la fiche précédente tant que ces sauvegardes comptent.
+            s’ouvriront avec la nouvelle clé. Les précédentes exigeront toujours l’ancienne : gardez
+            la fiche.
           </p>
         </div>
 

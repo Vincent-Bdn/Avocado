@@ -124,8 +124,7 @@ export function Import() {
       // « Cannot read properties of undefined », which tells her nothing she can act on.
       if (!Array.isArray(scanned?.folders)) {
         throw new Error(
-          'Le serveur d’Avocado ne renvoie pas ce que cet écran attend. Fermez puis rouvrez ' +
-          'Avocado ; si cela recommence, réinstallez la dernière version.',
+          'Le serveur ne renvoie pas ce que cet écran attend. Fermez puis rouvrez Avocado.',
         )
       }
 
@@ -304,7 +303,7 @@ export function Import() {
         </Button>
 
         <span className="text-[11.5px] leading-[17px] text-muted">
-          Celui qui contient vos dossiers clients, quelle que soit la façon dont ils sont rangés.
+          Celui qui contient vos dossiers clients.
         </span>
       </div>
 
@@ -344,10 +343,9 @@ export function Import() {
             )}
 
             <p className="m-0 max-w-[76ch] text-[11px] leading-[16px] text-muted">
-              L’arborescence de chaque dossier est conservée telle quelle et chaque courriel classé au
-              journal avec ses pièces jointes. Là où Gestisoft a exporté une liste de contacts ou une
-              facturation, les tiers et les factures sont repris ; ailleurs ils restent vides, et rien
-              ne sera inventé à leur place.
+              L’arborescence est conservée, chaque courriel classé au journal avec ses pièces
+              jointes. Là où Gestisoft a exporté des contacts ou une facturation, ils sont repris ;
+              ailleurs ils restent vides.
             </p>
           </div>
 
@@ -366,8 +364,8 @@ export function Import() {
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="type-label text-ink-secondary">Quels dossiers</span>
               <span className="text-[11px] leading-[16px] text-muted">
-                Un dossier marqué prend tout ce qu’il contient. Marquez plus haut pour regrouper, plus
-                bas pour séparer.
+                Un dossier marqué prend tout son contenu. Plus haut pour regrouper, plus bas pour
+                séparer.
               </span>
             </div>
 
@@ -417,10 +415,8 @@ export function Import() {
             <span className="type-label text-ink-secondary">Tiers et facturation, si vous les avez</span>
 
             <p className="m-0 max-w-[76ch] text-[11.5px] leading-[17px] text-muted">
-              Là où Gestisoft n’a rien exporté, Avocado n’inventera rien. Ces deux tableaux arrivent
-              avec un nom de dossier par ligne : remplissez ce que vous voulez, laissez le reste vide,
-              et relancez l’import. Rien n’est obligatoire, et vous pouvez le faire plus tard dossier
-              par dossier.
+              Ces deux tableaux arrivent avec un nom de dossier par ligne : remplissez ce que vous
+              voulez, laissez le reste vide, et relancez l’import. Rien n’est obligatoire.
             </p>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -742,8 +738,8 @@ function Running({ progress }: { progress: Progress }) {
       )}
 
       <p className="m-0 max-w-[76ch] text-[11px] leading-[16px] text-muted">
-        Tout est chiffré au passage, ce qui prend le plus clair du temps. Vous pouvez continuer à
-        travailler ; fermer Avocado interromprait l’import.
+        Tout est chiffré au passage. Vous pouvez continuer à travailler ; fermer Avocado
+        interromprait l’import.
       </p>
     </div>
   )

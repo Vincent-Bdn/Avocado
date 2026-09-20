@@ -95,9 +95,8 @@ export function Templates() {
   return (
     <>
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Le détail des diligences que vous joignez à vos factures. Donnez à Avocado le document Word
-        que vous envoyez déjà : votre en-tête, votre logo, vos colonnes et votre phrase de fin sont
-        conservés tels quels. Sans modèle, Avocado produit une mise en page simple qui fait l’affaire.
+        Le document Word que vous joignez déjà à vos factures : en-tête, logo, colonnes et phrase
+        de fin sont conservés. Sans modèle, Avocado produit une mise en page simple.
       </p>
 
       <input
@@ -157,18 +156,15 @@ export function Templates() {
 
           <p className="m-0 mt-2.5 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
             Écrivez-les là où la valeur doit apparaître. Les repères «&nbsp;ligne&nbsp;» vont dans
-            <strong> une seule ligne de votre tableau</strong> : elle sera répétée pour chaque
-            diligence. Un repère inconnu est laissé tel quel plutôt que vidé, parce qu’un document où
-            il reste «&nbsp;{'{{total}}'}&nbsp;» est visiblement faux, là où un blanc silencieux a
-            l’air terminé et ne l’est pas.
+            <strong> une seule ligne de votre tableau</strong>, répétée pour chaque diligence. Un
+            repère inconnu est laissé tel quel plutôt que vidé.
           </p>
 
           <p className="m-0 mt-2 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-            <strong>Les lignes qui n’ont rien à dire disparaissent.</strong> Une ligne qui parle de la
-            remise, ou du n° RG, est retirée quand il n’y en a pas : vous n’aurez jamais
-            «&nbsp;Application d’une remise commerciale de&nbsp;» suivi de rien. Pour l’en-tête,
-            préférez «&nbsp;{'{{facture.intitule}}'}&nbsp;», qui écrit «&nbsp;n° 90&nbsp;» ou
-            «&nbsp;du 18/09/2026&nbsp;» selon que la facture porte un numéro ou non.
+            <strong>Les lignes qui n’ont rien à dire disparaissent</strong> : celle de la remise ou
+            du n° RG est retirée quand il n’y en a pas. Pour l’en-tête, préférez
+            «&nbsp;{'{{facture.intitule}}'}&nbsp;», qui écrit «&nbsp;n° 90&nbsp;» ou
+            «&nbsp;du 18/09/2026&nbsp;» selon le cas.
           </p>
 
           <div className="mt-2.5 grid gap-1 sm:grid-cols-2">

@@ -379,9 +379,7 @@ function FirstRun({ onNewMatter, onNewContact }: {
         <h2 className="type-title-lg m-0">Votre premier dossier</h2>
 
         <p className="m-0 max-w-[52ch] text-ink-secondary">
-          Un dossier réunit son client, le journal de tout ce qui s’y passe, ses documents et ses
-          pièces, ses échéances, et le temps que vous y consacrez. Tout le reste de l’application en
-          découle.
+          Il réunit son client, son journal, ses documents, ses échéances et votre temps.
         </p>
 
         <div className="mt-1 flex flex-wrap justify-center gap-2">
@@ -398,18 +396,15 @@ function FirstRun({ onNewMatter, onNewContact }: {
 
       <div className="mx-auto mt-8 grid max-w-[860px] gap-3 sm:grid-cols-3">
         <TeachingCard icon={<BookOpen size={14} strokeWidth={2} />} title="Le journal">
-          Deux lignes après chaque appel. C’est le geste qui fait vivre l’application, et il vaut
-          mieux qu’il soit noté à chaud.
+          Deux lignes après chaque appel, notées à chaud.
         </TeachingCard>
 
         <TeachingCard icon={<Timer size={14} strokeWidth={2} />} title="Le temps passé">
-          Attaché à l’entrée de journal, pas saisi à part. Ce que vous ne notez pas maintenant ne se
-          facturera jamais.
+          Attaché à l’entrée de journal. Ce qui n’est pas noté ne se facture pas.
         </TeachingCard>
 
         <TeachingCard icon={<HardDriveDownload size={14} strokeWidth={2} />} title="La sauvegarde">
-          Branchez votre clé une fois par semaine. Une sauvegarde est un fichier fermé, que la
-          synchronisation copie sans risque.
+          Branchez votre clé une fois par semaine.
         </TeachingCard>
       </div>
     </div>

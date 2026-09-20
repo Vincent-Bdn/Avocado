@@ -21,8 +21,8 @@ export function StepDisk({ onBack, onContinue }: { onBack: () => void; onContinu
         <WizardTitle>Le disque de cet ordinateur</WizardTitle>
 
         <WizardLead>
-          Vos documents restent dans vos dossiers, là où vous travaillez déjà. Sur cette machine, ce
-          qui les protège n’est donc pas Avocado : c’est le chiffrement du disque, que Windows et
+          Vos documents restent dans vos répertoires. Sur cette machine, ce qui les protège n’est
+          donc pas Avocado : c’est le chiffrement du disque, que Windows et
           macOS savent faire tout seuls, une fois pour toutes.
         </WizardLead>
 
@@ -32,14 +32,12 @@ export function StepDisk({ onBack, onContinue }: { onBack: () => void; onContinu
 
         <Points>
           <Point icon={<HardDrive size={16} strokeWidth={1.75} />} title="Ce que cela change, concrètement">
-            Un ordinateur perdu ou volé, un disque revendu, un portable oublié dans un train : sans le
-            chiffrement, tout se lit. Avec, il n’y a rien à lire.
+            Ordinateur perdu, disque revendu : sans chiffrement, tout se lit. Avec, rien.
           </Point>
 
           <Point icon={<Lock size={16} strokeWidth={1.75} />} title="Ce qu’Avocado chiffre de son côté">
-            Le coffre, où vivent votre journal, vos tiers, votre facturation et votre temps passé, et
-            vos sauvegardes, qui sont illisibles sans votre clé de récupération. Vos documents y sont
-            copiés chaque nuit, chiffrés eux aussi : une clé USB de sauvegarde perdue ne se lit pas.
+            Le coffre, et les sauvegardes, illisibles sans votre clé de récupération. Vos documents
+            y sont copiés chaque nuit, chiffrés eux aussi.
           </Point>
         </Points>
       </WizardScroll>

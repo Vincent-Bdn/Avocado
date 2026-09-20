@@ -124,7 +124,7 @@ export function Deadlines({ matterId, isOpen, onChanged }: {
 
       {items.length === 0 && (
         <EmptyState title="Aucune échéance">
-          Une audience, un délai de procédure, un rendez-vous : ce qui a une date et ne doit pas être
+          Une audience, un délai, un rendez-vous : ce qui a une date et ne doit pas être
           manqué.
         </EmptyState>
       )}

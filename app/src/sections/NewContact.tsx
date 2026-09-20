@@ -214,8 +214,8 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
           {/* Say what leaves the machine, on the screen where it leaves it. */}
           <p className="m-0 type-caption text-muted">
             {lookupOn
-              ? 'L’annuaire ne reçoit que ce que vous tapez dans le champ « Raison sociale ». Rien d’autre ne quitte ce poste.'
-              : 'Aucune requête n’est envoyée. Tous les champs sont à saisir à la main.'}
+              ? 'L’annuaire ne reçoit que la raison sociale que vous tapez.'
+              : 'Aucune requête n’est envoyée : tout est à saisir à la main.'}
           </p>
 
           <div className="flex items-center gap-2">
@@ -293,8 +293,7 @@ export function NewContact({ contact, attachTo, onCreated, onCancel }: {
 
             {lookupOn && !contact && !picked && term.length < 3 && (
               <p className="m-0 type-caption text-muted">
-                Trois caractères suffisent, ou saisissez directement les neuf chiffres du SIREN. Rien
-                n’est envoyé avant la troisième lettre.
+                Trois caractères suffisent, ou saisissez le SIREN.
               </p>
             )}
 
@@ -455,7 +454,7 @@ function Results({ lookup, term, onChoose, onFree }: {
       <div className="rounded-md border border-[#E8D5AE] border-l-[3px] border-l-[#8A5A10] bg-[#FDF8ED] px-3 py-2.5 text-[#6E4A0E]">
         <div className="text-[12px] font-semibold">Annuaire injoignable, saisie manuelle possible</div>
         <p className="m-0 mt-0.5 text-[11.5px] leading-[17px]">
-          Vous êtes hors ligne ou le service ne répond pas. Les champs restent modifiables ; vous
+          Hors ligne ou service indisponible. Les champs restent modifiables ; vous
           pourrez vérifier plus tard depuis la fiche.
         </p>
       </div>
@@ -466,7 +465,7 @@ function Results({ lookup, term, onChoose, onFree }: {
     return (
       <div className="rounded-md border border-line bg-raised p-1 shadow-e2">
         <p className="m-0 px-2 py-2 text-[11.5px] leading-[17px] text-muted">
-          Aucune entreprise ne correspond. Vérifiez l’orthographe, ou saisissez le SIREN directement.
+          Aucune entreprise ne correspond. Vérifiez l’orthographe, ou saisissez le SIREN.
         </p>
         <button
           type="button"

@@ -286,8 +286,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
             className="max-w-[460px]"
             actions={<Button onClick={onNewMatter}>Nouveau dossier</Button>}
           >
-            Un dossier réunit son client, le journal de tout ce qui s’y passe, ses documents, ses
-            échéances et le temps que vous y consacrez.
+            Il réunit son client, son journal, ses documents, ses échéances et votre temps.
           </EmptyState>
         </Panel>
       )}

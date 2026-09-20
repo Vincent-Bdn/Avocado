@@ -286,8 +286,7 @@ export function MatterForm({ matter, onSaved, onCancel }: {
         </div>
 
         <p className="m-0 mt-1 text-[11.5px] leading-[17px] text-muted">
-          Vos documents restent là où vous travaillez déjà : Avocado lit ce dossier, il ne le déplace
-          pas et n’en fait pas de copie. Bureau, disque réseau, dossier client, peu importe.
+          Avocado lit ce répertoire, il ne le déplace pas. Bureau, disque réseau, peu importe.
         </p>
       </Field>
 

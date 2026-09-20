@@ -223,8 +223,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
 
           {summary.leftToBillCents < 0 && (
             <p className="m-0 mt-2 text-[11px] leading-4">
-              Le client est en avance de {formatEuros(-summary.leftToBillCents)} : provision reçue ou
-              facture émise au-delà du temps saisi.
+              Le client est en avance de {formatEuros(-summary.leftToBillCents)}.
             </p>
           )}
         </section>
@@ -269,8 +268,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
       <section className="grid gap-2">
         <h3 className="type-title m-0">Factures émises</h3>
         <Micro>
-          Ces factures ont été établies dans votre logiciel comptable. Avocado n’en produit aucune :
-          il note ce qui est parti, pour savoir ce qui reste.
+          Établies dans votre logiciel comptable. Avocado note ce qui est parti.
         </Micro>
 
         {isOpen && (
@@ -365,7 +363,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
 
                 <RowAmount>{formatEuros(invoice.amountExclVatCents)}</RowAmount>
                 {invoice.isHistorical && (
-                  <span title="Reprise de l’ancien logiciel : compte comme facturée, hors reste à facturer.">
+                  <span title="Reprise de l’ancien logiciel : facturée, hors reste à facturer.">
                     <Badge tone="neutral">antérieure</Badge>
                   </span>
                 )}
@@ -420,8 +418,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
       <section className="grid gap-2">
         <h3 className="type-title m-0">Mouvements</h3>
         <Micro>
-          Les provisions reçues et les frais avancés pour le compte du client : ils viennent en
-          déduction de ce qui reste à facturer.
+          Provisions reçues et frais avancés pour le client, déduits du reste à facturer.
         </Micro>
 
         {isOpen && (
@@ -499,8 +496,8 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
       <section className="grid gap-2">
         <h3 className="type-title m-0">Sous-traitance</h3>
         <Micro>
-          Ce que le dossier a coûté au cabinet : rétrocessions d’honoraires à un confrère, traductions,
-          expertises privées. Cela ne change pas ce que le client doit, cela change ce qui vous reste.
+          Ce que le dossier a coûté au cabinet : rétrocessions, traductions, expertises. Sans effet
+          sur ce que le client doit.
         </Micro>
 
         {isOpen && (
@@ -821,8 +818,8 @@ function InvoiceDialog({ matterId, onCancel, onSaved }: {
   return (
     <Dialog title="Saisir une facture établie ailleurs" onClose={onCancel}>
       <p className="m-0 text-[12.5px] leading-[19px] text-muted">
-        Pour une facture qui ne correspond pas à des heures saisies ici : un forfait, une provision
-        facturée, une régularisation. Son montant est retranché du reste à facturer.
+        Pour une facture sans heures saisies ici : forfait, provision, régularisation. Retranchée
+        du reste à facturer.
       </p>
 
       <InvoiceForm matterId={matterId} onSaved={onSaved} onCancel={onCancel} bare />
@@ -931,7 +928,7 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
             − 8 974 €. */}
         <label
           className="flex items-center gap-2 text-[13px]"
-          title="Émise avant Avocado ou dans un autre logiciel : elle compte comme facturée, mais n’est pas déduite du reste à facturer."
+          title="Émise ailleurs : facturée, mais pas déduite du reste à facturer."
         >
           <input
             type="checkbox"
@@ -1191,8 +1188,8 @@ function MovementDialog({ matterId, kind, onCancel, onSaved }: {
     >
       <p className="m-0 text-[12.5px] leading-[19px] text-muted">
         {kind === 'Receipt'
-          ? 'Une somme reçue du client avant facturation. Elle réduit ce qui reste à facturer.'
-          : 'Une somme avancée pour le compte du client. Elle augmente ce qui reste à facturer.'}
+          ? 'Reçue du client avant facturation : réduit le reste à facturer.'
+          : 'Avancée pour le compte du client : augmente le reste à facturer.'}
       </p>
 
       <MovementForm matterId={matterId} initialKind={kind} onSaved={onSaved} onCancel={onCancel} bare />

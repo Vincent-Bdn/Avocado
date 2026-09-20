@@ -44,11 +44,9 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
             <WizardTitle>Votre clé de récupération</WizardTitle>
 
             <WizardLead>
-              Vos sauvegardes sont chiffrées avec cette clé. Sans elle, une sauvegarde n’est qu’un
-              fichier illisible : c’est elle, et elle seule, qui vous permettra de rouvrir vos
-              dossiers sur un autre ordinateur.{' '}
-              <strong>Personne d’autre n’en possède de copie</strong>, ni nous, ni votre système, ni
-              un service d’assistance.
+              Vos sauvegardes sont chiffrées avec cette clé : elle seule les rouvre sur un autre
+              ordinateur.{' '}
+              <strong>Personne d’autre n’en possède de copie.</strong>
             </WizardLead>
 
             <RecoveryKeyCard
@@ -71,36 +69,25 @@ export function StepRecovery({ recoveryCode, onBack, onContinue }: {
           </div>
 
           <aside className="grid gap-3">
-            <NoteCard title="Ce que cette clé fait, et ne fait pas">
-              <NoteLine kind="yes">
-                Elle rouvre vos sauvegardes sur un ordinateur neuf, après un vol, une panne ou un
-                dégât des eaux.
-              </NoteLine>
-              <NoteLine kind="no">
-                Elle ne vous sera pas demandée au quotidien : sur cette machine, l’application s’ouvre
-                seule.
-              </NoteLine>
-              <NoteLine kind="no">
-                Ce n’est pas un mot de passe oublié qu’on peut réinitialiser : il n’existe aucune
-                autre copie.
-              </NoteLine>
+            <NoteCard title="Ce qu’elle fait">
+              <NoteLine kind="yes">Elle rouvre vos sauvegardes sur un ordinateur neuf.</NoteLine>
+              <NoteLine kind="no">Elle ne vous sera pas demandée au quotidien.</NoteLine>
+              <NoteLine kind="no">Elle ne se réinitialise pas : il n’existe aucune autre copie.</NoteLine>
             </NoteCard>
 
             <NoteCard title="Si vous la perdez">
               <p className="m-0 text-[11.5px] leading-[18px] text-ink-secondary">
-                Tant que cette application s’ouvre encore, vous pouvez en éditer une nouvelle en deux
-                clics depuis les réglages. C’est perdre{' '}
+                Tant que l’application s’ouvre, éditez-en une nouvelle depuis les réglages. Perdre{' '}
                 <strong className="font-medium text-ink">la clé et la machine en même temps</strong>{' '}
-                qui est sans retour.
+                est sans retour.
               </p>
             </NoteCard>
 
             {/* The single note of alarm on the screen. */}
-            <NoteCard title="Ce que nous vous déconseillons" caution>
+            <NoteCard title="À éviter" caution>
               <p className="m-0 text-[11.5px] leading-[18px]">
-                Un fichier <span className="font-mono">.txt</span> sur le bureau, ou un courriel à
-                soi-même : ils disparaissent avec l’ordinateur, précisément le jour où la clé
-                servirait.
+                Un <span className="font-mono">.txt</span> sur le bureau, un courriel à soi-même :
+                ils disparaissent avec l’ordinateur, le jour où la clé servirait.
               </p>
             </NoteCard>
           </aside>
@@ -215,7 +202,7 @@ export function RecoveryKeyCard({ recoveryCode, createdOn, onCopied }: {
 
       <div className="mt-3 flex items-center gap-2.5 text-[11.5px] leading-4">
         <span className="min-w-0 flex-1 text-muted">
-          Neuf groupes de six, lisibles à voix haute et recopiables à la main.
+          Neuf groupes de six, recopiables à la main.
         </span>
 
         <Button variant="secondary" size="sm" onClick={copy}>

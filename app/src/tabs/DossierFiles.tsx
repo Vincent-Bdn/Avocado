@@ -195,8 +195,8 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
     return (
       <TabPanel>
         <EmptyState icon={<FolderOpen size={18} strokeWidth={1.8} />} title="Où sont les documents de ce dossier ?">
-          Vos documents restent chez vous, dans le répertoire où vous travaillez déjà : sur le bureau,
-          un disque réseau, où vous voulez. Indiquez-le et Avocado le lira, sans rien déplacer ni
+          Ils restent chez vous, dans le répertoire où vous travaillez déjà. Indiquez-le et Avocado
+          le lira, sans rien déplacer ni
           copier.
         </EmptyState>
 
@@ -350,7 +350,7 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
           <div className="min-w-0">
             <div className="text-[12.5px] font-medium">Ce dossier est introuvable</div>
             <p className="m-0 mt-0.5 text-[11.5px] leading-[17px]">
-              Il a peut-être été renommé, déplacé, ou il est sur un disque qui n’est pas branché.
+              Renommé, déplacé, ou sur un disque débranché.
               Rien n’est perdu : indiquez son nouvel emplacement dans « Modifier ».
             </p>
           </div>
@@ -429,8 +429,7 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
 
           <p className="m-0 text-[11px] leading-4 text-muted">
             {listing.files.toLocaleString('fr-FR')} fichiers dans ce dossier,{' '}
-            {(listing.bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go. Avocado
-            les lit et ne les déplace pas ; il en copie une version chiffrée dans ses sauvegardes.
+            {(listing.bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go.
           </p>
         </>
       )}

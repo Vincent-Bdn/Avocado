@@ -108,8 +108,8 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
             onAction={() => onOpen('documents')}
           >
             {matter.documentsFolder
-              ? 'Vos documents vivent dans ce répertoire. Déposez-y des fichiers comme vous le faites déjà.'
-              : 'Vos documents restent chez vous : indiquez à ce dossier le répertoire où vous travaillez déjà.'}
+              ? 'Vos documents vivent dans ce répertoire. Déposez-y des fichiers.'
+              : 'Indiquez à ce dossier le répertoire où vous travaillez déjà.'}
           </Empty>
         ) : (
           <div className="mt-2 border-t border-line-subtle">
@@ -286,8 +286,7 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
         {isNew ? (
           <div className="mt-5 border-t border-line-subtle pt-[18px]">
             <p className="m-0 max-w-[56ch] text-[13px] leading-5 text-ink-secondary">
-              Ce dossier vient d’être ouvert. Notez le premier appel dès que vous raccrochez, deux
-              lignes suffisent, et l’aperçu se remplira de lui-même.
+              Notez le premier appel dès que vous raccrochez : l’aperçu se remplira de lui-même.
             </p>
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -373,7 +372,7 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
               action="Ajouter une échéance"
               onAction={() => onOpen('deadlines')}
             >
-              Ajoutez-en une dès qu’un délai est fixé, elle remontera sur l’accueil.
+              Ajoutez-en une dès qu’un délai est fixé.
             </Empty>
           ) : (
             <div className="mt-2 grid gap-1.5">

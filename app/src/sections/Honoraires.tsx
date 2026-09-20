@@ -111,9 +111,9 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
         {/* On the chart, out of the comparison, and said so: the figure was never the problem. */}
         {data.historicalCents > 0 && (
           <div className="border-t border-line-subtle bg-[#F8F9F6] px-3 pb-2 text-[10.5px] leading-[15px] text-muted">
-            Dont {formatEurosRounded(data.historicalCents)} de factures antérieures à Avocado. Elles
-            comptent dans le facturé, mais pas dans l’écart : le temps qu’elles couvrent n’a jamais été
-            saisi ici, il n’y a donc rien à leur comparer.
+            Dont {formatEurosRounded(data.historicalCents)} de factures antérieures à Avocado,
+            comptées dans le facturé mais pas dans l’écart : leur temps n’a jamais été
+            saisi ici.
           </div>
         )}
       </div>
@@ -301,9 +301,9 @@ function Tooltip({ month, index, count, width, large }: {
           <span
             title={(month.gapCents >= 0
               ? 'Temps saisi ce mois-là qui n’a pas été facturé le même mois'
-              : 'Facturé ce mois-là au-delà du temps saisi le même mois, ce qui est le cas dès qu’une facture couvre le mois précédent')
+              : 'Facturé ce mois-là au-delà du temps saisi le même mois')
               + (month.historicalCents > 0
-                ? '. Les factures antérieures à Avocado n’y entrent pas : le temps qu’elles couvrent n’a jamais été saisi ici.'
+                ? '. Les factures antérieures à Avocado n’y entrent pas.'
                 : '')}
             className={cn('font-medium', large ? 'text-[11.5px]' : 'text-[10.5px]')}
           >
@@ -369,7 +369,7 @@ function HonorairesDialog({ data, onClose }: { data: Honoraires; onClose: () => 
             <div className="type-title">Honoraires facturables et facturés</div>
             <div className="mt-px text-[11.5px] leading-4 text-ink-secondary">
               {first && last && `${capitalise(longMonth(first.month))} à ${longMonth(last.month)}`} ·
-              le temps saisi valorisé au taux du dossier, face aux factures réellement émises
+              le temps saisi au taux du dossier, face aux factures émises
             </div>
           </div>
 

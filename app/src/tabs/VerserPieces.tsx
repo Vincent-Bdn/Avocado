@@ -89,8 +89,7 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
   return (
     <Dialog title={`Verser ${order.length} pièce${order.length > 1 ? 's' : ''}`} width={640} onClose={busy ? undefined : onClose}>
       <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-muted">
-        Elles seront numérotées dans cet ordre et copiées dans le sous-dossier « Pièces ». Vos
-        fichiers d’origine ne bougent pas.
+        Numérotées dans cet ordre et copiées dans « Pièces ». Vos originaux ne bougent pas.
       </p>
 
       <div className="max-h-[320px] overflow-y-auto rounded-md border border-line-subtle">
@@ -169,8 +168,7 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
       </div>
 
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-        Le tampon ne s’applique qu’aux PDF, sur la première page. Les autres fichiers sont numérotés
-        et copiés sans tampon. Le tampon du cabinet se règle dans Réglages.
+        Le tampon ne s’applique qu’aux PDF, sur la première page. Il se règle dans Réglages.
       </p>
 
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}

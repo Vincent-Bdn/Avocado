@@ -96,8 +96,7 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
         title="L’imprimer"
       >
         <p className="m-0 text-[12.5px] leading-[19px] text-ink-secondary">
-          Une page A4 avec un QR code, la clé en toutes lettres et une ligne pour noter où vous la
-          rangez. À classer là où vous classez déjà ce qui compte.
+          Une page A4 : QR code, clé en toutes lettres, et une ligne pour noter où vous la rangez.
         </p>
 
         <span className="flex-1" />
@@ -142,7 +141,7 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
           <div className="grid gap-[5px] rounded-md border border-dashed border-line-strong p-3.5 text-[12px]">
             <strong className="font-medium">Aucun support amovible branché</strong>
             <span className="text-muted">
-              Branchez une clé USB : elle apparaîtra ici toute seule, en quelques secondes.
+              Branchez une clé USB, elle apparaîtra ici.
             </span>
             <span className="font-mono text-[11px] text-muted">recherche en cours…</span>
           </div>
@@ -168,8 +167,7 @@ export function SecureKeyOptions({ recoveryCode, fingerprint, createdOn, secured
         <span className="flex-1" />
 
         <p className="m-0 text-[11px] leading-4 text-muted">
-          Les disques internes sont exclus volontairement : une clé enregistrée sur le disque de cet
-          ordinateur disparaîtrait avec lui.
+          Les disques internes sont exclus : la clé disparaîtrait avec l’ordinateur.
         </p>
 
         {secured.savedTo && <Done>Écrite dans {secured.savedTo}</Done>}

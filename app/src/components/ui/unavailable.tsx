@@ -24,7 +24,7 @@ export function Unavailable({ detail, onRetry }: { detail?: string | null; onRet
       )}
 
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-        Si Avocado vient d’être mis à jour, fermez-le complètement et rouvrez-le : la fenêtre et son
+        Après une mise à jour, fermez Avocado complètement et rouvrez-le : la fenêtre et son
         moteur doivent être de la même version.
       </p>
 

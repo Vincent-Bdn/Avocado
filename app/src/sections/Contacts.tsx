@@ -186,7 +186,7 @@ export function Contacts({ selected, onSelect, onOpenMatter, onNewContact }: {
             className="max-w-[460px]"
             actions={<Button onClick={onNewContact}>Ajouter un tiers</Button>}
           >
-            Clients, parties adverses, confrères, experts : tous ceux avec qui le cabinet traite.
+            Clients, parties adverses, confrères, experts.
           </EmptyState>
         </Panel>
       )}
@@ -288,9 +288,8 @@ function ContactView({ contactId, onOpenMatter, onOpenContact, onChanged }: {
             <div className="mt-3 flex max-w-[68ch] items-start gap-2 rounded-md border border-line-subtle px-3 py-2.5">
               <Info size={14} strokeWidth={2} className="mt-0.5 shrink-0 text-ink-secondary" />
               <p className="m-0 text-[11.5px] leading-[17px] text-ink-secondary">
-                Le rôle est du <strong className="font-medium text-ink">texte libre</strong> propre à
-                chaque dossier : le même tiers peut être client ici et fournisseur mis en cause là.
-                Seules les relations marquées « client » alimentent la facturation, c’est le seul rôle
+                Le rôle est du <strong className="font-medium text-ink">texte libre</strong>, propre à
+                chaque dossier. Seules les relations « client » alimentent la facturation, c’est le seul rôle
                 que l’application interprète.
               </p>
             </div>

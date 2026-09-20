@@ -65,15 +65,14 @@ export function DiskEncryptionBanner({ compact }: { compact?: boolean }) {
         )}
         {disk.state === 'off' && (
           <>
-            Vos documents restent dans vos dossiers, et sur ce disque ils sont lisibles par quiconque
-            met la main sur la machine. Activez {disk.mechanism} : une minute à lancer, le reste se
-            fait en arrière-plan, et vous ne le remarquerez plus ensuite.
+            Sur ce disque, vos documents sont lisibles par quiconque met la main sur la machine.
+            Activez {disk.mechanism} : une minute à lancer, le reste se fait en arrière-plan.
           </>
         )}
         {disk.state === 'unknown' && (
           <>
-            La vérification demande des droits d’administrateur qu’Avocado ne réclame pas. Ouvrez le
-            réglage : s’il indique que le chiffrement est activé, il n’y a rien à faire.
+            La vérification demande des droits qu’Avocado ne réclame pas. Ouvrez le réglage : s’il
+            indique que le chiffrement est activé, il n’y a rien à faire.
           </>
         )}
       </p>
