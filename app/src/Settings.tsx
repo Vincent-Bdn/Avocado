@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, RefreshCw, X } from 'lucide-react'
+import { Check, ChevronDown, RefreshCw, Trash2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, blob, post, saveAs } from './api.js'
 import { Button } from './components/ui/button.js'
@@ -777,6 +777,26 @@ function Stamp() {
     }
   }
 
+  /**
+   * Forgets the stamp. Not asked about first: nothing filed changes, and the way back is the file
+   * she picked it from. What it does change is that pièces versed from now on carry no stamp, so the
+   * panel says so rather than looking merely empty.
+   */
+  async function remove() {
+    setBusy(true)
+    setError(null)
+    setTesting(false)
+
+    try {
+      await api('/api/settings/stamp', { method: 'DELETE' })
+      reload()
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.message : String(failure))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (view === null) {
     return error === null ? null : <Unavailable detail={error} onRetry={reload} />
   }
@@ -833,7 +853,28 @@ function Stamp() {
         {view.configured && (
           <Button variant="secondary" onClick={() => void preview()}>Enregistrer un aperçu PDF</Button>
         )}
+
+        {/* Shown for a stored SVG too, even when it never drew: a stamp that cannot be rendered is
+            exactly the one she needs to get rid of, and there was no way out of that state. */}
+        {(view.configured || view.svg) && (
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-label="Retirer le tampon"
+            title="Retirer le tampon"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            <Trash2 size={13} strokeWidth={1.75} />
+          </Button>
+        )}
       </div>
+
+      {!view.configured && !view.svg && (
+        <p className="m-0 text-[11.5px] text-muted">
+          Aucun tampon : vos pièces seront numérotées et copiées, sans tampon.
+        </p>
+      )}
 
       {view.svg && (
         <p className="m-0 flex items-center gap-1.5 text-[11.5px] text-muted">
