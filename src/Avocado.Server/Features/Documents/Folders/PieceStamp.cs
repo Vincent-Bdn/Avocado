@@ -96,21 +96,27 @@ public static class PieceStamp
         using var imageStream = new MemoryStream(stampImage);
         using var image = XImage.FromStream(imageStream);
 
-        var height = options.WidthPoints * image.PixelHeight / Math.Max(1, image.PixelWidth);
+        var stampHeight = options.WidthPoints * image.PixelHeight / Math.Max(1, image.PixelWidth);
 
         foreach (var page in Pages(document, options.EveryPage))
         {
             using var canvas = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
 
+            // The page as a reader sees it, which is not how it is stored. A scan almost always
+            // carries /Rotate, and drawing in the stored orientation put the stamp sideways, in a
+            // corner that is not the top right, sometimes half off the paper. « Le tampon ne s'est
+            // pas mis » is what that looks like from the other side of the screen.
+            var (pageWidth, pageHeight) = Upright(canvas, page);
+
             var x = options.Corner is StampCorner.TopLeft or StampCorner.BottomLeft
                 ? options.MarginPoints
-                : page.Width.Point - options.WidthPoints - options.MarginPoints;
+                : pageWidth - options.WidthPoints - options.MarginPoints;
 
             var y = options.Corner is StampCorner.TopLeft or StampCorner.TopRight
                 ? options.MarginPoints
-                : page.Height.Point - height - options.MarginPoints;
+                : pageHeight - stampHeight - options.MarginPoints;
 
-            canvas.DrawImage(image, x, y, options.WidthPoints, height);
+            canvas.DrawImage(image, x, y, options.WidthPoints, stampHeight);
 
             // Drawn rather than composited into the image, so one stamp file serves every number and
             // she never has to produce sixty variants of her own logo.
@@ -122,7 +128,7 @@ public static class PieceStamp
                 new XSolidBrush(Ink(options.NumberColour)),
                 new XRect(
                     x + (options.WidthPoints * options.NumberXPercent / 100),
-                    y + (height * options.NumberYPercent / 100) - options.NumberSizePoints,
+                    y + (stampHeight * options.NumberYPercent / 100) - options.NumberSizePoints,
                     options.WidthPoints,
                     options.NumberSizePoints * 1.4),
                 XStringFormats.TopLeft);
@@ -159,6 +165,53 @@ public static class PieceStamp
         merged.Save(output, closeStream: false);
 
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// Turns the canvas so that drawing happens in the orientation a reader sees, and gives back the
+    /// page's size in that orientation.
+    ///
+    /// <para><b>/Rotate is not a curiosity.</b> A page carries its content one way and an instruction
+    /// to display it another, and scanners set it constantly: a pièce photographed sideways is stored
+    /// sideways with /Rotate 270 rather than being re-encoded. PDFsharp draws in the stored space, so
+    /// « en haut à droite » landed wherever that corner happens to be once the viewer has turned the
+    /// page, which for a quarter turn is a different corner and a stamp lying on its side.</para>
+    ///
+    /// <para>Returns the visible width and height, swapped for a quarter turn, so the corner
+    /// arithmetic above needs to know nothing about any of this.</para>
+    /// </summary>
+    private static (double Width, double Height) Upright(XGraphics canvas, PdfPage page)
+    {
+        var width = page.Width.Point;
+        var height = page.Height.Point;
+
+        // Negative and over-360 values both occur in the wild; /Rotate is only meaningful in
+        // quarter turns, and anything else is rounded to the nearest one rather than refused.
+        var turns = ((int)Math.Round(page.Elements.GetInteger("/Rotate") / 90.0) % 4 + 4) % 4;
+
+        switch (turns)
+        {
+            // A quarter turn clockwise for the reader, so the page's bottom-left corner is what he
+            // sees top-left. Drawing at visible (vx, vy) has to land on stored (vy, height − vx).
+            case 1:
+                canvas.TranslateTransform(0, height);
+                canvas.RotateTransform(-90);
+                return (height, width);
+
+            case 2:
+                canvas.TranslateTransform(width, height);
+                canvas.RotateTransform(180);
+                return (width, height);
+
+            // The other way: the page's top-right corner is what he sees top-left.
+            case 3:
+                canvas.TranslateTransform(width, 0);
+                canvas.RotateTransform(90);
+                return (height, width);
+
+            default:
+                return (width, height);
+        }
     }
 
     /// <summary>

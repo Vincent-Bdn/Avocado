@@ -212,4 +212,60 @@ public class PieceStampTests
         Assert.Equal(green, ink.G);
         Assert.Equal(blue, ink.B);
     }
+
+    private static byte[] Rotated(int degrees)
+    {
+        using var document = new PdfDocument();
+        var page = document.AddPage();
+        page.Rotate = degrees;
+
+        using var buffer = new MemoryStream();
+        document.Save(buffer, closeStream: false);
+
+        return buffer.ToArray();
+    }
+
+    /// <summary>
+    /// Where the stamp ends up <b>as a reader sees it</b>.
+    ///
+    /// <para>Read with PdfPig rather than the library that wrote the file, which is the point: it
+    /// resolves /Rotate itself and reports the page landscape when the page is displayed landscape,
+    /// so what comes back is what a greffier would see and not what PDFsharp intended.</para>
+    /// </summary>
+    private static (double Top, double Right, double Width, double PageWidth) Landed(byte[] stamped)
+    {
+        using var document = UglyToad.PdfPig.PdfDocument.Open(stamped);
+        var page = document.GetPage(1);
+        var bounds = Assert.Single(page.GetImages()).Bounds;
+
+        // PdfPig measures y up from the bottom; the margin is quoted from the top.
+        return (page.Height - bounds.Top, bounds.Right, bounds.Width, page.Width);
+    }
+
+    /// <summary>
+    /// A scanner photographs a pièce sideways and writes /Rotate rather than re-encoding it, so this
+    /// is the ordinary case for anything that came off a scanner rather than out of Word.
+    ///
+    /// <para>Drawing in the stored space put the stamp on its side, in a corner that is not the top
+    /// right, and for a quarter turn partly off the paper. From her side that reads as « le tampon
+    /// ne s'est pas mis ».</para>
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(90)]
+    [InlineData(180)]
+    [InlineData(270)]
+    public void PutsTheStampWhereTheReaderLooksWhateverTheScannerWrote(int degrees)
+    {
+        var options = new StampOptions();
+        var landed = Landed(PieceStamp.Apply(Rotated(degrees), Stamp(), 7, options));
+
+        // Upright: a stamp lying on its side is as wide as it is tall only by accident, so check the
+        // width against the width that was asked for.
+        Assert.Equal(options.WidthPoints, landed.Width, 1);
+
+        // And in the corner a greffe expects, measured on the page as displayed.
+        Assert.Equal(options.MarginPoints, landed.Top, 1);
+        Assert.Equal(landed.PageWidth - options.MarginPoints, landed.Right, 1);
+    }
 }
