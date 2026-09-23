@@ -27,13 +27,47 @@ public static class CabinetStamp
     };
 
     /// <summary>
-    /// What the browser and PDFsharp will both accept. Not SVG: PDFsharp draws rasters, and
-    /// rendering vector artwork would mean a second graphics stack for one image.
+    /// What she can hand over as a stamp.
+    ///
+    /// <para><b>SVG is here, and PDFsharp still draws rasters.</b> The drawing is done by the one
+    /// piece of this application that already contains a complete SVG engine: the window. Réglages
+    /// reads the placeholder's position out of the live document, takes the placeholder out, and
+    /// renders what is left to a transparent PNG at a size no stamp will outgrow. What reaches the
+    /// coffre is that PNG, which is why nothing downstream had to learn a second graphics stack.</para>
     /// </summary>
-    public static readonly string[] Extensions = [".png", ".jpg", ".jpeg"];
+    public static readonly string[] Extensions = [".svg", ".png", ".jpg", ".jpeg"];
+
+    /// <summary>Raster formats, which are stored exactly as she gave them.</summary>
+    public static readonly string[] RasterExtensions = [".png", ".jpg", ".jpeg"];
 
     public static bool IsAnImage(string fileName) =>
         Extensions.Any(extension => fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+
+    public static bool IsSvg(string fileName) =>
+        fileName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The placeholder a stamp SVG writes where the pièce number should land.
+    ///
+    /// <para>Spelled like the repères in the modèle de facture, because it is the same idea and she
+    /// has met it once already.</para>
+    /// </summary>
+    public const string Placeholder = "{{numero}}";
+
+    /// <summary>Her SVG, or null when the stamp is a plain image.</summary>
+    public static async Task<string?> SvgAsync(
+        AvocadoDbContext database,
+        CancellationToken cancellationToken)
+    {
+        var stored = await database.PracticeSettings
+            .AsNoTracking()
+            .Where(setting => setting.Key == PracticeSettingKeys.StampSvg)
+            .Select(setting => setting.Value)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return string.IsNullOrWhiteSpace(stored) ? null : stored;
+    }
 
     /// <summary>The stored image, or null when she has not given Avocado one.</summary>
     public static async Task<BlobReference?> ReferenceAsync(

@@ -26,6 +26,8 @@ import type { PracticeSettings } from './types.js'
 import { RecoveryKeyCard } from './wizard/StepRecovery.js'
 import { RecoverySheet } from './wizard/RecoverySheet.js'
 import { SecureKeyOptions, isSecured, nothingSecured, type SecuredBy } from './wizard/SecureKeyOptions.js'
+import { deriveFromSvg } from './lib/stampSvg.js'
+import { StampTester } from './sections/StampTester.js'
 
 interface RecoveryKeyState {
   code: string | null
@@ -563,6 +565,14 @@ function About() {
   )
 }
 
+/** What Réglages knows about the stamp before it has fetched the image itself. */
+interface StampView {
+  configured: boolean
+  svg: boolean
+  awaitingRender: boolean
+  options: StampOptions
+}
+
 interface StampOptions {
   corner: 'TopRight' | 'TopLeft' | 'BottomRight' | 'BottomLeft'
   widthPoints: number
@@ -651,14 +661,15 @@ function inkFor(image: HTMLImageElement, options: StampOptions): string | null {
 }
 
 function Stamp() {
-  const [view, setView] = useState<{ configured: boolean; options: StampOptions } | null>(null)
+  const [view, setView] = useState<StampView | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [image, setImage] = useState<string | null>(null)
+  const [testing, setTesting] = useState(false)
   const toasts = useToasts()
 
   const reload = () => {
-    void api<{ configured: boolean; options: StampOptions }>('/api/settings/stamp')
+    void api<StampView>('/api/settings/stamp')
       .then((fetched) => { setView(fetched); setError(null) })
       // Named, never swallowed. This used to set the view to null and the section then rendered
       // nothing, so a 404 from an out-of-date backend looked like a feature that was simply empty.
@@ -693,7 +704,9 @@ function Stamp() {
   }, [view?.configured])
 
   async function choose() {
-    const path = await window.avocado.chooseFile('Choisir le tampon du cabinet', undefined, ['png', 'jpg', 'jpeg'])
+    const path = await window.avocado.chooseFile(
+      'Choisir le tampon du cabinet', undefined, ['svg', 'png', 'jpg', 'jpeg'])
+
     if (!path) return
 
     setBusy(true)
@@ -701,12 +714,48 @@ function Stamp() {
 
     try {
       await api('/api/settings/stamp', { method: 'PUT', body: JSON.stringify({ path }) })
+
+      // An SVG is stored as she wrote it and is not drawable yet: the window renders it and sends
+      // back the drawing, along with the place its placeholder was sitting.
+      if (path.toLowerCase().endsWith('.svg')) {
+        await render()
+      }
+
       reload()
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
     } finally {
       setBusy(false)
     }
+  }
+
+  /**
+   * Turns her SVG into the image a pièce carries, and reads the number's place out of it.
+   *
+   * <p>Run again whenever the stamp's width changes, because the number's size is expressed in
+   * points on the page and that is what the width decides.</p>
+   */
+  async function render(width?: number) {
+    const source = await (await blob('/api/settings/stamp/svg')).text()
+    const derived = await deriveFromSvg(source, width ?? view?.options.widthPoints ?? 120)
+
+    await api('/api/settings/stamp/rendered', {
+      method: 'PUT',
+      body: await derived.png.arrayBuffer(),
+      headers: { 'content-type': 'image/png' },
+    })
+
+    await api('/api/settings/stamp/options', {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...(view?.options ?? {}),
+        widthPoints: width ?? view?.options.widthPoints ?? 120,
+        numberXPercent: derived.numberXPercent,
+        numberYPercent: derived.numberYPercent,
+        numberSizePoints: derived.numberSizePoints,
+        numberColour: derived.numberColour,
+      }),
+    })
   }
 
   async function save(options: StampOptions) {
@@ -739,9 +788,22 @@ function Stamp() {
       {toasts.view}
 
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
-        Votre tampon, tel que vous l’utilisez déjà. Avocado écrit le numéro de pièce par-dessus, à
-        l’endroit réglé ci-dessous.
+        Votre tampon, tel que vous l’utilisez déjà. Avocado écrit le numéro de pièce par-dessus.
       </p>
+
+      <div className="grid gap-1.5 rounded-md border border-line-subtle bg-app px-3 py-2.5">
+        <span className="type-label text-ink-secondary">Deux façons de le donner</span>
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          <strong className="font-medium text-ink">Un SVG, de préférence.</strong> Écrivez{' '}
+          <code className="rounded-[3px] bg-sunken px-1 py-px font-mono text-[11px]">{'{{numero}}'}</code>{' '}
+          dedans, à l’endroit du numéro : Avocado le trouve, et reprend sa position, sa taille et sa
+          couleur. Rien à régler.
+        </p>
+        <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+          <strong className="font-medium text-ink">Ou une image</strong>, PNG à fond transparent de
+          préférence, pour ne pas masquer la pièce. Vous placez le numéro vous-même, ci-dessous.
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         {image !== null && (
@@ -749,10 +811,10 @@ function Stamp() {
             src={image}
             alt="Tampon du cabinet"
             className="h-16 w-16 rounded-sm border border-line-subtle bg-app object-contain p-1"
-            // Only when nobody has chosen. Once she has touched the picker the colour is hers, even
-            // if it is the one this would have picked, and even if it is the one that reads badly.
+            // Only for an image she placed herself, and only while nobody has chosen. An SVG brings
+            // its own colour from the placeholder, and once she has touched the picker it is hers.
             onLoad={(event) => {
-              if (view.options.numberColour !== null) return
+              if (view.svg || view.options.numberColour !== null) return
 
               const ink = inkFor(event.currentTarget, view.options)
               if (ink !== null) void save({ ...view.options, numberColour: ink })
@@ -761,13 +823,57 @@ function Stamp() {
         )}
 
         <Button variant="secondary" disabled={busy} onClick={() => void choose()}>
-          {view.configured ? 'Changer l’image' : 'Choisir une image'}
+          {view.configured ? 'Changer le tampon' : 'Choisir un tampon'}
         </Button>
 
+        {view.configured && image !== null && (
+          <Button variant="secondary" onClick={() => setTesting(true)}>Essayer</Button>
+        )}
+
         {view.configured && (
-          <Button variant="secondary" onClick={() => void preview()}>Aperçu sur une page</Button>
+          <Button variant="secondary" onClick={() => void preview()}>Enregistrer un aperçu PDF</Button>
         )}
       </div>
+
+      {view.svg && (
+        <p className="m-0 flex items-center gap-1.5 text-[11.5px] text-muted">
+          <Check size={13} strokeWidth={2.5} className="text-success" />
+          Tampon SVG : le numéro suit {'{{numero}}'}, vous n’avez rien à placer.
+        </p>
+      )}
+
+      {view.awaitingRender && (
+        <div className="grid gap-1.5">
+          <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-danger">
+            Ce SVG est enregistré mais n’a pas encore été dessiné, donc rien ne sera tamponné.
+            Vérifiez qu’il contient {'{{numero}}'} en vrai texte, puis réessayez.
+          </p>
+          <div>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true)
+                setError(null)
+                void render()
+                  .then(reload)
+                  .catch((failure: unknown) =>
+                    setError(failure instanceof Error ? failure.message : String(failure)))
+                  .finally(() => setBusy(false))
+              }}
+            >
+              Dessiner le tampon
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {testing && image !== null && (
+        <StampTester image={image} options={options} onClose={() => setTesting(false)} />
+      )}
+
+      <AiPrompt />
 
       {view.configured && (
         <>
@@ -785,11 +891,22 @@ function Stamp() {
             </label>
 
             <Nudge label="Largeur" value={options.widthPoints} unit="pt"
-              onChange={(widthPoints) => void save({ ...options, widthPoints })} />
+              onChange={(widthPoints) => {
+                // The number's size is in points on the page, and the width is what sets the scale,
+                // so an SVG stamp works its placement out again rather than keeping a stale size.
+                if (view.svg) {
+                  void render(widthPoints).then(reload).catch((failure: unknown) =>
+                    setError(failure instanceof Error ? failure.message : String(failure)))
+                  return
+                }
+
+                void save({ ...options, widthPoints })
+              }} />
             <Nudge label="Marge" value={options.marginPoints} unit="pt"
               onChange={(marginPoints) => void save({ ...options, marginPoints })} />
           </div>
 
+          {!view.svg && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="text-[12.5px] text-muted">Le numéro, dans le tampon :</span>
             <Nudge label="depuis la gauche" value={options.numberXPercent} unit="%"
@@ -809,6 +926,7 @@ function Stamp() {
               />
             </label>
           </div>
+          )}
 
           <label className="flex items-center gap-2 text-[12.5px]">
             <input
@@ -823,6 +941,68 @@ function Stamp() {
 
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
     </>
+  )
+}
+
+/**
+ * What to ask an assistant for, when the cabinet's logo exists only as a PNG.
+ *
+ * <p>Most cabinets have their stamp as an image and no way to make an SVG of it. Asking one of the
+ * assistants they already have open is now the shortest route, so the instructions are here, exact
+ * and ready to paste, rather than left as « convertissez-le en SVG » and an afternoon lost.</p>
+ *
+ * <p>The wording matters more than it looks: it has to insist on live text for the placeholder. Most
+ * tools convert text to outlines by default, and an outlined {{numero}} is a drawing of a
+ * placeholder that nothing can find.</p>
+ */
+function AiPrompt() {
+  const [copied, setCopied] = useState(false)
+
+  const prompt = [
+    'Convertis ce logo en SVG pour servir de tampon de pièces.',
+    '',
+    'Contraintes :',
+    '- fond transparent, aucun rectangle de fond ;',
+    '- le dessin doit remplir le viewBox, sans marge inutile ;',
+    '- ajoute le texte « Pièce n° {{numero}} » là où le numéro doit figurer ;',
+    '- {{numero}} doit rester du vrai texte dans un élément <text>, surtout pas vectorisé ;',
+    '- donne à ce texte la taille et la couleur voulues pour le numéro ;',
+    '- pas de police externe, pas d’image incorporée, pas de script.',
+    '',
+    'Réponds uniquement avec le contenu du fichier .svg.',
+  ].join('\n')
+
+  return (
+    <details className="rounded-md border border-line-subtle bg-app px-3.5 py-3">
+      <summary className="cursor-pointer text-[12.5px] font-medium">
+        Vous n’avez qu’une image ? Faites-en un SVG
+      </summary>
+
+      <p className="m-0 mt-2.5 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+        Copiez ce texte dans Claude, ChatGPT ou l’assistant de votre choix, joignez votre logo, et
+        enregistrez la réponse dans un fichier <code className="font-mono text-[11px]">.svg</code>.
+        Revenez ensuite ici le choisir.
+      </p>
+
+      <pre className="m-0 mt-2 max-h-[220px] overflow-auto rounded-sm bg-sunken px-2.5 py-2 font-mono text-[11px] leading-[16px] whitespace-pre-wrap">
+        {prompt}
+      </pre>
+
+      <div className="mt-2 flex items-center gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            void navigator.clipboard.writeText(prompt)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+          }}
+        >
+          {copied ? <Check size={13} strokeWidth={2.5} /> : null}
+          {copied ? 'Copié' : 'Copier le texte'}
+        </Button>
+      </div>
+    </details>
   )
 }
 

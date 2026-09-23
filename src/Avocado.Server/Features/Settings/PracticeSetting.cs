@@ -63,6 +63,19 @@ public static class PracticeSettingKeys
     /// <summary>Where the number sits on that image, and which corner of the page. JSON.</summary>
     public const string StampOptions = "practice.stampOptions";
 
+    /// <summary>
+    /// Her stamp as an SVG, when she gave one, kept as text.
+    ///
+    /// <para>The image above is still what gets drawn onto a pièce: this is the source it was drawn
+    /// from. Keeping it means the placeholder can be found again when she changes the stamp's size,
+    /// and that replacing her logo is editing a file rather than starting over.</para>
+    ///
+    /// <para>Small enough for a settings row. A logo SVG is a few kilobytes of path data; the one
+    /// thing that would not be is an SVG with a photograph embedded in it, and that is not a
+    /// stamp.</para>
+    /// </summary>
+    public const string StampSvg = "practice.stampSvg";
+
     /// <summary>Whether the sauvegarde carries the dossiers' documents at all. On by default.</summary>
     public const string CaptureDocuments = "backup.documents.enabled";
 
