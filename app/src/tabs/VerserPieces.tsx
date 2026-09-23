@@ -43,7 +43,9 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
   matterId: string
   picked: Picked[]
   onClose: () => void
-  onDone: (result: Result) => void
+  /** The second argument says whether stamping was asked for, so « non tamponné » can be told
+   *  apart from « je n'ai pas demandé de tampon ». */
+  onDone: (result: Result, wanted: boolean) => void
 }) {
   const [order, setOrder] = useState(() =>
     picked.map((file) => ({ ...file, label: suggest(file.name) })))
@@ -77,7 +79,7 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
         merge,
       })
 
-      onDone(result)
+      onDone(result, stamp)
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
       setBusy(false)

@@ -439,20 +439,34 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
           matterId={matterId}
           picked={picked}
           onClose={() => setVersing(false)}
-          onDone={(result) => {
+          onDone={(result, wanted) => {
             setVersing(false)
             setPicked([])
 
             const written = result.pieces.filter((piece) => piece.error === null)
+            const notes: string[] = []
 
             if (result.failed > 0) {
               // Named rather than counted away: she has to know which one is not in the bordereau.
-              setError(
+              notes.push(
                 `${result.failed} fichier(s) non versé(s) : `
                 + result.pieces.filter((piece) => piece.error !== null)
                   .map((piece) => `${piece.relativePath} (${piece.error})`).join(' · '),
               )
             }
+
+            // Versed, numbered, in the bordereau, and carrying no stamp. It used to happen in
+            // silence: a photo pièce came out clean and she found out when the bundle was filed.
+            const bare = wanted ? written.filter((piece) => !piece.stamped) : []
+
+            if (bare.length > 0) {
+              notes.push(
+                `${bare.length} versée(s) sans tampon : ${bare.map((piece) => piece.name).join(' · ')}. `
+                + 'Seul un PDF se tamponne. Convertissez-les, puis versez-les à nouveau.',
+              )
+            }
+
+            setError(notes.length === 0 ? null : notes.join(' '))
 
             toasts.succeeded(
               `${written.length} pièce${written.length > 1 ? 's' : ''} versée${written.length > 1 ? 's' : ''}`,

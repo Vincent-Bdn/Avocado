@@ -93,6 +93,8 @@ public static class PieceStamp
         // gains a drawing. Importing would rebuild it and lose everything that is not a page.
         using var document = PdfReader.Open(input, PdfDocumentOpenMode.Modify);
 
+        RaiseForTransparency(document);
+
         using var imageStream = new MemoryStream(stampImage);
         using var image = XImage.FromStream(imageStream);
 
@@ -165,6 +167,33 @@ public static class PieceStamp
         merged.Save(output, closeStream: false);
 
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// The version a soft mask needs, when the pièce was written before soft masks existed.
+    ///
+    /// <para><b>The black square.</b> A transparent stamp is carried into a PDF as a soft mask, and
+    /// soft masks arrived in PDF 1.4. Asked to write one into a 1.3 document, PDFsharp does the
+    /// correct thing and leaves it out, which turns the transparent parts opaque. Her logo is dark
+    /// green drawn on nothing, and « nothing » is stored as black with an alpha of zero, so dropping
+    /// the alpha painted a black tile over the page and swallowed the number with it.</para>
+    ///
+    /// <para>Four of her five pièces came out of ReportLab, which still writes 1.3. Nothing was wrong
+    /// with her image, and nothing was wrong with the tile: it never existed.</para>
+    ///
+    /// <para>Raising the version is the honest repair rather than a trick. The file genuinely now
+    /// uses a 1.4 feature, so it should genuinely say 1.4; the header is a floor, readers have
+    /// handled it since 2001, and a stamped pièce is a new document anyway. Only ever raised, so a
+    /// modern pièce keeps whatever it already declared.</para>
+    /// </summary>
+    private static void RaiseForTransparency(PdfDocument document)
+    {
+        const int softMasksArrived = 14;
+
+        if (document.Version < softMasksArrived)
+        {
+            document.Version = softMasksArrived;
+        }
     }
 
     /// <summary>

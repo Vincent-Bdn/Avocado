@@ -213,6 +213,66 @@ public class PieceStampTests
         Assert.Equal(blue, ink.B);
     }
 
+    /// <summary>
+    /// A 2×2 PNG carrying real transparency, with black under the transparent pixels: the shape her
+    /// own stamp has, because that is what a design tool writes for « fond transparent ».
+    /// </summary>
+    private static byte[] TransparentStamp() => Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAD0lEQVR4nGPgNFT7z4AMABPnAWAZtobsAAAAAElFTkSuQmCC");
+
+    /// <summary>A pièce written before soft masks existed. ReportLab still produces these.</summary>
+    private static byte[] OldPdf()
+    {
+        using var document = new PdfDocument();
+        document.AddPage();
+        document.Version = 13;
+
+        using var buffer = new MemoryStream();
+        document.Save(buffer, closeStream: false);
+
+        return buffer.ToArray();
+    }
+
+    /// <summary>Whether the stamp's transparency survived into the file, which is the whole point.</summary>
+    private static bool KeptItsTransparency(byte[] stamped)
+    {
+        using var document = PdfReader.Open(new MemoryStream(stamped), PdfDocumentOpenMode.Modify);
+
+        return document.Internals.GetAllObjects()
+            .OfType<PdfDictionary>()
+            .Any(item =>
+                item.Elements.GetName("/Subtype") == "/Image"
+                && item.Elements.ContainsKey("/SMask"));
+    }
+
+    /// <summary>
+    /// The black square that reached a greffe on four pièces out of five.
+    ///
+    /// <para>Her stamp is dark green artwork on nothing. « Nothing » is stored as black at zero
+    /// alpha, so the moment the soft mask is dropped the tile turns black and takes the number with
+    /// it. Everyone looked at the image and the image was never the problem.</para>
+    /// </summary>
+    [Fact]
+    public void KeepsAStampTransparentOverAPieceOlderThanSoftMasks()
+    {
+        var stamped = PieceStamp.Apply(OldPdf(), TransparentStamp(), 7, new StampOptions());
+
+        Assert.True(
+            KeptItsTransparency(stamped),
+            "The soft mask was dropped, so the stamp is an opaque rectangle over her pièce.");
+    }
+
+    /// <summary>Raised, never lowered: a modern pièce keeps the version it already declared.</summary>
+    [Fact]
+    public void LeavesANewerPieceAtItsOwnVersion()
+    {
+        var stamped = PieceStamp.Apply(Pdf(1), TransparentStamp(), 7, new StampOptions());
+
+        using var document = PdfReader.Open(new MemoryStream(stamped), PdfDocumentOpenMode.Modify);
+
+        Assert.True(document.Version >= 17, $"Version fell to 1.{document.Version}.");
+    }
+
     private static byte[] Rotated(int degrees)
     {
         using var document = new PdfDocument();
