@@ -92,6 +92,10 @@ function applyContentSecurityPolicy(): void {
             // since a blocked image reports nothing to the page.
             "img-src 'self' blob:",
             "font-src 'self'",
+            // The PDF viewer runs its parser in a worker, bundled and served from the application
+            // itself. blob: because PDF.js falls back to wrapping the worker in an object URL, and a
+            // worker the policy refuses fails quietly: the page simply never draws.
+            "worker-src 'self' blob:",
             // Two hosts, and both are switchable off in Réglages: the annuaire, and the release
             // feed that tells her a new version exists. Nothing is ever downloaded from the second
             // one, the answer is a version number and she decides what to do about it.

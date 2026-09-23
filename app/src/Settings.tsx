@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, RefreshCw, Trash2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { ApiError, api, blob, post, saveAs } from './api.js'
+import { ApiError, api, blob, post } from './api.js'
 import { Button } from './components/ui/button.js'
 import { Input } from './components/ui/input.js'
 import { Select } from './components/ui/select.js'
@@ -768,15 +768,6 @@ function Stamp() {
     }
   }
 
-  async function preview() {
-    try {
-      const saved = await saveAs('/api/settings/stamp/preview.pdf', 'apercu-tampon.pdf')
-      if (saved) toasts.succeeded('Aperçu enregistré', saved)
-    } catch (failure) {
-      toasts.failed('Aperçu impossible', failure instanceof ApiError ? failure.message : String(failure))
-    }
-  }
-
   /**
    * Forgets the stamp. Not asked about first: nothing filed changes, and the way back is the file
    * she picked it from. What it does change is that pièces versed from now on carry no stamp, so the
@@ -846,12 +837,8 @@ function Stamp() {
           {view.configured ? 'Changer le tampon' : 'Choisir un tampon'}
         </Button>
 
-        {view.configured && image !== null && (
-          <Button variant="secondary" onClick={() => setTesting(true)}>Essayer</Button>
-        )}
-
         {view.configured && (
-          <Button variant="secondary" onClick={() => void preview()}>Enregistrer un aperçu PDF</Button>
+          <Button variant="secondary" onClick={() => setTesting(true)}>Essayer le tampon</Button>
         )}
 
         {/* Shown for a stored SVG too, even when it never drew: a stamp that cannot be rendered is
@@ -910,9 +897,7 @@ function Stamp() {
         </div>
       )}
 
-      {testing && image !== null && (
-        <StampTester image={image} options={options} onClose={() => setTesting(false)} />
-      )}
+      {testing && <StampTester onClose={() => setTesting(false)} />}
 
       <AiPrompt />
 

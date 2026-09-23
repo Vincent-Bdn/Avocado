@@ -2,6 +2,7 @@ using Avocado.Server.Data;
 using Avocado.Server.Features.Documents.Folders;
 using Avocado.Vault;
 using Microsoft.EntityFrameworkCore;
+using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 
 namespace Avocado.Server.Features.Settings.Endpoints;
@@ -223,8 +224,16 @@ public static class ManageStamp
         return bytes is null ? Results.NotFound() : Results.File(bytes, "image/png");
     }
 
-    /// <summary>A blank A4 with the stamp on it, numbered 12, so she can see where the number lands.</summary>
+    /// <summary>
+    /// A page with the stamp on it, shown in Réglages rather than downloaded.
+    ///
+    /// <para>Not a blank sheet. A stamp floating on white tells her nothing about the thing she
+    /// actually worries about, which is whether it lands on top of the pièce: a conclusion has text
+    /// in the top right corner, and so does a facture. So the page carries a plausible letter, and
+    /// the stamp sits over it exactly as it will over hers.</para>
+    /// </summary>
     private static async Task<IResult> PreviewAsync(
+        int? numero,
         AvocadoDbContext database,
         IVaultStore vaults,
         CancellationToken cancellationToken)
@@ -238,23 +247,60 @@ public static class ManageStamp
 
         var options = await CabinetStamp.OptionsAsync(database, cancellationToken);
 
-        using var blank = new PdfDocument();
-        blank.AddPage();
-
+        using var page = PlausiblePage();
         using var buffer = new MemoryStream();
-        blank.Save(buffer, closeStream: false);
+        page.Save(buffer, closeStream: false);
 
         try
         {
             return Results.File(
-                PieceStamp.Apply(buffer.ToArray(), stamp, 12, options),
-                "application/pdf",
-                "apercu-tampon.pdf");
+                PieceStamp.Apply(buffer.ToArray(), stamp, Math.Clamp(numero ?? 7, 1, 9999), options),
+                "application/pdf");
         }
         catch (Exception exception)
         {
             return Problem($"Le tampon n'a pas pu être appliqué : {exception.Message}");
         }
+    }
+
+    /// <summary>
+    /// Something that reads as a document at a glance: a heading, a date, and greeked paragraphs.
+    ///
+    /// <para>Bars rather than words. The point is the geometry, and lines of real French would have
+    /// her reading them instead of looking at where the stamp fell.</para>
+    /// </summary>
+    private static PdfDocument PlausiblePage()
+    {
+        var document = new PdfDocument();
+        var page = document.AddPage();
+
+        using var canvas = XGraphics.FromPdfPage(page);
+
+        var ink = new XSolidBrush(XColor.FromArgb(214, 214, 210));
+        var faint = new XSolidBrush(XColor.FromArgb(232, 232, 228));
+
+        // A letterhead block, top left, well clear of the corner the stamp wants.
+        canvas.DrawRectangle(ink, 70, 70, 150, 9);
+        canvas.DrawRectangle(faint, 70, 86, 96, 7);
+
+        canvas.DrawRectangle(ink, 70, 150, 190, 9);
+
+        var y = 190.0;
+        var widths = new[] { 455, 440, 462, 300, 0, 455, 468, 430, 210, 0, 450, 462, 448, 380 };
+
+        foreach (var width in widths)
+        {
+            if (width == 0)
+            {
+                y += 14;
+                continue;
+            }
+
+            canvas.DrawRectangle(faint, 70, y, width, 7);
+            y += 17;
+        }
+
+        return document;
     }
 
     private static async Task UpsertAsync(
