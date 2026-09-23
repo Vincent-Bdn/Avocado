@@ -462,7 +462,8 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
             if (bare.length > 0) {
               notes.push(
                 `${bare.length} versée(s) sans tampon : ${bare.map((piece) => piece.name).join(' · ')}. `
-                + 'Seul un PDF se tamponne. Convertissez-les, puis versez-les à nouveau.',
+                + 'Avocado tamponne les PDF et les photos (jpg, png). Enregistrez celles-ci en PDF, '
+                + 'puis versez-les à nouveau.',
               )
             }
 

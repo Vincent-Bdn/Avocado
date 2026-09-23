@@ -70,11 +70,66 @@ public sealed record StampOptions(
 public static class PieceStamp
 {
     /// <summary>
+    /// Photographs, which become a PDF page before they are stamped.
+    ///
+    /// <para>Half of what a cabinet verses is a photograph: a roof, a wall, a signed devis snapped on
+    /// a telephone. She used to convert each one by hand before versing it, because a stamp only goes
+    /// on a PDF, and nothing said so.</para>
+    ///
+    /// <para>Raster only. A .docx would mean driving Word, which means Word installed and a second
+    /// thing to go wrong; those are still copied as they are and named as not stamped.</para>
+    /// </summary>
+    public static readonly string[] PictureExtensions = [".jpg", ".jpeg", ".png"];
+
+    public static bool IsPicture(string fileName) =>
+        PictureExtensions.Any(extension =>
+            fileName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Whether this file can be stamped at all. Extension, not content: she picks these from her own
-    /// folder and « it must be a PDF » is a sentence she can act on.
+    /// folder and « il faut un PDF » is a sentence she can act on.
     /// </summary>
     public static bool CanStamp(string fileName) =>
-        fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+        fileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) || IsPicture(fileName);
+
+    /// <summary>
+    /// A photograph as a single A4 page, which is what the rest of the bundle is.
+    ///
+    /// <para>Fitted inside the margins rather than bled to the edges: a pièce is read next to the
+    /// others, printed, and sometimes hole-punched, and a photograph running under the stamp in the
+    /// corner is the one thing this must not produce.</para>
+    /// </summary>
+    public static byte[] PageFromPicture(byte[] picture)
+    {
+        using var document = new PdfDocument();
+        var page = document.AddPage();
+
+        using var stream = new MemoryStream(picture);
+        using var image = XImage.FromStream(stream);
+        using var canvas = XGraphics.FromPdfPage(page);
+
+        const double margin = 36;
+
+        var room = new XSize(page.Width.Point - (2 * margin), page.Height.Point - (2 * margin));
+        var scale = Math.Min(
+            room.Width / Math.Max(1, image.PixelWidth),
+            room.Height / Math.Max(1, image.PixelHeight));
+
+        var width = image.PixelWidth * scale;
+        var height = image.PixelHeight * scale;
+
+        canvas.DrawImage(
+            image,
+            (page.Width.Point - width) / 2,
+            (page.Height.Point - height) / 2,
+            width,
+            height);
+
+        using var output = new MemoryStream();
+        document.Save(output, closeStream: false);
+
+        return output.ToArray();
+    }
 
     /// <summary>
     /// Stamps <paramref name="pdf"/> and returns the new document's bytes.

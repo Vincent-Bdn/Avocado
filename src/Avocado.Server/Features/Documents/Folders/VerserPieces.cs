@@ -149,17 +149,25 @@ public static class VerserPieces
         }
 
         var original = Path.GetFileName(source);
-        var name = Exhibits.FileName(number, piece.Label?.Trim(), original);
+        var canStamp = stampImage is not null && PieceStamp.CanStamp(original);
+
+        // A photograph is turned into a page before it is stamped, so what lands in Pièces is a PDF
+        // and the name has to say so. Without stamping it is copied untouched, extension included.
+        var naming = canStamp && PieceStamp.IsPicture(original)
+            ? Path.ChangeExtension(original, ".pdf")
+            : original;
+
+        var name = Exhibits.FileName(number, piece.Label?.Trim(), naming);
         var destination = Path.Combine(exhibits, name);
 
         try
         {
-            var canStamp = stampImage is not null && PieceStamp.CanStamp(original);
-
             if (canStamp)
             {
+                var read = await File.ReadAllBytesAsync(source, cancellationToken).ConfigureAwait(false);
+
                 var bytes = PieceStamp.Apply(
-                    await File.ReadAllBytesAsync(source, cancellationToken).ConfigureAwait(false),
+                    PieceStamp.IsPicture(original) ? PieceStamp.PageFromPicture(read) : read,
                     stampImage!,
                     number,
                     options);

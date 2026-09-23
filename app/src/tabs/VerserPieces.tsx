@@ -170,7 +170,7 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
       </div>
 
       <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
-        Le tampon ne s’applique qu’aux PDF, sur la première page. Il se règle dans Réglages.
+        Le tampon s’applique aux PDF et aux photos, sur la première page. Il se règle dans Réglages.
       </p>
 
       {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}

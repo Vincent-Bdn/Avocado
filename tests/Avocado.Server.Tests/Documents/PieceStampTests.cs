@@ -124,11 +124,39 @@ public class PieceStampTests
     [Theory]
     [InlineData("Assignation.pdf", true)]
     [InlineData("assignation.PDF", true)]
+    // Photographs are half of what gets versed, and she was converting each one by hand.
+    [InlineData("Toiture.jpg", true)]
+    [InlineData("Toiture.JPEG", true)]
+    [InlineData("Capture.png", true)]
+    // Still out: converting these means driving Word, and Word is a second thing to go wrong.
     [InlineData("Conclusions.docx", false)]
     [InlineData("Courriel du 3 mars.msg", false)]
-    [InlineData("Scan.jpg", false)]
+    [InlineData("Plan.dwg", false)]
     public void SaysWhatItCanStamp(string fileName, bool expected) =>
         Assert.Equal(expected, PieceStamp.CanStamp(fileName));
+
+    /// <summary>
+    /// A photograph becomes one A4 page, fitted inside the margins.
+    ///
+    /// <para>Bled to the edges it would run under the stamp, which is the one thing a numbered pièce
+    /// must not do.</para>
+    /// </summary>
+    [Fact]
+    public void TurnsAPhotographIntoAPageTheStampFitsOn()
+    {
+        var page = PieceStamp.PageFromPicture(Stamp());
+
+        using var document = Reopen(page);
+
+        Assert.Equal(1, document.PageCount);
+        Assert.Equal(595, document.Pages[0].Width.Point, 0);
+        Assert.Equal(842, document.Pages[0].Height.Point, 0);
+
+        // And it stamps like anything else, which is the whole point of converting it.
+        var landed = Landed(PieceStamp.Apply(page, TransparentStamp(), 4, new StampOptions()));
+
+        Assert.Equal(new StampOptions().MarginPoints, landed.Top, 1);
+    }
 
     /// <summary>
     /// A file that is not a PDF, or one that is truncated, throws rather than producing something.
@@ -292,11 +320,19 @@ public class PieceStampTests
     /// resolves /Rotate itself and reports the page landscape when the page is displayed landscape,
     /// so what comes back is what a greffier would see and not what PDFsharp intended.</para>
     /// </summary>
-    private static (double Top, double Right, double Width, double PageWidth) Landed(byte[] stamped)
+    private static (double Top, double Right, double Width, double PageWidth) Landed(
+        byte[] stamped,
+        double stampWidth = 120)
     {
         using var document = UglyToad.PdfPig.PdfDocument.Open(stamped);
         var page = document.GetPage(1);
-        var bounds = Assert.Single(page.GetImages()).Bounds;
+
+        // A converted photograph puts its own image on the page too, so the stamp is picked by the
+        // width it was asked to be rather than by being the only thing there.
+        var bounds = page.GetImages()
+            .OrderBy(image => Math.Abs(image.Bounds.Width - stampWidth))
+            .First()
+            .Bounds;
 
         // PdfPig measures y up from the bottom; the margin is quoted from the top.
         return (page.Height - bounds.Top, bounds.Right, bounds.Width, page.Width);
