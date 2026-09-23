@@ -1,6 +1,7 @@
 using Avocado.Server.Features.Documents.Folders;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
+using PdfSharp.Pdf.Advanced;
 using PdfSharp.Pdf.IO;
 
 namespace Avocado.Server.Tests.Documents;
@@ -35,6 +36,26 @@ public class PieceStampTests
 
     private static PdfDocument Reopen(byte[] bytes) =>
         PdfReader.Open(new MemoryStream(bytes), PdfDocumentOpenMode.Import);
+
+    /// <summary>
+    /// What the page actually tells a reader to draw.
+    ///
+    /// <para>Page counts and byte lengths are what these tests checked for months, and both were
+    /// perfectly happy while the number was being drawn in black on a black logo. The operators are
+    /// the only place the colour exists.</para>
+    /// </summary>
+    private static string Drawn(byte[] stamped)
+    {
+        using var document = PdfReader.Open(new MemoryStream(stamped), PdfDocumentOpenMode.Modify);
+
+        return string.Join(
+            '\n',
+            document.Pages[0].Contents.Elements
+                .OfType<PdfReference>()
+                .Select(reference => reference.Value)
+                .OfType<PdfDictionary>()
+                .Select(stream => stream.Stream.ToString()));
+    }
 
     [Fact]
     public void StampsAPdfWithoutLosingAPage()
@@ -125,5 +146,70 @@ public class PieceStampTests
         var notAPdf = System.Text.Encoding.UTF8.GetBytes("Ceci n'est pas un PDF");
 
         Assert.ThrowsAny<Exception>(() => PieceStamp.Apply(notAPdf, Stamp(), 1, new StampOptions()));
+    }
+
+    /// <summary>
+    /// The fill colour in force where the digit is drawn.
+    ///
+    /// <para>Not « does the stream mention 1 1 1 rg » : PDFsharp opens every page by setting black,
+    /// so the stream mentions black whatever the number is. What decides what a reader sees is the
+    /// last colour set before the glyph.</para>
+    /// </summary>
+    private static string InkAt(byte[] stamped, string glyph)
+    {
+        var drawn = Drawn(stamped);
+        var at = drawn.IndexOf(glyph, StringComparison.Ordinal);
+
+        Assert.True(at >= 0, $"« {glyph} » is not drawn at all.\n{drawn}");
+
+        var operators = drawn[..at]
+            .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(line => line.EndsWith(" rg", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.NotEmpty(operators);
+
+        return operators[^1];
+    }
+
+    /// <summary>
+    /// The one that reached a greffe. A cabinet whose stamp is a black square got a digit at the
+    /// right coordinates, in black, on every pièce it filed, and nobody could see it.
+    /// </summary>
+    [Fact]
+    public void WritesTheNumberInTheColourItWasGiven() =>
+        Assert.Equal(
+            "1 1 1 rg",
+            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions(NumberColour: "#FFFFFF")), "(7) Tj"));
+
+    [Fact]
+    public void StaysBlackWhenNobodyHasChosen() =>
+        Assert.Equal("0 0 0 rg", InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions()), "(7) Tj"));
+
+    /// <summary>
+    /// Hand-edited nonsense in the settings row costs a badly-coloured number, never the batch.
+    /// </summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("blanc")]
+    [InlineData("#FFF")]
+    [InlineData("#GGGGGG")]
+    [InlineData("#FFFFFFFF")]
+    public void FallsBackToBlackRatherThanThrowing(string colour) =>
+        Assert.Equal(
+            "0 0 0 rg",
+            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions(NumberColour: colour)), "(7) Tj"));
+
+    [Theory]
+    [InlineData("#FFFFFF", 255, 255, 255)]
+    [InlineData("ff8800", 255, 136, 0)]
+    [InlineData("#1A2B3C", 26, 43, 60)]
+    public void ReadsAColourWithOrWithoutItsHash(string colour, int red, int green, int blue)
+    {
+        var ink = PieceStamp.Ink(colour);
+
+        Assert.Equal(red, ink.R);
+        Assert.Equal(green, ink.G);
+        Assert.Equal(blue, ink.B);
     }
 }

@@ -570,6 +570,7 @@ interface StampOptions {
   numberXPercent: number
   numberYPercent: number
   numberSizePoints: number
+  numberColour: string | null
   everyPage: boolean
 }
 
@@ -588,6 +589,67 @@ const CORNERS: { value: StampOptions['corner']; label: string }[] = [
  * blank page with a plausible number and she nudges until it sits where it should. Without it these
  * are four numbers guessed at, with a fifteen-pièce batch as the feedback loop.</p>
  */
+/**
+ * What colour the number has to be to be seen on this stamp.
+ *
+ * <p>Read off the image, where the number will actually land, because the answer is a property of
+ * her logo and not something she should have to think about. A black square with « Pièce n° ....... »
+ * in pale grey wants a pale number; a letterhead on white wants a black one. Both exist among the
+ * ten practices in the beta, and one of them filed pièces carrying an invisible number.</p>
+ *
+ * <p>Composited over white before measuring, because a transparent stamp sits on a white page and it
+ * is the page that shows through, not the transparency.</p>
+ *
+ * <p>Returns null when the canvas will not give up its pixels. That is not a failure worth reporting:
+ * black is what it has always been, and the picker is right there.</p>
+ */
+function inkFor(image: HTMLImageElement, options: StampOptions): string | null {
+  const width = image.naturalWidth
+  const height = image.naturalHeight
+
+  if (width === 0 || height === 0) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (context === null) return null
+
+  context.drawImage(image, 0, 0)
+
+  // The box the digits occupy, in the image's own pixels. Widened to a couple of characters and
+  // raised by the font size, the way the PDF draws it: the anchor is the text's top-left.
+  const size = (options.numberSizePoints / Math.max(1, options.widthPoints)) * width
+  const left = (options.numberXPercent / 100) * width
+  const top = (options.numberYPercent / 100) * height - size
+
+  const x = Math.max(0, Math.min(width - 1, Math.round(left)))
+  const y = Math.max(0, Math.min(height - 1, Math.round(top)))
+  const w = Math.max(1, Math.min(width - x, Math.round(size * 2)))
+  const h = Math.max(1, Math.min(height - y, Math.round(size * 1.4)))
+
+  let pixels: Uint8ClampedArray
+  try {
+    pixels = context.getImageData(x, y, w, h).data
+  } catch {
+    // A tainted canvas. The stamp comes from our own blob: URL so this should not happen, but a
+    // thrown exception here would take the whole settings panel with it.
+    return null
+  }
+
+  let sum = 0
+  for (let index = 0; index < pixels.length; index += 4) {
+    const alpha = pixels[index + 3]! / 255
+    const over = (channel: number) => channel * alpha + 255 * (1 - alpha)
+
+    // Rec. 709 luma. Green carries most of what the eye reads as brightness.
+    sum += 0.2126 * over(pixels[index]!) + 0.7152 * over(pixels[index + 1]!) + 0.0722 * over(pixels[index + 2]!)
+  }
+
+  return sum / (pixels.length / 4) < 128 ? '#FFFFFF' : '#000000'
+}
+
 function Stamp() {
   const [view, setView] = useState<{ configured: boolean; options: StampOptions } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -687,6 +749,14 @@ function Stamp() {
             src={image}
             alt="Tampon du cabinet"
             className="h-16 w-16 rounded-sm border border-line-subtle bg-app object-contain p-1"
+            // Only when nobody has chosen. Once she has touched the picker the colour is hers, even
+            // if it is the one this would have picked, and even if it is the one that reads badly.
+            onLoad={(event) => {
+              if (view.options.numberColour !== null) return
+
+              const ink = inkFor(event.currentTarget, view.options)
+              if (ink !== null) void save({ ...view.options, numberColour: ink })
+            }}
           />
         )}
 
@@ -728,6 +798,16 @@ function Stamp() {
               onChange={(numberYPercent) => void save({ ...options, numberYPercent })} />
             <Nudge label="taille" value={options.numberSizePoints} unit="pt"
               onChange={(numberSizePoints) => void save({ ...options, numberSizePoints })} />
+            <label className="flex items-center gap-1.5 text-[12.5px] text-muted">
+              couleur
+              <input
+                type="color"
+                aria-label="Couleur du numéro"
+                value={options.numberColour ?? '#000000'}
+                onChange={(event) => void save({ ...options, numberColour: event.target.value })}
+                className="h-6 w-9 cursor-pointer rounded-sm border border-line-strong bg-app p-0.5"
+              />
+            </label>
           </div>
 
           <label className="flex items-center gap-2 text-[12.5px]">

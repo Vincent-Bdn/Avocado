@@ -68,6 +68,26 @@ public class ExhibitsTests
         Assert.Equal("Pièce 4 - contrat-2019.pdf", Exhibits.FileName(4, null, "contrat-2019.pdf"));
 
     /// <summary>
+    /// « Pièce 1 - Pièce 1 - Photos.pdf », which is what a dossier filed last week actually carries.
+    ///
+    /// <para>Versing a file she had already numbered by hand, or versing the same one twice, put the
+    /// prefix on a name that already had one. The number is re-applied, so the one in the name is the
+    /// one this versement decided, not the one it inherited.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("Pièce 1 - Photos.pdf", "Pièce 4 - Photos.pdf")]
+    [InlineData("Pièce 12 - Attestation de M. Loubet.pdf", "Pièce 4 - Attestation de M. Loubet.pdf")]
+    public void DoesNotPrefixANameThatIsAlreadyAPiece(string source, string expected) =>
+        Assert.Equal(expected, Exhibits.FileName(4, null, source));
+
+    /// <summary>
+    /// « Pièces jointes.pdf » starts with the word and is not one: no number, so nothing comes off.
+    /// </summary>
+    [Fact]
+    public void LeavesANameThatMerelyStartsWithTheWordAlone() =>
+        Assert.Equal("Pièce 4 - Pièces jointes.pdf", Exhibits.FileName(4, null, "Pièces jointes.pdf"));
+
+    /// <summary>
     /// « Contrat du 3/03/2019 : avenants » is a perfectly good libellé and Windows refuses three of
     /// those characters. They become spaces so words do not run together.
     /// </summary>

@@ -25,6 +25,19 @@ public enum StampCorner
 /// rather than anywhere Avocado decides.
 /// </param>
 /// <param name="NumberSizePoints">Font size of the number.</param>
+/// <param name="NumberColour">
+/// « #RRGGBB », or null while nobody has chosen.
+///
+/// <para>This used to be black, always, and it was not a default so much as an oversight. A cabinet
+/// whose stamp is a black square got a black number drawn on it: the digit was in the page, at the
+/// right coordinates, and invisible. The bordereau said pièce 1 and the pièce showed « Pièce n°
+/// ....... » with the dots still empty.</para>
+///
+/// <para>Null rather than black so that the two cases can be told apart. Black here is a colour she
+/// picked; null is nobody having been asked. Réglages resolves null from the image itself the first
+/// time it shows the panel, and writes the answer back, so what the preview draws and what the
+/// pièces carry are never two different things.</para>
+/// </param>
 /// <param name="EveryPage">
 /// False by default, and the default is the one her own tool chose: première page uniquement.
 /// Configurable because « page 3/7 » on every page is how some cabinets prove nothing was removed.
@@ -36,6 +49,7 @@ public sealed record StampOptions(
     double NumberXPercent = 62,
     double NumberYPercent = 92,
     double NumberSizePoints = 11,
+    string? NumberColour = null,
     bool EveryPage = false);
 
 /// <summary>
@@ -105,7 +119,7 @@ public static class PieceStamp
             canvas.DrawString(
                 number.ToString(),
                 font,
-                XBrushes.Black,
+                new XSolidBrush(Ink(options.NumberColour)),
                 new XRect(
                     x + (options.WidthPoints * options.NumberXPercent / 100),
                     y + (height * options.NumberYPercent / 100) - options.NumberSizePoints,
@@ -145,6 +159,23 @@ public static class PieceStamp
         merged.Save(output, closeStream: false);
 
         return output.ToArray();
+    }
+
+    /// <summary>
+    /// « #RRGGBB » as a colour, black for anything else.
+    ///
+    /// <para>Black is the fallback rather than an exception because this runs in the middle of
+    /// versing a batch: a colour that was hand-edited into the settings row and is now nonsense
+    /// should cost a badly-coloured number, not fifteen pièces.</para>
+    /// </summary>
+    internal static XColor Ink(string? colour)
+    {
+        var text = colour?.TrimStart('#');
+
+        return text?.Length == 6
+            && int.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var value)
+            ? XColor.FromArgb((value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF)
+            : XColors.Black;
     }
 
     private static IEnumerable<PdfPage> Pages(PdfDocument document, bool everyPage)

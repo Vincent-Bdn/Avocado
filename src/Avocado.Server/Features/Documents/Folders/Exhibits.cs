@@ -90,12 +90,19 @@ public static class Exhibits
         return label.Length == 0 ? null : label;
     }
 
-    /// <summary>« Pièce 12 - Attestation de M. Loubet.pdf ».</summary>
+    /// <summary>
+    /// « Pièce 12 - Attestation de M. Loubet.pdf ».
+    ///
+    /// <para>With no libellé the source file's own name is used, and a file already called « Pièce 1
+    /// - Photos.pdf » produced « Pièce 1 - Pièce 1 - Photos.pdf ». It happens whenever she verses
+    /// something she had numbered by hand, or verses the same file twice, which is often enough that
+    /// one reached a greffe. <see cref="LabelOf"/> already knows how to take the prefix off.</para>
+    /// </summary>
     public static string FileName(int number, string? label, string sourceFileName)
     {
         var written = Safe(label is { Length: > 0 }
             ? label
-            : Path.GetFileNameWithoutExtension(sourceFileName));
+            : LabelOf(sourceFileName) ?? Path.GetFileNameWithoutExtension(sourceFileName));
 
         var extension = Path.GetExtension(sourceFileName);
 
