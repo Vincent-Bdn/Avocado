@@ -1,7 +1,6 @@
 using Avocado.Server.Features.Backups.Infrastructure;
 using Avocado.Server.Features.Matters;
-using Avocado.Vault.Blobs;
-using Avocado.Vault.Crypto;
+using Avocado.Vault.Backups;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -10,28 +9,28 @@ namespace Avocado.Server.Tests;
 /// <summary>
 /// A whole practice out and back again.
 ///
-/// <para>These go through the real capture and the real blob store rather than a fixture, because
-/// the thing worth knowing is not that the restore writes files: it is that the bytes it writes are
-/// the bytes she filed, after they have been deflated, encrypted, stored, and pulled back through
-/// every layer between. A restore that returns subtly different files is worse than one that
-/// fails.</para>
+/// <para>These go through the real mirror and a real destination rather than a fixture, because the
+/// thing worth knowing is not that the restore writes files: it is that the bytes it writes are the
+/// bytes she filed, after a round trip through the destination she actually keeps. A restore that
+/// returns subtly different files is worse than one that fails.</para>
 /// </summary>
 public sealed class FolderRestoreTests : IDisposable
 {
     private readonly TestVault _vault = new();
-    private readonly SecretKey _key = SecretKey.Generate();
     private readonly List<string> _temporary = [];
 
-    private readonly EncryptedBlobStore _blobs;
-    private readonly FolderCapture _capture;
+    private readonly string _nas;
+    private readonly IBackupSink _sink;
     private readonly FolderRestore _restore;
 
     public FolderRestoreTests()
     {
-        _blobs = new EncryptedBlobStore(Temp("blobs"), _key);
-        _capture = new FolderCapture(new CaptureProgress(), TimeProvider.System, NullLogger<FolderCapture>.Instance);
-        _restore = new FolderRestore(_blobs, NullLogger<FolderRestore>.Instance);
+        _nas = Temp("nas");
+        _sink = new DirectorySink(new FixedPathLocator(_nas, "NAS"));
+        _restore = new FolderRestore(_sink, NullLogger<FolderRestore>.Instance);
     }
+
+    private Task MirrorAsync() => DocumentMirror.RunAsync(_sink, _vault.Database, default);
 
     [Fact]
     public async Task GivesBackEveryFileByteForByte()
@@ -52,7 +51,7 @@ public sealed class FolderRestoreTests : IDisposable
             Write(source, relative, content);
         }
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         var into = Temp("restauré-en-cours");
         var outcome = await _restore.RunAsync(_vault.Database, into, Temp("restauré-clôturés"), null, default);
@@ -83,7 +82,7 @@ public sealed class FolderRestoreTests : IDisposable
         Write(ongoing, "Note.docx", "En cours");
         Write(closed, "Jugement.pdf", "Définitif");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         var intoOngoing = Temp("Dossiers en cours");
         var intoClosed = Temp("Dossiers clôturés");
@@ -101,7 +100,7 @@ public sealed class FolderRestoreTests : IDisposable
         var matter = Dossier("2026-0001", "Durand", source, open: true);
         Write(source, "Note.docx", "Contenu");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         var into = Temp("nouveau");
         await _restore.RunAsync(_vault.Database, into, into, null, default);
@@ -128,7 +127,7 @@ public sealed class FolderRestoreTests : IDisposable
         await File.WriteAllTextAsync(Path.Combine(first, "Ancien.docx"), "Pierre");
         await File.WriteAllTextAsync(Path.Combine(second, "Récent.docx"), "Sophie");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         var into = Temp("tout");
         var outcome = await _restore.RunAsync(_vault.Database, into, into, null, default);
@@ -146,7 +145,7 @@ public sealed class FolderRestoreTests : IDisposable
         Dossier("2026-0001", "Durand", source, open: true);
         Write(source, "Conclusions.docx", "La version sauvegardée");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         // She restored into a folder that already holds work of the same name. Whatever that file is,
         // it is not ours to destroy.
@@ -169,7 +168,7 @@ public sealed class FolderRestoreTests : IDisposable
         Write(source, "Note.docx", "Contenu");
         Write(source, "Pièces/Pièce 1.pdf", "%PDF");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
         var into = Temp("nouveau");
         await _restore.RunAsync(_vault.Database, into, into, null, default);
@@ -188,20 +187,18 @@ public sealed class FolderRestoreTests : IDisposable
         Write(source, "Présent.docx", "Bien arrivé");
         Write(source, "Manquant.docx", "Perdu en route");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
-        // A blob that never made it onto the USB key, or one lost from it since. The rest of the
-        // practice must still come back, and the missing file must be named.
-        var missing = await _vault.Database.CapturedFiles.SingleAsync(file => file.RelativePath == "Manquant.docx");
-        Assert.True(_blobs.Delete(new BlobReference(missing.BlobSha256, missing.SizeBytes)));
+        // A file that never made it onto the share, or one lost from it since. The rest of the
+        // practice must still come back, and nothing must be invented in its place.
+        File.Delete(Path.Combine(_nas, "Dossiers", "2026-0001 - Durand", "Manquant.docx"));
 
         var into = Temp("nouveau");
         var outcome = await _restore.RunAsync(_vault.Database, into, into, null, default);
 
         Assert.Equal(1, outcome.Files);
-        Assert.Single(outcome.Issues);
-        Assert.Equal("Manquant.docx", outcome.Issues[0].Path);
         Assert.True(File.Exists(Path.Combine(into, "durand", "Présent.docx")));
+        Assert.False(File.Exists(Path.Combine(into, "durand", "Manquant.docx")));
     }
 
     [Fact]
@@ -211,20 +208,19 @@ public sealed class FolderRestoreTests : IDisposable
         var matter = Dossier("2026-0001", "Durand", source, open: true);
         Write(source, "Note.docx", "Contenu");
 
-        await _capture.RunAsync(_blobs, _vault.Database, default);
+        await MirrorAsync();
 
-        // The manifest arrives inside a database file that came off a USB key. Nothing says the key
-        // was only ever written by us, and a restore runs with her full permissions.
-        var row = await _vault.Database.CapturedFiles.SingleAsync();
-        row.RelativePath = "../../../Windows/System32/evil.dll";
-        await _vault.Database.SaveChangesAsync();
+        // The destination is a share other people can write to, and a restore runs with her full
+        // permissions. A name that climbs out of the folder she chose is refused rather than obeyed.
+        var planted = Path.Combine(_nas, "Dossiers", "2026-0001 - Durand", "..", "..", "evil.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(planted))!);
+        File.WriteAllText(Path.GetFullPath(planted), "x");
 
         var into = Temp("nouveau");
         var outcome = await _restore.RunAsync(_vault.Database, into, into, null, default);
 
-        Assert.Equal(0, outcome.Files);
-        Assert.Single(outcome.Issues);
-        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(into)!, "Windows", "System32", "evil.dll")));
+        Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(into)!, "evil.dll")));
+        Assert.True(File.Exists(Path.Combine(into, "durand", "Note.docx")));
         Assert.NotNull(matter.Reference);
     }
 
@@ -268,7 +264,6 @@ public sealed class FolderRestoreTests : IDisposable
     public void Dispose()
     {
         _vault.Dispose();
-        _key.Dispose();
 
         foreach (var directory in _temporary)
         {

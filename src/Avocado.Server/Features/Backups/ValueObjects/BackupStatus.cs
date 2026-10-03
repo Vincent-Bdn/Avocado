@@ -78,9 +78,19 @@ public sealed record CapturedDocuments(
     int Unreadable,
     int Unreachable,
     IReadOnlyList<CapturedProblem> Examples,
+    IReadOnlyList<DetachableFolder> Detachable,
     Infrastructure.CaptureRunning? Running);
 
 public sealed record CapturedProblem(string Dossier, string Path, string Reason);
+
+/// <summary>
+/// A dossier whose folder was not on this machine when the copy ran.
+///
+/// <para>Offered rather than acted upon. She keeps the current dossiers on the laptop and the rest on
+/// the NAS, so a folder that is not here is usually one she archived on purpose; and a disk left at
+/// home would otherwise detach every dossier on it in a single pass.</para>
+/// </summary>
+public sealed record DetachableFolder(Guid MatterId, string Dossier, string Folder);
 
 /// <summary>
 /// What has happened since the last copy left this machine, counted.

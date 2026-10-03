@@ -72,7 +72,6 @@ builder.Services.AddSingleton<Avocado.Server.Features.Mails.Infrastructure.MailI
 builder.Services.AddSingleton<GestisoftImporter>();
 builder.Services.AddSingleton<Avocado.Server.Features.Settings.Infrastructure.DiskEncryption>();
 builder.Services.AddSingleton<SinkFactory>();
-builder.Services.AddSingleton<Avocado.Server.Features.Backups.Infrastructure.FolderCapture>();
 builder.Services.AddSingleton<Avocado.Server.Features.Backups.Infrastructure.CaptureProgress>();
 builder.Services.AddSingleton<BackupService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<BackupService>());

@@ -104,12 +104,6 @@ public static class GetBackupStatus
         var (schedule, capturedAt, report) = await CaptureState.ReadAsync(database, cancellationToken)
             .ConfigureAwait(false);
 
-        var held = await database.CapturedFiles
-            .GroupBy(_ => 1)
-            .Select(group => new { Files = group.Count(), Bytes = group.Sum(file => file.SizeBytes) })
-            .FirstOrDefaultAsync(cancellationToken)
-            .ConfigureAwait(false);
-
         var dossiers = await database.Matters
             .CountAsync(matter => matter.DocumentsFolder != null, cancellationToken)
             .ConfigureAwait(false);
@@ -117,14 +111,17 @@ public static class GetBackupStatus
         return new CapturedDocuments(
             schedule.IsEnabled,
             schedule.EffectiveHour,
-            held?.Files ?? 0,
-            held?.Bytes ?? 0,
+            report?.Files ?? 0,
+            report?.Bytes ?? 0,
             dossiers,
             capturedAt,
-            report?.IssueCount ?? 0,
-            report?.Unreachable ?? 0,
+            report?.Unreadable ?? 0,
+            report?.Missing.Count ?? 0,
             report?.Issues
                 .Select(issue => new CapturedProblem(issue.Dossier, issue.Path, issue.Reason))
+                .ToList() ?? [],
+            report?.Missing
+                .Select(folder => new DetachableFolder(folder.MatterId, folder.Dossier, folder.Folder))
                 .ToList() ?? [],
             capturing.Current);
     }

@@ -28,7 +28,7 @@ public static class CaptureState
     /// </summary>
     private const int IssuesKept = 6;
 
-    public static async Task<(BackupSchedule Schedule, DateTimeOffset? CapturedAt, CaptureReport? Report)>
+    public static async Task<(BackupSchedule Schedule, DateTimeOffset? CapturedAt, MirrorReport? Report)>
         ReadAsync(AvocadoDbContext database, CancellationToken cancellationToken)
     {
         var stored = await database.PracticeSettings
@@ -52,7 +52,7 @@ public static class CaptureState
     public static async Task WriteAsync(
         AvocadoDbContext database,
         DateTimeOffset capturedAt,
-        CaptureReport report,
+        MirrorReport report,
         CancellationToken cancellationToken)
     {
         await UpsertAsync(database, PracticeSettingKeys.CapturedAt, capturedAt.ToString("O"), cancellationToken)
@@ -72,7 +72,7 @@ public static class CaptureState
             ? parsed
             : null;
 
-    private static CaptureReport? ReportFrom(IReadOnlyDictionary<string, string> stored)
+    private static MirrorReport? ReportFrom(IReadOnlyDictionary<string, string> stored)
     {
         if (!stored.TryGetValue(PracticeSettingKeys.CaptureReport, out var json))
         {
@@ -81,7 +81,7 @@ public static class CaptureState
 
         try
         {
-            return JsonSerializer.Deserialize<CaptureReport>(json, Format);
+            return JsonSerializer.Deserialize<MirrorReport>(json, Format);
         }
         catch (JsonException)
         {

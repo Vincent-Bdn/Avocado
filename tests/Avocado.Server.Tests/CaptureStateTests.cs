@@ -39,34 +39,34 @@ public sealed class CaptureStateTests : IDisposable
     [Fact]
     public async Task CarriesLastNightsFailuresThroughToTheMorning()
     {
-        var report = new CaptureReport(
+        var completedAt = new DateTimeOffset(2026, 3, 14, 22, 4, 0, TimeSpan.Zero);
+
+        var report = new MirrorReport(
             Dossiers: 42,
+            Copied: 31,
+            CopiedBytes: 4_100_000,
             Files: 13_917,
             Bytes: 12_800_000_000,
-            Added: 31,
-            AddedBytes: 4_100_000,
-            Dropped: 2,
-            Unreachable: 1,
-            IssueCount: 3,
+            Unreadable: 3,
+            Missing: [new DetachedFolder(Guid.NewGuid(), "2024-0007", "D:/Archives")],
             Issues:
             [
                 new CaptureIssue("2026-0001", "Pièces/Pièce 4.pdf", "Accès refusé."),
-                new CaptureIssue("2024-0007", "D:\\Archives", "Dossier introuvable, rien n'a été changé."),
                 new CaptureIssue("2026-0009", "Conclusions.docx", "Le fichier est utilisé par un autre processus."),
-            ],
-            CompletedAt: new DateTimeOffset(2026, 3, 14, 22, 4, 0, TimeSpan.Zero));
+            ]);
 
-        await CaptureState.WriteAsync(_vault.Database, report.CompletedAt, report, default);
+        await CaptureState.WriteAsync(_vault.Database, completedAt, report, default);
         await _vault.Database.SaveChangesAsync();
 
         var (_, capturedAt, read) = await CaptureState.ReadAsync(_vault.Database, default);
 
-        Assert.Equal(report.CompletedAt, capturedAt);
+        Assert.Equal(completedAt, capturedAt);
         Assert.NotNull(read);
         Assert.Equal(13_917, read.Files);
         Assert.Equal(12_800_000_000, read.Bytes);
-        Assert.Equal(1, read.Unreachable);
-        Assert.Equal(3, read.IssueCount);
+        Assert.Single(read.Missing);
+        Assert.Equal("2024-0007", read.Missing[0].Dossier);
+        Assert.Equal(3, read.Unreadable);
         Assert.Equal("Pièces/Pièce 4.pdf", read.Issues[0].Path);
         Assert.Equal("Accès refusé.", read.Issues[0].Reason);
     }
@@ -78,7 +78,7 @@ public sealed class CaptureStateTests : IDisposable
             .Select(index => new CaptureIssue("2026-0001", $"Pièces/Pièce {index}.pdf", "Accès refusé."))
             .ToList();
 
-        var report = CaptureReport.Empty with { IssueCount = issues.Count, Issues = issues };
+        var report = MirrorReport.Empty with { Unreadable = issues.Count, Issues = issues };
 
         await CaptureState.WriteAsync(_vault.Database, DateTimeOffset.UtcNow, report, default);
         await _vault.Database.SaveChangesAsync();
@@ -94,7 +94,7 @@ public sealed class CaptureStateTests : IDisposable
         var (_, _, read) = await CaptureState.ReadAsync(_vault.Database, default);
 
         Assert.NotNull(read);
-        Assert.Equal(400, read.IssueCount);
+        Assert.Equal(400, read.Unreadable);
         Assert.True(read.Issues.Count is > 0 and <= 10);
     }
 

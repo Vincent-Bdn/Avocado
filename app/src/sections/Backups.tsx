@@ -38,6 +38,13 @@ interface Exposure {
   minutes: number
 }
 
+/** A dossier whose folder was not on this machine when the copy ran. */
+interface DetachableFolder {
+  matterId: string
+  dossier: string
+  folder: string
+}
+
 interface CapturedProblem {
   dossier: string
   path: string
@@ -54,6 +61,7 @@ interface CapturedDocuments {
   unreadable: number
   unreachable: number
   examples: CapturedProblem[]
+  detachable: DetachableFolder[]
   running: { dossier: number; dossiers: number; files: number; reference: string | null } | null
 }
 
@@ -483,8 +491,9 @@ function Explainers({ localCount }: { localCount: number }) {
   return (
     <div className="grid gap-3 border-t border-line-subtle pt-3">
       <Explain title="Ce qu’une sauvegarde contient">
-        Journal, tiers, facturation, temps passé, modèles, documents, et la copie chiffrée de votre
-        clé. Le tout chiffré : personne ne l’ouvre sans votre clé de récupération.
+        Journal, tiers, facturation, temps passé, modèles et la copie de votre clé, chiffrés :
+        personne ne les ouvre sans votre clé de récupération. Vos documents, eux, sont copiés tels
+        quels, dans un dossier « Dossiers » que vous pouvez ouvrir et lire directement.
       </Explain>
 
       <Explain title="Les copies locales">
@@ -570,6 +579,22 @@ function Documents({ documents, busy, onChange }: {
     }
   }
 
+  /**
+   * Forgets where those dossiers' documents were, on her say-so.
+   *
+   * <p>Nothing is removed from any destination: the copy up there is usually the only one left, and
+   * is the reason she cleared the folder off the laptop in the first place.</p>
+   */
+  async function detach(matterIds: string[]) {
+    setSaving(true)
+    try {
+      await post('/api/backups/documents/detach', { matterIds })
+      onChange()
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const problems = documents.unreadable + documents.unreachable
 
   return (
@@ -631,6 +656,40 @@ function Documents({ documents, busy, onChange }: {
             Remettre les documents sur ce disque
           </Button>
           {restored && <span className="text-[11.5px] text-muted">{restored}</span>}
+        </div>
+      )}
+
+      {documents.detachable.length > 0 && (
+        <div className="grid gap-1.5 rounded-sm bg-sunken px-2.5 py-2">
+          <span className="flex items-center gap-1.5 text-[11.5px] font-medium text-ink">
+            <AlertCircle size={13} strokeWidth={2} className="text-warning" />
+            {documents.detachable.length} dossier{plural(documents.detachable.length)} dont le
+            répertoire n’est plus sur cet ordinateur
+          </span>
+
+          <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">
+            Leur copie sur la destination est intacte et le restera : rien n’y est jamais effacé. Si
+            vous les avez archivés exprès, détachez-les pour qu’Avocado cesse de les chercher.
+          </p>
+
+          <ul className="m-0 grid list-none gap-0.5 p-0">
+            {documents.detachable.map((folder) => (
+              <li key={folder.matterId} className="text-[11px] text-muted">
+                <span className="font-mono">{folder.dossier}</span> · {folder.folder}
+              </li>
+            ))}
+          </ul>
+
+          <div>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy || saving}
+              onClick={() => void detach(documents.detachable.map((folder) => folder.matterId))}
+            >
+              Détacher ces dossiers
+            </Button>
+          </div>
         </div>
       )}
 

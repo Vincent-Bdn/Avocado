@@ -27,7 +27,6 @@ public sealed class BackupService(
     VaultSession session,
     VaultDbContextFactory contexts,
     SinkFactory sinks,
-    FolderCapture capture,
     TimeProvider clock,
     ILogger<BackupService> logger) : BackgroundService
 {
@@ -45,6 +44,17 @@ public sealed class BackupService(
     /// a window that has hung.</para>
     /// </summary>
     private static readonly TimeSpan ManualPatience = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// How many times a destination may fail to take the documents before the row says so.
+    ///
+    /// <para>Counted in memory and cleared on success, so a restart forgives. That is the right way
+    /// round: the count exists to stop a transient share from writing an alarming sentence, not to
+    /// keep a grudge across days.</para>
+    /// </summary>
+    private const int DocumentAttempts = 5;
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, int> _documentAttempts = new();
 
     private readonly SemaphoreSlim _gate = new(1, 1);
     private long _lastSeenDatabaseStamp;
@@ -179,10 +189,10 @@ public sealed class BackupService(
         // snapshot carries the manifest of what was just captured, so it can only ever name blobs
         // that are already on this disk; the mirror then uploads blobs before it uploads the
         // snapshot. At no point does a backup exist that promises a document it does not hold.
-        var captured = await EnsureDocumentsAsync(vault, database, trigger, cancellationToken)
+        var documentsDue = await DocumentsDueAsync(database, trigger, cancellationToken)
             .ConfigureAwait(false);
 
-        var snapshot = EnsureSnapshot(vault, trigger != Trigger.Beat || captured);
+        var snapshot = EnsureSnapshot(vault, trigger != Trigger.Beat);
 
         var destinations = await database.Set<BackupDestination>()
             .Where(destination => destination.IsEnabled)
@@ -194,7 +204,8 @@ public sealed class BackupService(
         foreach (var destination in destinations)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            results.Add(await PushAsync(vault, database, destination, snapshot, cancellationToken).ConfigureAwait(false));
+            results.Add(await PushAsync(
+                vault, database, destination, snapshot, documentsDue, cancellationToken).ConfigureAwait(false));
         }
 
         await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -202,17 +213,11 @@ public sealed class BackupService(
     }
 
     /// <summary>
-    /// Copies the dossiers' folders into the coffre when tonight's window has come round, or when she
-    /// pressed the button. True when anything was read, which is what earns a fresh snapshot.
-    ///
-    /// <para>Failures here are logged and swallowed. A dossier on a disconnected drive, a folder
-    /// renamed at lunchtime, an antivirus holding a file: none of them is a reason for the database
-    /// snapshot and the off-machine push, which are the parts that protect the practice's records,
-    /// not to happen tonight. What the capture could not read is written into the report, and the
-    /// screen says so.</para>
+    /// Whether tonight's copy of the dossiers' folders is owed, which is a question about the clock
+    /// and the button and nothing else. Doing it is each destination's business, because the files go
+    /// to the destination now rather than into the coffre.
     /// </summary>
-    private async Task<bool> EnsureDocumentsAsync(
-        OpenVault vault,
+    private async Task<bool> DocumentsDueAsync(
         AvocadoDbContext database,
         Trigger trigger,
         CancellationToken cancellationToken)
@@ -235,36 +240,62 @@ public sealed class BackupService(
         }
 
         // Taken, not peeked at: whether this pass honours the request or fails trying, the button has
-        // been answered and must not fire a second capture on the beat after.
+        // been answered and must not fire a second copy on the beat after.
         var asked = Interlocked.Exchange(ref _documentsRequested, 0) == 1;
 
+        return asked || schedule.IsDue(capturedAt, clock.GetLocalNow());
+    }
 
-        if (!asked && !schedule.IsDue(capturedAt, clock.GetLocalNow()))
-        {
-            return false;
-        }
-
+    /// <summary>
+    /// Sends the dossiers' folders to one destination, as ordinary files.
+    ///
+    /// <para><b>The retry, and why it stops.</b> A NAS is not a USB key. An unplugged key is its
+    /// normal state and saying so trains her to ignore the warning that matters; a share that should
+    /// be there and is not is worth a sentence. So a destination gets a few attempts, and only after
+    /// those does the row say what is wrong. It resumes by itself: the probe runs on every beat and
+    /// the count is cleared the moment the share answers.</para>
+    ///
+    /// <para>Failures are written to the row and swallowed. A folder renamed at lunchtime or an
+    /// antivirus holding a file is no reason for the encrypted snapshot, which is the part that
+    /// carries the practice's records, to be lost tonight.</para>
+    /// </summary>
+    private async Task MirrorDocumentsAsync(
+        AvocadoDbContext database,
+        BackupDestination destination,
+        IBackupSink sink,
+        CancellationToken cancellationToken)
+    {
         try
         {
-            var report = await capture.RunAsync(vault.Blobs, database, cancellationToken).ConfigureAwait(false);
-
-            await CaptureState.WriteAsync(database, report.CompletedAt, report, cancellationToken)
+            var report = await DocumentMirror.RunAsync(sink, database, cancellationToken)
                 .ConfigureAwait(false);
 
-            await database.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            _documentAttempts.TryRemove(destination.Id, out _);
 
-            return true;
+            await CaptureState.WriteAsync(database, clock.GetUtcNow(), report, cancellationToken)
+                .ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Mirrored documents to {Destination}: {Copied} files, {Dossiers} dossiers, {Missing} folders missing.",
+                destination.Label, report.Copied, report.Dossiers, report.Missing.Count);
         }
         catch (OperationCanceledException)
         {
-            // The lid closed mid-pass. Whatever was captured is saved and consistent, and because
-            // the timestamp was not written, tomorrow's pass picks up the rest.
             throw;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            logger.LogError(exception, "Capturing the dossiers' documents failed.");
-            return false;
+            var attempts = _documentAttempts.AddOrUpdate(destination.Id, 1, (_, count) => count + 1);
+
+            logger.LogWarning(
+                exception, "Mirroring documents to {Destination} failed ({Attempts}).", destination.Label, attempts);
+
+            if (attempts >= DocumentAttempts)
+            {
+                destination.LastError =
+                    $"La copie des documents n'a pas abouti après {DocumentAttempts} tentatives : "
+                    + $"{exception.Message} Elle reprendra dès que la destination répondra.";
+            }
         }
     }
 
@@ -313,6 +344,7 @@ public sealed class BackupService(
         AvocadoDbContext database,
         BackupDestination destination,
         VaultSnapshot? snapshot,
+        bool documentsDue,
         CancellationToken cancellationToken)
     {
         if (sinks.Create(destination) is not { } sink)
@@ -344,6 +376,14 @@ public sealed class BackupService(
             destination.LastBackupAt = outcome.CompletedAt;
             destination.LastSeenAt = outcome.CompletedAt;
             destination.LastError = null;
+
+            // The coffre first, then her documents. If the pass is cut short the encrypted state is
+            // already there, and that is the half a practice cannot be rebuilt without.
+            if (documentsDue)
+            {
+                await MirrorDocumentsAsync(database, destination, sink, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             logger.LogInformation(
                 "Backed up to {Destination}: {Blobs} documents, {Bytes} bytes.",

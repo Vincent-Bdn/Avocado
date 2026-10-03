@@ -12,6 +12,7 @@ public static class BackupEndpoints
 
         group.MapPut("/documents/schedule", ManageDocumentCapture.SetScheduleAsync);
         group.MapPost("/documents/restore", ManageDocumentCapture.RestoreAsync);
+        group.MapPost("/documents/detach", ManageDocumentCapture.DetachAsync);
 
         group.MapPost("/destinations", ManageDestinations.AddAsync);
         group.MapPut("/destinations/{id:guid}", ManageDestinations.UpdateAsync);

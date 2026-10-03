@@ -1,7 +1,7 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Documents.Folders;
 using Avocado.Server.Features.Matters;
-using Avocado.Vault.Blobs;
+using Avocado.Vault.Backups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Backups.Infrastructure;
@@ -31,7 +31,7 @@ public sealed record RestoreDocumentsOutcome(
 /// is left alone; anything else is written beside it. Losing a document to the operation whose entire
 /// purpose is not losing documents would be the worst bug in the application.</para>
 /// </summary>
-public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logger)
+public sealed class FolderRestore(IBackupSink sink, ILogger<FolderRestore> logger)
 {
     public async Task<RestoreDocumentsOutcome> RunAsync(
         AvocadoDbContext database,
@@ -48,10 +48,20 @@ public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logge
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var manifest = await database.Set<CapturedFile>()
-            .GroupBy(file => file.MatterId)
-            .ToDictionaryAsync(group => group.Key, group => group.ToList(), cancellationToken)
-            .ConfigureAwait(false);
+        // What the destination actually holds, which is the only record now: the documents live on
+        // it as ordinary files rather than as blobs in the coffre, so the destination is the manifest.
+        var manifest = new Dictionary<Guid, List<SinkEntry>>();
+
+        foreach (var matter in matters)
+        {
+            var prefix = DocumentMirror.FolderFor(matter.Reference, matter.Name);
+            var entries = await sink.ListAsync(prefix, cancellationToken).ConfigureAwait(false);
+
+            if (entries.Count > 0)
+            {
+                manifest[matter.Id] = [.. entries];
+            }
+        }
 
         var total = manifest.Sum(entry => entry.Value.Count);
         var done = 0;
@@ -82,7 +92,10 @@ public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logge
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (await WriteAsync(folder, file, matter.Reference, issues, cancellationToken).ConfigureAwait(false))
+                var relative = file.Path[(DocumentMirror.FolderFor(matter.Reference, matter.Name).Length + 1)..];
+
+                if (await WriteAsync(folder, file, relative, matter.Reference, issues, cancellationToken)
+                    .ConfigureAwait(false))
                 {
                     written++;
                     writtenBytes += file.SizeBytes;
@@ -110,20 +123,21 @@ public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logge
 
     private async Task<bool> WriteAsync(
         string folder,
-        CapturedFile file,
+        SinkEntry file,
+        string relativePath,
         string reference,
         List<CaptureIssue> issues,
         CancellationToken cancellationToken)
     {
         var destination = Path.GetFullPath(
-            Path.Combine(folder, file.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
+            Path.Combine(folder, relativePath.Replace('/', Path.DirectorySeparatorChar)));
 
         // The manifest comes out of a database file that arrived from a USB key, so its paths are
         // checked like any other input: « ../../ » in a relative path would write outside the folder
         // she chose, and a restore is running with her full permissions.
         if (!DossierFolderReader.Inside(folder, destination))
         {
-            issues.Add(new CaptureIssue(reference, file.RelativePath, "Chemin refusé."));
+            issues.Add(new CaptureIssue(reference, relativePath, "Chemin refusé."));
             return false;
         }
 
@@ -139,7 +153,7 @@ public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logge
 
             var target = Free(destination);
 
-            var source = blobs.OpenRead(new BlobReference(file.BlobSha256, file.SizeBytes));
+            var source = await sink.OpenReadAsync(file.Path, cancellationToken).ConfigureAwait(false);
             await using (source.ConfigureAwait(false))
             {
                 var output = new FileStream(
@@ -159,7 +173,7 @@ public sealed class FolderRestore(IBlobStore blobs, ILogger<FolderRestore> logge
             // A blob the destination never received, a disk that filled up, a name the file system
             // refuses. Named, one line each, and the rest of the restore carries on: getting eleven
             // dossiers back and being told about the twelfth beats stopping at the first problem.
-            issues.Add(new CaptureIssue(reference, file.RelativePath, exception.Message));
+            issues.Add(new CaptureIssue(reference, relativePath, exception.Message));
             return false;
         }
     }

@@ -2,6 +2,7 @@ using Avocado.Server.Data;
 using Avocado.Server.Features.Backups.Infrastructure;
 using Avocado.Server.Features.Settings;
 using Avocado.Vault;
+using Avocado.Vault.Backups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Backups.Endpoints;
@@ -18,6 +19,37 @@ public sealed record RestoreDocumentsInput(string Ongoing, string Closed);
 /// </summary>
 public static class ManageDocumentCapture
 {
+    /// <param name="MatterIds">The dossiers to forget the folder of.</param>
+    public sealed record DetachInput(IReadOnlyList<Guid> MatterIds);
+
+    /// <summary>
+    /// Forgets where a dossier's documents were, on her say-so.
+    ///
+    /// <para>Never done by the copy itself. She keeps the current dossiers on the laptop and the rest
+    /// on the NAS, so a folder that is not here is usually one she archived deliberately, and a disk
+    /// left at home would otherwise detach every dossier on it in one pass and leave her re-pointing
+    /// each one. Nothing is removed from any destination: the copy up there is the point.</para>
+    /// </summary>
+    public static async Task<IResult> DetachAsync(
+        DetachInput input,
+        AvocadoDbContext database,
+        CancellationToken cancellationToken)
+    {
+        if (input.MatterIds.Count == 0)
+        {
+            return Results.NoContent();
+        }
+
+        var detached = await database.Matters
+            .Where(matter => input.MatterIds.Contains(matter.Id) && matter.DocumentsFolder != null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(matter => matter.DocumentsFolder, (string?)null),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return Results.Ok(new { detached });
+    }
+
     public static async Task<IResult> SetScheduleAsync(
         CaptureScheduleInput input,
         AvocadoDbContext database,
@@ -54,6 +86,7 @@ public static class ManageDocumentCapture
         RestoreDocumentsInput input,
         AvocadoDbContext database,
         IVaultStore vaults,
+        SinkFactory sinks,
         ILoggerFactory loggers,
         CancellationToken cancellationToken)
     {
@@ -65,11 +98,36 @@ public static class ManageDocumentCapture
             });
         }
 
-        var vault = vaults.Get(Guid.Empty);
+        // The documents are on a destination, in clear, so one has to be reachable to get them
+        // back. Whichever answers first: they hold the same thing, and she should not have to know
+        // which of her two copies this one came from.
+        var destinations = await database.Set<BackupDestination>()
+            .Where(destination => destination.IsEnabled)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        IBackupSink? ready = null;
+
+        foreach (var candidate in destinations.Select(sinks.Create).OfType<IBackupSink>())
+        {
+            if ((await candidate.ProbeAsync(cancellationToken).ConfigureAwait(false)).IsReady)
+            {
+                ready = candidate;
+                break;
+            }
+        }
+
+        if (ready is null)
+        {
+            return Results.Problem(
+                title: "Aucune sauvegarde accessible",
+                detail: "Branchez la clé, ou montez le partage qui porte vos documents, puis réessayez.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
 
         try
         {
-            var restore = new FolderRestore(vault.Blobs, loggers.CreateLogger<FolderRestore>());
+            var restore = new FolderRestore(ready, loggers.CreateLogger<FolderRestore>());
 
             var outcome = await restore
                 .RunAsync(database, input.Ongoing.Trim(), input.Closed.Trim(), null, cancellationToken)
