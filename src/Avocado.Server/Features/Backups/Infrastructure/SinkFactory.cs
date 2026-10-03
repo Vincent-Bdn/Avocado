@@ -15,13 +15,19 @@ public sealed class SinkFactory
     public IBackupSink? Create(BackupDestination destination) => destination.Kind switch
     {
         BackupDestinationKinds.Folder when !string.IsNullOrWhiteSpace(destination.Path) =>
-            new DirectorySink(new FixedPathLocator(destination.Path, destination.Label)),
+            new DirectorySink(Within(new FixedPathLocator(destination.Path, destination.Label), destination)),
 
         BackupDestinationKinds.Volume when destination.VolumeId is { } volumeId =>
-            new DirectorySink(new MarkedVolumeLocator(volumeId, destination.Label)),
+            new DirectorySink(Within(new MarkedVolumeLocator(volumeId, destination.Label), destination)),
 
         _ => null,
     };
+
+    /// <summary>Narrowed to her subfolder when she gave one, which a shared NAS always wants.</summary>
+    private static ISinkLocator Within(ISinkLocator locator, BackupDestination destination) =>
+        SubfolderLocator.Clean(destination.Subpath) is { Length: > 0 } subpath
+            ? new SubfolderLocator(locator, subpath)
+            : locator;
 
     /// <summary>Why a destination could not be built, for the row in Réglages.</summary>
     public string? ExplainMissing(BackupDestination destination) => destination.Kind switch

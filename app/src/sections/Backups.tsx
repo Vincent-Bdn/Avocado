@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, Check, FolderOpen, HardDrive, Loader2, Plus, Trash2, Usb } from 'lucide-react'
 import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
+import { Input } from '../components/ui/input.js'
 import { Unavailable } from '../components/ui/unavailable.js'
 import { Select } from '../components/ui/select.js'
 import { cn } from '../lib/utils.js'
@@ -81,6 +82,8 @@ export function Backups() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<{ body: object; detail: string } | null>(null)
+  // The volume she is about to add, while she says where on it to write.
+  const [picking, setPicking] = useState<Volume | null>(null)
 
   const reload = useCallback(() => {
     api<Status>('/api/backups')
@@ -126,14 +129,16 @@ export function Backups() {
       })
     })
 
-  const addVolume = (volume: Volume) =>
-    run(() =>
-      post('/api/backups/destinations', {
+  const addVolume = (volume: Volume, subpath: string) =>
+    run(async () => {
+      await post('/api/backups/destinations', {
         kind: 'volume',
         label: volume.label,
         path: volume.path,
-      }),
-    )
+        subpath,
+      })
+      setPicking(null)
+    })
 
   if (!status) {
     return error === null ? null : <Unavailable detail={error} onRetry={reload} />
@@ -178,7 +183,7 @@ export function Backups() {
             key={volume.path}
             variant="secondary"
             size="sm"
-            onClick={() => addVolume(volume)}
+            onClick={() => setPicking(volume)}
             disabled={busy}
           >
             <Usb size={13} strokeWidth={2} />
@@ -198,6 +203,15 @@ export function Backups() {
         )}
       </div>
 
+      {picking !== null && (
+        <WhereOnIt
+          volume={picking}
+          busy={busy}
+          onCancel={() => setPicking(null)}
+          onConfirm={(subpath) => addVolume(picking, subpath)}
+        />
+      )}
+
       <Documents documents={status.documents} busy={busy} onChange={reload} />
 
       <Explainers localCount={status.localSnapshotCount} />
@@ -214,6 +228,55 @@ export function Backups() {
         />
       )}
     </>
+  )
+}
+
+/**
+ * Where on the device to write, asked once, when she adds it.
+ *
+ * <p>A USB key kept for this is fine at its root. A cabinet's NAS is not: it is shared, it holds
+ * years of archives, and dropping an <c>avocado/</c> folder and a marker file beside them is untidy
+ * at best and alarming to whoever else opens that share. Avocado writes nowhere else, but nobody can
+ * see that from the outside.</p>
+ */
+function WhereOnIt({ volume, busy, onCancel, onConfirm }: {
+  volume: Volume
+  busy: boolean
+  onCancel: () => void
+  onConfirm: (subpath: string) => void
+}) {
+  const [subpath, setSubpath] = useState(volume.alreadyPrepared ? '' : 'Sauvegardes/Avocado')
+
+  return (
+    <div className="grid gap-2 rounded-md border border-line-strong bg-panel px-3 py-2.5">
+      <span className="text-[12.5px] font-medium">Où écrire sur « {volume.label} »</span>
+
+      <label className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
+        Sous-dossier
+        <Input
+          inputSize="sm"
+          className="w-[260px] font-mono"
+          value={subpath}
+          placeholder="à la racine du support"
+          aria-label="Sous-dossier de sauvegarde"
+          onChange={(event) => setSubpath(event.target.value)}
+        />
+      </label>
+
+      <p className="m-0 max-w-[72ch] text-[11px] leading-[16px] text-muted">
+        Laissez vide pour écrire à la racine, ce qui va bien pour une clé USB réservée à cela. Sur un
+        NAS partagé, donnez un sous-dossier : Avocado n’écrit que dedans et ne touche à rien d’autre.
+      </p>
+
+      <div className="flex gap-1.5">
+        <Button size="sm" disabled={busy} onClick={() => onConfirm(subpath)}>
+          Utiliser ce support
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
+          Annuler
+        </Button>
+      </div>
+    </div>
   )
 }
 

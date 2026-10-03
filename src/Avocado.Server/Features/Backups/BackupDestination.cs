@@ -36,6 +36,17 @@ public class BackupDestination
     public Guid? VolumeId { get; set; }
 
     /// <summary>
+    /// Where inside the destination to write, « Sauvegardes/Avocado ». Null means at its root.
+    ///
+    /// <para>A USB key kept for this is fine at its root. A cabinet's NAS is not: it is shared, it
+    /// already holds years of archives, and dropping an <c>avocado/</c> folder and a marker file
+    /// beside them is both untidy and alarming to whoever else opens that share. A folder
+    /// destination never needed this because she picks the folder; a volume is found by its marker,
+    /// so the marker stays at the root and this says where to work.</para>
+    /// </summary>
+    public string? Subpath { get; set; }
+
+    /// <summary>
     /// Whatever the sink needs to authenticate, as JSON. A refresh token for Drive; nothing at all for
     /// a folder. Encrypted at rest by the database it sits in.
     /// </summary>

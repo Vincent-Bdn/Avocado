@@ -18,6 +18,7 @@ public sealed record BackupDestinationInput(
     string Kind,
     string Label,
     string? Path,
+    string? Subpath = null,
     bool IsEnabled = true,
     int KeepNewest = 12,
     int KeepDailyForDays = 60,
@@ -88,6 +89,9 @@ public static class ManageDestinations
             Kind = input.Kind,
             Label = input.Label.Trim(),
             Path = input.Path!.Trim(),
+            Subpath = Avocado.Vault.Backups.SubfolderLocator.Clean(input.Subpath) is { Length: > 0 } inside
+                ? inside
+                : null,
             IsEnabled = input.IsEnabled,
             KeepNewest = input.KeepNewest,
             KeepDailyForDays = input.KeepDailyForDays,

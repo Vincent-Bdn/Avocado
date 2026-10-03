@@ -25,15 +25,21 @@ public sealed class FixedPathLocator(string path, string displayName) : ISinkLoc
 
     public Task<string?> LocateAsync(CancellationToken cancellationToken = default)
     {
+        // The folder itself, not merely its parent.
+        //
+        // It used to accept a missing folder whose parent existed, so that the first backup could
+        // create it. On a network share that is how backups end up on the wrong disk: an unmounted
+        // NAS leaves /Volumes, /mnt or the drive letter's parent perfectly present, the folder gets
+        // created there on the local disk, and every copy after that is written to a path that only
+        // looks like the NAS. The destination reports success, « dernière copie » keeps moving, and
+        // nothing is where she thinks it is.
+        //
+        // Nothing is lost by requiring it: she picked an existing folder from a picker. A folder that
+        // has since gone is a destination that is genuinely absent, which is what the screen should
+        // say and is exactly how an unplugged USB key already behaves.
         var full = Path.GetFullPath(path);
 
-        // The parent has to exist. Creating the folder itself is fine and expected; conjuring a whole
-        // tree under a drive that is not mounted would silently write backups to a path that only
-        // looks right, which is the failure this is here to avoid.
-        var parent = Path.GetDirectoryName(full);
-
-        return Task.FromResult(
-            Directory.Exists(full) || (parent is not null && Directory.Exists(parent)) ? full : null);
+        return Task.FromResult(Directory.Exists(full) ? full : null);
     }
 }
 
@@ -60,6 +66,47 @@ public sealed class MarkedVolumeLocator(Guid sinkId, string displayName) : ISink
 
         return Task.FromResult<string?>(null);
     }
+}
+
+/// <summary>
+/// Another locator's destination, narrowed to a folder inside it.
+///
+/// <para>Wrapping rather than teaching each locator about subfolders: a volume is still found by its
+/// marker, wherever the operating system mounted it today, and this only decides where to work once
+/// it has been found. The folder is created on demand, because unlike a mount point it is genuinely
+/// ours to make: we are already standing on the device.</para>
+/// </summary>
+public sealed class SubfolderLocator(ISinkLocator inner, string subpath) : ISinkLocator
+{
+    public string DisplayName => inner.DisplayName;
+
+    public async Task<string?> LocateAsync(CancellationToken cancellationToken = default)
+    {
+        if (await inner.LocateAsync(cancellationToken).ConfigureAwait(false) is not { } root)
+        {
+            return null;
+        }
+
+        var cleaned = Clean(subpath);
+        if (cleaned.Length == 0)
+        {
+            return root;
+        }
+
+        var full = Path.GetFullPath(Path.Combine(root, cleaned));
+
+        // Belt and braces against « ../.. » in a stored row: the whole point is to stay on the
+        // device that was found, and a subpath that climbs out of it is not a subpath.
+        return full.StartsWith(Path.GetFullPath(root), StringComparison.Ordinal) ? full : null;
+    }
+
+    /// <summary>« /Sauvegardes/Avocado/ » and « Sauvegardes\Avocado » are the same place.</summary>
+    public static string Clean(string? subpath) =>
+        string.Join(
+            Path.DirectorySeparatorChar,
+            (subpath ?? string.Empty)
+                .Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(part => part != "." && part != ".."));
 }
 
 /// <summary>

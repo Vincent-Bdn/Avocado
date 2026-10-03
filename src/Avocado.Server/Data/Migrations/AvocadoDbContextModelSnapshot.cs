@@ -140,6 +140,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("secret");
 
+                    b.Property<string>("Subpath")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("subpath");
+
                     b.Property<Guid?>("VolumeId")
                         .HasColumnType("TEXT")
                         .HasColumnName("volume_id");
