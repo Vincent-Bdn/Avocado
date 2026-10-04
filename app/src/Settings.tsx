@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, RefreshCw, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, RefreshCw, Trash2, TriangleAlert, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, blob, post } from './api.js'
 import { Button } from './components/ui/button.js'
@@ -489,6 +489,16 @@ function About() {
   const [checking, setChecking] = useState(false)
   const [enabled, setEnabled] = useState(updateChecksEnabled)
 
+  /**
+   * What the last press of « Vérifier maintenant » came back with, and when.
+   *
+   * <p>The time is the point. The answer is « vous avez la dernière version » on almost every press,
+   * so without it the button changes nothing on screen and reads as broken. It is also the only way
+   * to tell « j'ai vérifié » from « je n'ai pas vérifié », which is what she pressed it to find
+   * out.</p>
+   */
+  const [checked, setChecked] = useState<{ at: Date; reached: boolean } | null>(null)
+
   useEffect(() => {
     void window.avocado.connection().then((connection) => setRunning(connection.version))
   }, [])
@@ -504,10 +514,19 @@ function About() {
 
   async function checkNow() {
     setChecking(true)
+
     try {
       // Forced: the once-a-day rule is there so the feed is not polled, not to stop her asking.
       localStorage.removeItem('avocado.updates.lastCheck')
-      setLatest(await fetchLatest())
+
+      const answer = await fetchLatest()
+
+      // Null means the feed could not be reached. Writing it in would erase what we last knew and
+      // leave the section saying nothing at all, so the previous answer stands and the failure is
+      // reported as what it is: the check did not get through, not « vous êtes à jour ».
+      if (answer) setLatest(answer)
+
+      setChecked({ at: new Date(), reached: answer !== null })
     } finally {
       setChecking(false)
     }
@@ -537,10 +556,6 @@ function About() {
         </div>
       )}
 
-      {enabled && !behind && latest !== null && (
-        <p className="m-0 text-[12.5px] text-success">Vous avez la dernière version.</p>
-      )}
-
       <p className="m-0 max-w-[72ch] text-[12.5px] leading-[19px] text-muted">
         Avocado ne se met jamais à jour tout seul. Une fois par jour, il demande au dépôt public le
         dernier numéro publié, et rien d’autre ne sort de votre ordinateur.
@@ -565,6 +580,10 @@ function About() {
             {checking ? 'Vérification…' : 'Vérifier maintenant'}
           </Button>
         )}
+
+        {/* Beside the button, because it is the button's answer. A newer version is announced by the
+            banner above instead: that one is a thing to act on, not a result to read. */}
+        {enabled && !behind && <CheckOutcome checked={checked} upToDate={latest !== null} />}
       </div>
 
       {!enabled && (
@@ -573,6 +592,40 @@ function About() {
         </p>
       )}
     </>
+  )
+}
+
+/**
+ * « À jour, vérifié à 14:32:05 », or why not.
+ *
+ * <p>Nothing at all before she has asked and while the daily answer is still cached: a section that
+ * states its verdict before anyone enquired is the one that taught her the button does nothing.</p>
+ */
+function CheckOutcome({ checked, upToDate }: {
+  checked: { at: Date; reached: boolean } | null
+  upToDate: boolean
+}) {
+  if (checked && !checked.reached) {
+    return (
+      <span className="flex items-center gap-1.5 text-[12.5px] text-warning">
+        <TriangleAlert size={13} strokeWidth={2} />
+        Dépôt injoignable, réessayez plus tard.
+      </span>
+    )
+  }
+
+  if (!upToDate) return null
+
+  return (
+    <span className="flex items-center gap-1.5 text-[12.5px] text-success">
+      <Check size={13} strokeWidth={2.5} />
+      Vous avez la dernière version.
+      {checked && (
+        <span className="font-mono text-[11px] text-muted tnum">
+          vérifié à {checked.at.toLocaleTimeString('fr-FR')}
+        </span>
+      )}
+    </span>
   )
 }
 

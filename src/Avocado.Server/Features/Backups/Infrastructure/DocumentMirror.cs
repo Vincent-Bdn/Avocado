@@ -29,6 +29,23 @@ public sealed record MirrorReport(
     IReadOnlyList<DetachedFolder> Missing,
     IReadOnlyList<CaptureIssue> Issues)
 {
+    /// <summary>
+    /// Empty rather than null, whatever the JSON said.
+    ///
+    /// <para>This record is stored as JSON in a settings row and read back by a version that may
+    /// have gained fields since it was written. A property absent from the document does not fail to
+    /// deserialize: it arrives as null, through a reference the type says is never null, and the
+    /// screen that reads it crashes on <c>.Count</c>. <see cref="Missing"/> did exactly that to
+    /// every practice whose last capture predated it.</para>
+    ///
+    /// <para>So the collections are normalised here rather than at each reader. A type that cannot
+    /// hold the wrong thing needs nobody to remember.</para>
+    /// </summary>
+    public IReadOnlyList<DetachedFolder> Missing { get; init; } = Missing ?? [];
+
+    /// <inheritdoc cref="Missing"/>
+    public IReadOnlyList<CaptureIssue> Issues { get; init; } = Issues ?? [];
+
     public static MirrorReport Empty { get; } = new(0, 0, 0, 0, 0, 0, [], []);
 }
 

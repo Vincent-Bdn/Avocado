@@ -71,6 +71,41 @@ public sealed class CaptureStateTests : IDisposable
         Assert.Equal("Accès refusé.", read.Issues[0].Reason);
     }
 
+    /// <summary>
+    /// A report written by the version before this one, read by this one.
+    ///
+    /// <para>This is not hypothetical: « Sauvegarde » threw a NullReferenceException on every
+    /// practice whose last capture predated the field being added. A document missing a property
+    /// does not fail to deserialize, it hands back null through a reference the record promises is a
+    /// list, and the screen crashes counting it. The guard that was supposed to cover an older shape
+    /// only caught malformed JSON, which this is not.</para>
+    /// </summary>
+    [Theory]
+    // Before « missing » existed, which is the one that actually broke.
+    [InlineData("""
+                {"Dossiers":42,"Copied":31,"CopiedBytes":4100000,"Files":13917,"Bytes":12800000000,
+                 "Unreadable":0,"Issues":[]}
+                """)]
+    // Before either list existed.
+    [InlineData("""{"Dossiers":42,"Files":13917,"Bytes":12800000000}""")]
+    // And a shape that names them explicitly as null, which is what a round trip through some other
+    // serializer would write.
+    [InlineData("""{"Dossiers":42,"Files":13917,"Missing":null,"Issues":null}""")]
+    public async Task ReadsAReportWrittenBeforeTheseFieldsExisted(string json)
+    {
+        _vault.Save(new PracticeSetting { Key = PracticeSettingKeys.CaptureReport, Value = json });
+
+        var (_, _, report) = await CaptureState.ReadAsync(_vault.Database, default);
+
+        Assert.NotNull(report);
+        Assert.Equal(13_917, report.Files);
+
+        // Empty, never null: every screen that reads this counts them without checking.
+        Assert.Empty(report.Missing);
+        Assert.Empty(report.Issues);
+        Assert.Equal(0, report.Missing.Count + report.Issues.Count);
+    }
+
     [Fact]
     public async Task KeepsTheCountWhenThereAreFarTooManyToStore()
     {

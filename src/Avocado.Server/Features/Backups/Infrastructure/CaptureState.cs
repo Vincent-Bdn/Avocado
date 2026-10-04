@@ -85,8 +85,13 @@ public static class CaptureState
         }
         catch (JsonException)
         {
-            // Written by an older shape of this record. The next capture replaces it, and a report
-            // that cannot be read is not worth failing the screen that shows it.
+            // Not JSON at all. The next capture replaces it, and a report that cannot be read is not
+            // worth failing the screen that shows it.
+            //
+            // An older *shape* does not come through here, which is what this guard was assumed to
+            // cover and does not: a document missing a field deserializes happily and hands back a
+            // null where the record promises a list. That is handled on MirrorReport itself, since
+            // it is the only place that cannot be forgotten.
             return null;
         }
     }
