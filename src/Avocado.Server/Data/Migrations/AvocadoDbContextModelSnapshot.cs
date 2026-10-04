@@ -291,6 +291,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("date");
 
+                    b.Property<bool>("DeductsWithoutLines")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("deducts_without_lines");
+
                     b.Property<int?>("DiscountBasisPoints")
                         .HasColumnType("INTEGER")
                         .HasColumnName("discount_basis_points");
@@ -307,6 +311,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT")
                         .HasColumnName("external_reference");
+
+                    b.Property<bool>("IsAbandon")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_abandon");
 
                     b.Property<bool>("IsHistorical")
                         .HasColumnType("INTEGER")

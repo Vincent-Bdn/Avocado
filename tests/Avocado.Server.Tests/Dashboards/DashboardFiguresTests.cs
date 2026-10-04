@@ -33,7 +33,7 @@ public class DashboardFiguresTests : IDisposable
         });
     }
 
-    private void Invoice(DateOnly date, long cents, bool historical = false, long billedTimeCents = 0) =>
+    private BillingInvoice Invoice(DateOnly date, long cents, bool historical = false, long billedTimeCents = 0) =>
         _vault.Save(new BillingInvoice
         {
             MatterId = _matter.Id,
@@ -86,19 +86,40 @@ public class DashboardFiguresTests : IDisposable
         Assert.Equal(18_000, unbilled.TotalCents);
     }
 
-    /// <summary>The number on the accueil and the number on the fiche are the same number.</summary>
+    /// <summary>
+    /// The number on the accueil and the number on the fiche are the same number.
+    ///
+    /// <para>They have disagreed twice, both times because the arithmetic was written out again
+    /// rather than called. Every shape that changes the answer is here: a reprise, a facture
+    /// recorded today, one carried over from before factures took their lines, and a forfait.</para>
+    /// </summary>
     [Theory]
-    [InlineData(true, 0L)]
-    [InlineData(false, 60_000L)]
-    public async Task TheAccueilAgreesWithTheFiche(bool historical, long invoicedThatCounts)
+    // A reprise consumed nothing and subtracts nothing: the 300 minutes stand.
+    [InlineData(true, false, null, 120_000L)]
+    // Recorded today with no lines: it subtracts nothing either, because nothing was consumed.
+    [InlineData(false, false, null, 120_000L)]
+    // Written before factures took their lines, so it goes on subtracting.
+    [InlineData(false, true, null, 60_000L)]
+    // A forfait answers on its own, and the hours stop driving it.
+    [InlineData(false, false, 200_000L, 140_000L)]
+    public async Task TheAccueilAgreesWithTheFiche(
+        bool historical,
+        bool legacy,
+        long? forfait,
+        long expected)
     {
         Minutes(new DateOnly(2026, 8, 27), 300);
-        Invoice(new DateOnly(2026, 8, 20), 60_000, historical);
+
+        var invoice = Invoice(new DateOnly(2026, 8, 20), 60_000, historical);
+        invoice.DeductsWithoutLines = legacy;
+
+        _matter.FixedFeeCents = forfait;
+        await _vault.Database.SaveChangesAsync();
 
         var fiche = await BillingSummaryQuery.ForMatterAsync(_vault.Database, _matter.Id, default);
         var accueil = await UnbilledAsync();
 
-        Assert.Equal(120_000 - invoicedThatCounts, fiche.LeftToBillCents);
+        Assert.Equal(expected, fiche.LeftToBillCents);
         Assert.Equal(fiche.LeftToBillCents, Assert.Single(accueil.Matters).LeftToBillCents);
     }
 

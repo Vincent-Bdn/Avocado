@@ -1,5 +1,6 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Billings;
+using Avocado.Server.Features.Billings.ValueObjects;
 using Avocado.Server.Features.Matters;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Dashboards.ValueObjects;
@@ -193,42 +194,52 @@ public static class GetDashboard
             })
             .ToListAsync(cancellationToken);
 
-        var ledgerByMatter = await database.LedgerEntries
+        // A provision is cash and no longer comes off what is still to bill, so the ledger is not
+        // read here at all. What remains per dossier is its forfait, what has gone out on it, and the
+        // factures that predate factures taking their lines.
+        var invoices = await database.Invoices
             .AsNoTracking()
-            .Where(entry => entry.Matter!.ClosedOn == null)
-            .GroupBy(entry => entry.MatterId)
-            .Select(group => new { MatterId = group.Key, Cents = group.Sum(entry => entry.AmountCents) })
-            .ToDictionaryAsync(group => group.MatterId, group => group.Cents, cancellationToken);
+            .Where(invoice => invoice.Matter!.ClosedOn == null && !invoice.IsAbandon)
+            .Select(invoice => new
+            {
+                invoice.MatterId,
+                invoice.AmountExclVatCents,
+                invoice.DeductsWithoutLines,
+            })
+            .ToListAsync(cancellationToken);
 
-        var invoicedByMatter = (await database.Invoices
-                .AsNoTracking()
-                .Where(invoice => invoice.Matter!.ClosedOn == null)
-                .Select(invoice => new
-                {
-                    invoice.MatterId,
-                    invoice.AmountExclVatCents,
-                    invoice.BilledTimeCents,
-                    invoice.IsHistorical,
-                })
-                .ToListAsync(cancellationToken))
-            .Where(invoice => BillingRules.ReducesLeftToBill(invoice.BilledTimeCents, invoice.IsHistorical))
+        var invoicedByMatter = invoices
             .GroupBy(invoice => invoice.MatterId)
             .ToDictionary(group => group.Key, group => group.Sum(invoice => invoice.AmountExclVatCents));
+
+        var legacyByMatter = invoices
+            .Where(invoice => invoice.DeductsWithoutLines)
+            .GroupBy(invoice => invoice.MatterId)
+            .ToDictionary(group => group.Key, group => group.Sum(invoice => invoice.AmountExclVatCents));
+
+        var forfaitByMatter = await database.Matters
+            .AsNoTracking()
+            .Where(matter => matter.ClosedOn == null && matter.FixedFeeCents != null)
+            .ToDictionaryAsync(matter => matter.Id, matter => matter.FixedFeeCents!.Value, cancellationToken);
 
         var perMatter = entries
             .GroupBy(entry => new { entry.MatterId, entry.MatterName })
             .Select(group =>
             {
-                var billableCents = group.Sum(entry => entry.RateCents * entry.DurationMinutes / 60);
-                var settled = ledgerByMatter.GetValueOrDefault(group.Key.MatterId)
-                              + invoicedByMatter.GetValueOrDefault(group.Key.MatterId);
+                var unbilledCents = group.Sum(entry => entry.RateCents * entry.DurationMinutes / 60);
 
                 return new
                 {
                     group.Key.MatterId,
                     group.Key.MatterName,
                     Minutes = group.Sum(entry => entry.DurationMinutes),
-                    LeftToBillCents = billableCents - settled,
+                    // The fiche's own function, not a copy of it. The accueil has disagreed with the
+                    // fiche twice already, both times because this arithmetic was written out again.
+                    LeftToBillCents = BillingSummary.LeftToBill(
+                        unbilledCents,
+                        invoicedByMatter.GetValueOrDefault(group.Key.MatterId),
+                        legacyByMatter.GetValueOrDefault(group.Key.MatterId),
+                        forfaitByMatter.TryGetValue(group.Key.MatterId, out var forfait) ? forfait : null),
                     AgedCents = group
                         .Where(entry => entry.Date < ageingCutoff)
                         .Sum(entry => entry.RateCents * entry.DurationMinutes / 60),

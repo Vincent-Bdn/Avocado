@@ -3,162 +3,178 @@ using Avocado.Server.Features.Billings.ValueObjects;
 namespace Avocado.Server.Tests.Billings;
 
 /// <summary>
-/// The arithmetic behind « reste à facturer », the boni/mali and the net. It is the figure a practice
-/// runs on, it is computed on read from six inputs that each mean something different, and the ways
-/// it can be quietly wrong all look plausible on screen. So each rule is pinned to the reason it
-/// exists rather than to the formula, which is what makes a failing test here readable.
+/// The arithmetic of one dossier, pinned.
+///
+/// <para>Two lawyers independently reported the same thing: a forfait produced no mali and still
+/// left money « à facturer ». Both of their examples are below, by name, because they are what this
+/// model exists to answer correctly.</para>
 /// </summary>
 public class BillingSummaryTests
 {
-    private static BillingSummary Compute(
-        long unbilledTime = 0,
-        int unbilledMinutes = 0,
-        long ledger = 0,
+    private static BillingSummary Summary(
+        long worked = 0,
+        long unbilled = 0,
         long invoiced = 0,
-        long manualInvoiced = 0,
+        long collected = 0,
+        long disbursements = 0,
         long variance = 0,
-        long subcontracted = 0) =>
-        BillingSummary.Compute(unbilledTime, unbilledMinutes, ledger, invoiced, manualInvoiced, variance, subcontracted);
+        long subcontracted = 0,
+        long legacy = 0,
+        long? forfait = null) =>
+        BillingSummary.Compute(
+            worked, unbilled, 0, invoiced, collected, disbursements, variance, subcontracted, legacy, forfait);
 
+    /// <summary>
+    /// « Je négocie 3 000 euros. Dans mes temps passés je rentre 4 000 euros, donc 1 000 de mali. Le
+    /// client me paye 3 000. Reste à facturer 0, même si j'ai travaillé pour 1 000 euros de plus. »
+    /// </summary>
     [Fact]
-    public void AnUntouchedDossierOwesNothingAndIsOwedNothing()
+    public void AnswersTheForfaitExactlyAsSheStatedIt()
     {
-        var summary = Compute();
+        // She ticks every line, the override arrives pre-filled at the forfait, she accepts.
+        var summary = Summary(
+            worked: 400_000,
+            unbilled: 0,
+            invoiced: 300_000,
+            collected: 300_000,
+            variance: 300_000 - 400_000,
+            forfait: 300_000);
+
+        Assert.Equal(400_000, summary.WorkedCents);
+        Assert.Equal(300_000, summary.InvoicedCents);
+        Assert.Equal(-100_000, summary.VarianceCents);
+        Assert.Equal(0, summary.LeftToBillCents);
+        Assert.Equal(0, summary.OwedCents);
+    }
+
+    /// <summary>Four lines worth 1 300, a forfait of 1 000, and she bills the forfait.</summary>
+    [Fact]
+    public void TurnsTheDifferenceIntoAMaliWhateverSheBills()
+    {
+        var mali = Summary(worked: 130_000, invoiced: 100_000, variance: -30_000, forfait: 100_000);
+        Assert.Equal(-30_000, mali.VarianceCents);
+        Assert.Equal(0, mali.LeftToBillCents);
+
+        // And the same subtraction the other way round when she bills above the lines.
+        var boni = Summary(worked: 130_000, invoiced: 150_000, variance: 20_000, forfait: 100_000);
+        Assert.Equal(20_000, boni.VarianceCents);
+    }
+
+    /// <summary>
+    /// A forfait stops the hours driving what is left to bill. Working past it is a mali, never a debt
+    /// the client owes, and never a figure she might invoice twice.
+    /// </summary>
+    [Fact]
+    public void LeavesNothingToBillOnceTheForfaitIsBilled()
+    {
+        // She bills the forfait, then does another 500 € of work on top.
+        var summary = Summary(worked: 450_000, unbilled: 50_000, invoiced: 300_000, forfait: 300_000);
 
         Assert.Equal(0, summary.LeftToBillCents);
-        Assert.Equal(0, summary.NetCents);
+        Assert.Equal(50_000, summary.UnbilledTimeCents);
+    }
+
+    [Fact]
+    public void BillsHalfAForfaitAndLeavesTheOtherHalf()
+    {
+        Assert.Equal(150_000, Summary(invoiced: 150_000, forfait: 300_000).LeftToBillCents);
+    }
+
+    /// <summary>Billing past a forfait leaves nothing to bill, not a negative amount.</summary>
+    [Fact]
+    public void NeverGoesBelowZeroOnAForfait()
+    {
+        Assert.Equal(0, Summary(invoiced: 400_000, forfait: 300_000).LeftToBillCents);
+    }
+
+    [Fact]
+    public void AtTheHourWhatIsLeftIsTheTimeNoFactureHasTaken()
+    {
+        var summary = Summary(worked: 200_000, unbilled: 80_000, invoiced: 120_000);
+
+        Assert.Equal(80_000, summary.LeftToBillCents);
+    }
+
+    /// <summary>
+    /// The incoherence this model was rewritten to remove. A provision used to come off « reste à
+    /// facturer » for the life of the dossier while the time it was set against reset at every
+    /// facture, so the figure drifted negative and the screen had a sentence explaining it away.
+    /// </summary>
+    [Fact]
+    public void LeavesAProvisionOutOfWhatIsStillToBill()
+    {
+        var summary = Summary(worked: 200_000, unbilled: 200_000, invoiced: 0, collected: 100_000);
+
+        Assert.Equal(200_000, summary.LeftToBillCents);
+
+        // It is cash, and it says the client has paid in advance.
+        Assert.Equal(100_000, summary.CollectedCents);
+        Assert.Equal(-100_000, summary.OwedCents);
+    }
+
+    [Fact]
+    public void KeepsDisbursementsAsTheirOwnFigure()
+    {
+        var summary = Summary(unbilled: 100_000, disbursements: 45_000);
+
+        Assert.Equal(45_000, summary.DisbursementsCents);
+        Assert.Equal(100_000, summary.LeftToBillCents);
+    }
+
+    /// <summary>
+    /// « Reprises » consumed no lines, so they subtract nothing and report no gap. COULEYRE arrived
+    /// with 8 974 € of them and read « reste à facturer − 8 794 € » on its first 45 minutes of work.
+    /// </summary>
+    [Fact]
+    public void LetsImportedTurnoverAloneEntirely()
+    {
+        var summary = Summary(worked: 10_000, unbilled: 10_000, invoiced: 897_400, variance: 0);
+
+        Assert.Equal(10_000, summary.LeftToBillCents);
         Assert.Equal(0, summary.VarianceCents);
-    }
-
-    [Fact]
-    public void UnbilledTimeIsWhatIsLeftToBill()
-    {
-        Assert.Equal(240_000, Compute(unbilledTime: 240_000, unbilledMinutes: 600).LeftToBillCents);
+        Assert.Equal(897_400, summary.InvoicedCents);
     }
 
     /// <summary>
-    /// A provision already received reduces what remains to ask for. Otherwise the dossier invites
-    /// billing the same work twice, once through the provision and once through the invoice.
+    /// Factures recorded before factures consumed lines. They go on subtracting, because the hours
+    /// they paid for are still sitting unbilled and nobody can say which ones they were.
     /// </summary>
     [Fact]
-    public void AProvisionAlreadyReceivedReducesWhatIsLeft()
+    public void HonoursAFactureWrittenBeforeFacturesTookTheirLines()
     {
-        Assert.Equal(90_000, Compute(unbilledTime: 240_000, ledger: 150_000).LeftToBillCents);
+        var summary = Summary(unbilled: 200_000, invoiced: 120_000, legacy: 120_000);
+
+        Assert.Equal(80_000, summary.LeftToBillCents);
+    }
+
+    /// <summary>A forfait ignores the legacy deduction too: the forfait is the whole rule.</summary>
+    [Fact]
+    public void LetsTheForfaitOverrideTheLegacyDeduction()
+    {
+        Assert.Equal(180_000, Summary(unbilled: 200_000, invoiced: 120_000, legacy: 120_000, forfait: 300_000)
+            .LeftToBillCents);
     }
 
     /// <summary>
-    /// A débours advanced for the client is a negative ledger, so it increases what is to be billed:
-    /// the cabinet is out of pocket and re-bills it at cost.
+    /// Sous-traitance changes the margin and never what the client owes: he owes the full fee whoever
+    /// did the work.
     /// </summary>
     [Fact]
-    public void ADeboursAdvancedIncreasesWhatIsLeft()
+    public void TakesSubcontractingOffTheMarginAndNothingElse()
     {
-        Assert.Equal(255_000, Compute(unbilledTime: 240_000, ledger: -15_000).LeftToBillCents);
-    }
+        var summary = Summary(unbilled: 50_000, invoiced: 300_000, subcontracted: 90_000);
 
-    /// <summary>
-    /// A client in credit is a real state and shows as a negative figure. Clamping it to zero would
-    /// hide money owed back, which is the direction a practice cannot afford to round.
-    /// </summary>
-    [Fact]
-    public void AClientInCreditShowsAsNegativeRatherThanZero()
-    {
-        Assert.Equal(-60_000, Compute(unbilledTime: 90_000, ledger: 150_000).LeftToBillCents);
-    }
-
-    /// <summary>
-    /// The distinction the whole record exists for. A facture built from selected hours already
-    /// consumed those lines, so they are gone from the unbilled total; subtracting its amount as well
-    /// would count the same work twice. Only invoices recorded by hand are taken off.
-    /// </summary>
-    [Fact]
-    public void OnlyInvoicesRecordedByHandAreSubtracted()
-    {
-        var fromTime = Compute(unbilledTime: 100_000, invoiced: 300_000, manualInvoiced: 0);
-        var byHand = Compute(unbilledTime: 100_000, invoiced: 300_000, manualInvoiced: 300_000);
-
-        Assert.Equal(100_000, fromTime.LeftToBillCents);
-        Assert.Equal(-200_000, byHand.LeftToBillCents);
-
-        // Both were invoiced the same amount: the difference is only in what it consumed.
-        Assert.Equal(fromTime.InvoicedCents, byHand.InvoicedCents);
-    }
-
-    /// <summary>
-    /// Net is what the cabinet keeps once the confrères are paid. On a file largely handed over it is
-    /// a very different number from what was invoiced, which is the reason it is carried at all.
-    /// </summary>
-    [Fact]
-    public void NetIsWhatRemainsOnceTheConfreresArePaid()
-    {
-        Assert.Equal(180_000, Compute(invoiced: 300_000, subcontracted: 120_000).NetCents);
+        Assert.Equal(210_000, summary.NetCents);
+        Assert.Equal(50_000, summary.LeftToBillCents);
+        Assert.Equal(300_000, summary.InvoicedCents);
     }
 
     [Fact]
-    public void NetEqualsInvoicedWhenNothingWasSubcontracted()
+    public void AddsPaidFacturesAndProvisionsIntoWhatCameIn()
     {
-        var summary = Compute(invoiced: 300_000);
+        var summary = Summary(invoiced: 300_000, collected: 300_000 + 50_000);
 
-        Assert.Equal(summary.InvoicedCents, summary.NetCents);
-    }
-
-    /// <summary>
-    /// The invariant that took a session to get right. A rétrocession is a charge of the cabinet, not
-    /// something advanced for the client: the client owes the full fee whoever did the work. Taking it
-    /// off « reste à facturer » would understate the bill by exactly what she is about to pay away.
-    /// </summary>
-    [Theory]
-    [InlineData(0)]
-    [InlineData(50_000)]
-    [InlineData(1_000_000)]
-    public void SubcontractingNeverChangesWhatIsLeftToBill(long subcontracted)
-    {
-        var summary = Compute(unbilledTime: 240_000, ledger: 90_000, subcontracted: subcontracted);
-
-        Assert.Equal(150_000, summary.LeftToBillCents);
-    }
-
-    /// <summary>Sous-traitance larger than the fee is a mali, and the figure is allowed to go negative.</summary>
-    [Fact]
-    public void NetGoesNegativeWhenTheRetrocessionExceedsTheFee()
-    {
-        Assert.Equal(-20_000, Compute(invoiced: 100_000, subcontracted: 120_000).NetCents);
-    }
-
-    [Fact]
-    public void BoniAndMaliAreCarriedThroughWithTheirSign()
-    {
-        Assert.Equal(45_000, Compute(variance: 45_000).VarianceCents);
-        Assert.Equal(-45_000, Compute(variance: -45_000).VarianceCents);
-    }
-
-    [Fact]
-    public void TheMinutesBehindTheMoneyAreKept()
-    {
-        var summary = Compute(unbilledTime: 240_000, unbilledMinutes: 600);
-
-        Assert.Equal(600, summary.BillableMinutes);
-        Assert.Equal(240_000, summary.BillableTimeCents);
-    }
-
-    /// <summary>
-    /// Everything at once, on a dossier that has had a real life: hours logged, a provision received,
-    /// a débours advanced, a facture from time and one by hand, and part of it handed to a confrère.
-    /// </summary>
-    [Fact]
-    public void HoldsTogetherOnADossierWithAHistory()
-    {
-        var summary = Compute(
-            unbilledTime: 180_000,
-            unbilledMinutes: 450,
-            ledger: 200_000 - 35_000,
-            invoiced: 500_000,
-            manualInvoiced: 120_000,
-            variance: -25_000,
-            subcontracted: 150_000);
-
-        Assert.Equal(180_000 - 165_000 - 120_000, summary.LeftToBillCents);
-        Assert.Equal(350_000, summary.NetCents);
-        Assert.Equal(-25_000, summary.VarianceCents);
+        Assert.Equal(350_000, summary.CollectedCents);
+        Assert.Equal(-50_000, summary.OwedCents);
     }
 }

@@ -26,18 +26,45 @@ public class BillingInvoice
     /// A facture whose work was never recorded here: issued before Avocado, or in another system, and
     /// brought over for the history.
     ///
-    /// <para><b>It exists because « reste à facturer » subtracts hand-recorded factures.</b> That
-    /// subtraction is right for one she types today, since the hours justifying it are still sitting
-    /// unbilled and would otherwise be counted twice. It is meaningless for one imported from
-    /// Gestisoft: those hours were never entered, so nothing is being counted twice and the
-    /// subtraction simply removes money that was never there. COULEYRE arrived with seven factures
-    /// totalling 8 974 €, and the first 45 minutes she recorded on it read « reste à facturer
-    /// − 8 794 € ».</para>
-    ///
-    /// <para>Editable rather than fixed at import, because the same thing is true of a facture she
-    /// types in for last year.</para>
+    /// <para><b>Presentation only, now.</b> It used to decide arithmetic, because « reste à facturer »
+    /// subtracted hand-recorded factures and subtracting an imported one removed money that had never
+    /// been counted: COULEYRE arrived with seven factures totalling 8 974 € and her first 45 minutes
+    /// of work read « reste à facturer − 8 794 € ». Factures now consume the lines they bill, so one
+    /// that consumed nothing subtracts nothing and the special case has no work left to do. What it
+    /// still says is « this is turnover from before Avocado », which the chart draws apart.</para>
     /// </summary>
     public bool IsHistorical { get; set; }
+
+    /// <summary>
+    /// Time she has decided she will never bill, written off on purpose.
+    ///
+    /// <para>« Sur ce dossier j'ai 1 500 en temps passé, j'ai facturé 1 000 et ne pourrai pas
+    /// facturer plus. » Without this the hours sit in « reste à facturer » for ever and the dossier
+    /// never settles. An abandon consumes its lines exactly as a facture does, carries no amount, and
+    /// is therefore a mali of everything it consumed. It is not turnover and never appears in
+    /// « facturé ».</para>
+    ///
+    /// <para>The same record as a facture rather than a table of its own: it does the one thing that
+    /// matters here, which is taking lines out of the unbilled total, and deleting it gives them back
+    /// through the same foreign key.</para>
+    /// </summary>
+    public bool IsAbandon { get; set; }
+
+    /// <summary>
+    /// A facture recorded before factures consumed lines, which must go on subtracting from
+    /// « reste à facturer » although it consumed nothing.
+    ///
+    /// <para><b>Set by the migration and by nothing else, ever.</b> Ten practices were already
+    /// working when the model changed. Their hand-recorded factures have no lines, because there was
+    /// no way to attach any; under the new rule they would subtract nothing and every dossier
+    /// carrying one would jump up by that amount overnight. Which hours each of them actually paid
+    /// for is not knowable after the fact.</para>
+    ///
+    /// <para>So they keep their old behaviour and nothing new is ever written with this set. It is
+    /// invisible in the window, it cannot be turned on, and it empties itself as those factures age
+    /// out of the dossiers that are still open.</para>
+    /// </summary>
+    public bool DeductsWithoutLines { get; set; }
 
     public DateOnly? PaidOn { get; set; }
 
