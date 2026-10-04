@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Users,
+  BookOpen, CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Users,
 } from 'lucide-react'
 import { ApiError, api } from './api.js'
 import { CommandPalette } from './CommandPalette.js'
@@ -8,6 +8,7 @@ import { MatterView } from './MatterView.js'
 import { MatterForm } from './MatterForm.js'
 import { Settings } from './Settings.js'
 import { Contacts, NewContact } from './sections/Contacts.js'
+import { Docs } from './sections/Docs.js'
 import { Home } from './sections/Home.js'
 import { UpcomingDeadlines } from './sections/UpcomingDeadlines.js'
 import { Button } from './components/ui/button.js'
@@ -18,7 +19,7 @@ import { cn } from './lib/utils.js'
 import { formatRelative } from './labels.js'
 import type { MatterListPage } from './types.js'
 
-type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'settings'
+type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'docs' | 'settings'
 
 /**
  * The shell: rail 48, secondary panel 232, content, 6px gutters, panels at radius 8 with no shadow
@@ -68,7 +69,7 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', shortcut)
   }, [])
 
-  const twoBand = section !== 'matters' && section !== 'contacts'
+  const twoBand = section !== 'matters' && section !== 'contacts' && section !== 'docs'
 
   return (
     <div
@@ -90,6 +91,7 @@ export function AppShell() {
       )}
 
       {section === 'deadlines' && <UpcomingDeadlines onOpenMatter={openMatter} />}
+      {section === 'docs' && <Docs />}
       {section === 'settings' && <Settings />}
 
       {section === 'contacts' && (
@@ -314,6 +316,14 @@ function Rail({ section, onSection }: { section: Section; onSection: (next: Sect
       ))}
 
       <span className="flex-1" />
+
+      <RailItem
+        label="Documentation"
+        active={section === 'docs'}
+        onClick={() => onSection('docs')}
+      >
+        <BookOpen size={18} strokeWidth={1.75} />
+      </RailItem>
 
       <RailItem label="Réglages" active={section === 'settings'} onClick={() => onSection('settings')}>
         <Gear size={18} strokeWidth={1.75} />

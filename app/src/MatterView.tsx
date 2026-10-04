@@ -13,10 +13,10 @@ import { Avatar } from './components/ui/avatar.js'
 import { Badge, NumberPill } from './components/ui/badge.js'
 import { Button } from './components/ui/button.js'
 import { Panel } from './components/ui/panel.js'
-import { BillingFigures, billingTone, readBilling } from './lib/billing.js'
+import { BillingStrip } from './lib/billing.js'
 import { cn } from './lib/utils.js'
 import { TierBullet, distance, tierBorder } from './lib/urgency.js'
-import { formatDuration, formatEuros } from './labels.js'
+import { formatEuros } from './labels.js'
 import type { MatterDetail } from './types.js'
 
 type Tab = 'overview' | 'parties' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
@@ -272,8 +272,6 @@ const Divider = () => <span className="h-2.5 w-px shrink-0 bg-line" />
  * showing what is not already elsewhere.</p>
  */
 function ContextPanel({ matter }: { matter: MatterDetail }) {
-  const reading = readBilling(matter.billing)
-
   return (
     <aside className="grid content-start gap-3 overflow-y-auto border-l border-line-subtle p-2.5">
       <section className="border-b border-line-subtle pb-2.5">
@@ -300,42 +298,7 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
         ))}
       </section>
 
-      <section className={cn('rounded-sm border px-2.5 py-2', billingTone[reading.tone])}>
-        <BillingFigures summary={matter.billing} compact />
-
-        {reading.settled ? (
-          <div className="mt-1 font-mono text-[10px] tnum opacity-80">
-            il n’y a plus rien à facturer
-          </div>
-        ) : (
-          <>
-            <div className="mt-1 font-mono text-[10px] tnum">
-              {matter.billing.fixedFeeCents !== null
-                ? `forfait de ${formatEuros(matter.billing.fixedFeeCents)}`
-                : `${formatDuration(matter.billing.unbilledMinutes)} à ${formatEuros(matter.hourlyRateCents)}/h`}
-            </div>
-
-            {matter.billing.invoicedCents > 0 && (
-              <div className="font-mono text-[10px] tnum opacity-80">
-                {formatEuros(matter.billing.invoicedCents)} déjà facturé
-              </div>
-            )}
-
-            {matter.billing.owedCents > 0 && (
-              <div className="font-mono text-[10px] tnum opacity-80">
-                {formatEuros(matter.billing.owedCents)} restant dû
-              </div>
-            )}
-          </>
-        )}
-
-        {matter.billing.varianceCents !== 0 && (
-          <div className="mt-1 font-mono text-[10px] tnum opacity-80">
-            {matter.billing.varianceCents > 0 ? 'boni' : 'mali'}{' '}
-            {formatEuros(Math.abs(matter.billing.varianceCents))}
-          </div>
-        )}
-      </section>
+      <BillingStrip summary={matter.billing} hourlyRateCents={matter.hourlyRateCents} />
 
     </aside>
   )

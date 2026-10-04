@@ -61,7 +61,54 @@ public sealed record BillingSummary(
     long LeftToBillCents,
     long? FixedFeeCents)
 {
-    public static BillingSummary Compute(
+    /// <summary>
+    /// One dossier's figures, from its rows.
+    ///
+    /// <para>Which rows count is the part that has gone wrong, never the sums: an abandon is not
+    /// turnover, a facture that took no lines has no gap to report, a provision is cash and not work
+    /// billed. All of that is here, in one place, reachable without a database.</para>
+    /// </summary>
+    public static BillingSummary From(BillingInputs inputs)
+    {
+        long Value(BillingTimeLine line) =>
+            (line.RateCentsOverride ?? inputs.HourlyRateCents) * line.DurationMinutes / 60;
+
+        var unbilled = inputs.Time.Where(line => !line.IsBilled).ToList();
+
+        // An abandon exists to take lines out of the unbilled total and to say so as a mali. It is
+        // not turnover and appears in no figure that counts money coming in.
+        var billed = inputs.Factures.Where(facture => !facture.IsAbandon).ToList();
+
+        // Signed: received from the client is positive, advanced on his behalf negative. Two
+        // different facts, no longer added together into one that means neither.
+        var provisionsCents = inputs.LedgerCents.Where(amount => amount > 0).Sum();
+
+        return Compute(
+            inputs.Time.Sum(Value),
+            unbilled.Sum(Value),
+            unbilled.Sum(line => line.DurationMinutes),
+            billed.Sum(facture => facture.AmountExclVatCents),
+            billed.Where(facture => facture.IsPaid).Sum(facture => facture.AmountExclVatCents)
+                + provisionsCents,
+            -inputs.LedgerCents.Where(amount => amount < 0).Sum(),
+            // What she billed, less what the lines she billed it for were worth. One that consumed
+            // no lines decided nothing and reports nothing.
+            inputs.Factures
+                .Where(facture => facture.BilledTimeCents != 0)
+                .Sum(facture => facture.AmountExclVatCents - facture.BilledTimeCents),
+            inputs.SubcontractedCents,
+            billed
+                .Where(facture => facture.DeductsWithoutLines)
+                .Sum(facture => facture.AmountExclVatCents),
+            inputs.FixedFeeCents);
+    }
+
+    /// <summary>
+    /// The downstream arithmetic, once the rows have been reduced to figures. Internal rather than
+    /// private so BillingSummaryTests can state each rule as one line of numbers; nothing outside
+    /// this assembly reaches it, and <see cref="From"/> is the only way in.
+    /// </summary>
+    internal static BillingSummary Compute(
         long workedCents,
         long unbilledTimeCents,
         int unbilledMinutes,
