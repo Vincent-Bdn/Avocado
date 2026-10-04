@@ -305,6 +305,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
           <BillTimeDialog
             matterId={matterId}
             abandon={billing === 'abandon'}
+            forfaitLeftCents={forfait === null ? null : summary.leftToBillCents}
             onCancel={() => setBilling(null)}
             onBilled={() => { setBilling(null); refresh() }}
           />
@@ -646,11 +647,18 @@ const Actions = ({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
  * The selected lines are hard-linked to the facture, so they stop counting towards « reste à
  * facturer ». Answering that question by date instead would break the first time an old entry is
  * corrected.
+ *
+ * <p>At a forfait the amount is known before the hours are: that is what agreeing a price means. So
+ * the field opens on what is left of it rather than on what the selected lines are worth, and the
+ * gap between the two is the mali or the boni, computed exactly as it is for any other facture. A
+ * forfait is a hint about the override, not a third kind of facture.</p>
  */
-function BillTimeDialog({ matterId, abandon, onCancel, onBilled }: {
+function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBilled }: {
   matterId: string
   /** Solder en mali: the same line picker, with nothing billed at the end of it. */
   abandon?: boolean
+  /** What is left of the agreed price, when there is one. Pre-fills the amount. */
+  forfaitLeftCents?: number | null
   onCancel: () => void
   onBilled: () => void
 }) {
@@ -658,7 +666,9 @@ function BillTimeDialog({ matterId, abandon, onCancel, onBilled }: {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [reference, setReference] = useState('')
-  const [amount, setAmount] = useState('')
+  const [amount, setAmount] = useState(
+    forfaitLeftCents === null || forfaitLeftCents === undefined ? '' : centsToAmount(forfaitLeftCents),
+  )
   const [paid, setPaid] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -782,9 +792,24 @@ function BillTimeDialog({ matterId, abandon, onCancel, onBilled }: {
               <span className="text-muted">Durée</span> {formatDuration(minutes)}
             </span>
             <span className="flex-1" />
-            <span>
-              <span className="text-muted">Valeur des heures</span>{' '}
-              <strong className="font-semibold">{formatEuros(timeCents)}</strong>
+
+            {/* One group, so the two figures being compared wrap together rather than landing on
+                different lines with the question between them. */}
+            <span className="flex items-baseline gap-3">
+              {forfaitLeftCents != null && (
+                <>
+                  <span>
+                    <span className="text-muted">Reste du forfait</span>{' '}
+                    <strong className="font-semibold">{formatEuros(forfaitLeftCents)}</strong>
+                  </span>
+                  <span aria-hidden="true" className="h-3 w-px bg-line" />
+                </>
+              )}
+
+              <span>
+                <span className="text-muted">Valeur des heures</span>{' '}
+                <strong className="font-semibold">{formatEuros(timeCents)}</strong>
+              </span>
             </span>
           </div>
 
