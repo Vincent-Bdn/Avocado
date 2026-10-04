@@ -8,8 +8,7 @@ namespace Avocado.Server.Features.Billings;
 /// Reads one dossier's rows and hands them to <see cref="BillingSummary.From"/>.
 ///
 /// <para>Reading and computing were one thing here, which is why the arithmetic could only be tested
-/// by building a dossier. It does the reading now; what the figures mean lives on the summary, where
-/// the Documentation screen's simulator reaches the very same code.</para>
+/// by building a dossier. It does the reading now; what the figures mean lives on the summary.</para>
 /// </summary>
 public static class BillingSummaryQuery
 {

@@ -5,9 +5,6 @@ public static class BillingEndpoints
     public static IEndpointRouteBuilder MapBilling(this IEndpointRouteBuilder routes)
     {
         routes.MapGet("/api/matters/{matterId:guid}/billing", GetBilling.HandleAsync).WithTags("Billing");
-
-        // The Documentation screen's worked example. No dossier, nothing read, nothing written.
-        routes.MapPost("/api/billing/simulate", SimulateBilling.Handle).WithTags("Billing");
         routes.MapPost("/api/matters/{matterId:guid}/invoices", CreateInvoice.HandleAsync).WithTags("Billing");
         routes.MapPost("/api/matters/{matterId:guid}/ledger-entries", CreateLedgerEntry.HandleAsync)
             .WithTags("Billing");

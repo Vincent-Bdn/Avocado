@@ -25,8 +25,7 @@ public readonly record struct BillingFacture(
 /// <para>It exists so that <see cref="BillingSummary.From"/> is reachable without a database. The
 /// arithmetic went wrong twice, both times in which rows were fed to it rather than in the sums, and
 /// that decision used to live inside a LINQ query no test could reach without building a whole
-/// dossier. It is also what the Documentation screen's simulator posts, so the worked examples a
-/// lawyer reads cannot drift away from what her own fiche does.</para>
+/// dossier.</para>
 /// </summary>
 /// <param name="LedgerCents">
 /// Signed, as stored: received from the client is positive, advanced on his behalf negative.
