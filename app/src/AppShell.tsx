@@ -34,11 +34,18 @@ export function AppShell() {
   const [selectedMatter, setSelectedMatter] = useState<string | null>(null)
   const [selectedContact, setSelectedContact] = useState<string | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [docsPage, setDocsPage] = useState<string | null>(null)
   const [creatingMatter, setCreatingMatter] = useState(false)
   const [creatingContact, setCreatingContact] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
+
+  /** « Comment ça marche » from a screen, landing on the page that explains it. */
+  const openDocs = useCallback((page: string) => {
+    setDocsPage(page)
+    setSection('docs')
+  }, [])
 
   const openMatter = useCallback((id: string) => {
     setSelectedMatter(id)
@@ -91,8 +98,8 @@ export function AppShell() {
       )}
 
       {section === 'deadlines' && <UpcomingDeadlines onOpenMatter={openMatter} />}
-      {section === 'docs' && <Docs />}
-      {section === 'settings' && <Settings />}
+      {section === 'docs' && <Docs page={docsPage} />}
+      {section === 'settings' && <Settings onOpenDocs={openDocs} />}
 
       {section === 'contacts' && (
         <Contacts

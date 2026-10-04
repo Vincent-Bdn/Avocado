@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Panel, PanelHeader } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
 import { AgendaDoc } from './docs/Agenda.js'
 import { FacturationDoc } from './docs/Facturation.js'
+import { SauvegardeDoc } from './docs/Sauvegarde.js'
 
 interface DocPage {
   id: string
@@ -26,6 +27,12 @@ const pages: DocPage[] = [
     view: () => <FacturationDoc />,
   },
   {
+    id: 'sauvegarde',
+    title: 'Sauvegarde',
+    summary: 'Copies, clé, documents',
+    view: () => <SauvegardeDoc />,
+  },
+  {
     id: 'agenda',
     title: 'Agenda Google',
     summary: 'Connecter, et ce qui part',
@@ -33,8 +40,15 @@ const pages: DocPage[] = [
   },
 ]
 
-export function Docs() {
-  const [selected, setSelected] = useState(pages[0]!.id)
+export function Docs({ page: asked }: { page?: string | null }) {
+  const [selected, setSelected] = useState(asked ?? pages[0]!.id)
+
+  // Arriving from a « comment ça marche » elsewhere lands on that page, and only then: changing the
+  // selection here must not be undone by the id the shell is still holding from last time.
+  useEffect(() => {
+    if (asked) setSelected(asked)
+  }, [asked])
+
   const page = pages.find((candidate) => candidate.id === selected) ?? pages[0]!
 
   return (

@@ -50,7 +50,7 @@ function pickTwo(): [number, number] {
  * Réglages. Full-width accordion sections separated by rules, so this page can keep growing as more
  * settings arrive without turning into a wall of half-empty cards.
  */
-export function Settings() {
+export function Settings({ onOpenDocs }: { onOpenDocs: (page: string) => void }) {
   const [key, setKey] = useState<RecoveryKeyState | null>(null)
   // Nothing open to begin with. It used to land on the taux horaire, which was a reasonable way to
   // show the page was not broken back when it was eleven undifferentiated rows. Grouped, the map is
@@ -143,7 +143,7 @@ export function Settings() {
             open={open === 'backups'}
             onToggle={toggle}
           >
-            <Backups />
+            <Backups onOpenDocs={onOpenDocs} />
           </Section>
 
           {key && !key.code && (

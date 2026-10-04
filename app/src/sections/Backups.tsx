@@ -84,7 +84,7 @@ interface Volume {
   freeBytes: number
 }
 
-export function Backups() {
+export function Backups({ onOpenDocs }: { onOpenDocs: (page: string) => void }) {
   const [status, setStatus] = useState<Status | null>(null)
   const [volumes, setVolumes] = useState<Volume[]>([])
   const [busy, setBusy] = useState(false)
@@ -222,7 +222,21 @@ export function Backups() {
 
       <Documents documents={status.documents} busy={busy} onChange={reload} />
 
-      <Explainers localCount={status.localSnapshotCount} />
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-t border-line-subtle pt-3 text-[11.5px] text-muted">
+        <span>
+          {status.localSnapshotCount > 0
+            ? `${status.localSnapshotCount} copies datées dans le coffre, qui disparaissent avec ce disque.`
+            : 'Des copies datées restent dans le coffre, et disparaissent avec ce disque.'}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => onOpenDocs('sauvegarde')}
+          className="text-brand-on-subtle underline-offset-2 hover:underline"
+        >
+          Comment fonctionne la sauvegarde
+        </button>
+      </div>
 
       {pending && (
         <SameMachineWarning
@@ -486,44 +500,6 @@ const statusLabel: Record<Destination['status'], string> = {
   Denied: 'écriture refusée',
 }
 
-/** The few things worth knowing here, read once au moment de la mise en place. */
-function Explainers({ localCount }: { localCount: number }) {
-  return (
-    <div className="grid gap-3 border-t border-line-subtle pt-3">
-      <Explain title="Ce qu’une sauvegarde contient">
-        Journal, tiers, facturation, temps passé, modèles et la copie de votre clé, chiffrés :
-        personne ne les ouvre sans votre clé de récupération. Vos documents, eux, sont copiés tels
-        quels, dans un dossier « Dossiers » que vous pouvez ouvrir et lire directement.
-      </Explain>
-
-      <Explain title="Les copies locales">
-        {localCount > 0 ? `${localCount} copies datées` : 'Des copies datées'} de votre base restent
-        dans le coffre, pour revenir en arrière. Elles disparaissent avec le disque : c’est à cela
-        que servent les destinations ci-dessus.
-      </Explain>
-
-      <Explain title="Le fichier sur votre clé USB">
-        Avocado y dépose <code className="font-mono text-[11px]">.avocado-sink.json</code> : un
-        identifiant et un nom, aucune donnée du cabinet. Une clé change de lettre selon ce qui est
-        branché ; sans ce repère, Avocado écrirait un jour sur la clé d’un client. Vous pouvez le
-        supprimer, le support ne sera plus reconnu.
-      </Explain>
-
-      <Explain title="Google Drive, Dropbox, OneDrive">
-        Avocado écrit dans le dossier que leur logiciel synchronise sur cet ordinateur : rien à
-        autoriser, aucun mot de passe. Installez-le, créez-y un dossier, puis « Ajouter un dossier »
-        ici. Ils hébergent des fichiers qu’ils ne peuvent pas ouvrir, d’où l’intérêt de garder votre
-        clé de récupération ailleurs.
-      </Explain>
-
-      <Explain title="À quel rythme">
-        À l’ouverture, pendant que vous travaillez, à la fermeture, et dès qu’une destination
-        réapparaît. Seul ce qui a changé est envoyé.
-      </Explain>
-    </div>
-  )
-}
-
 /**
  * Vos documents, in the Sauvegarde screen.
  *
@@ -735,15 +711,6 @@ function formatBytes(bytes: number) {
   if (bytes >= 1e9) return `${(bytes / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Go`
   if (bytes >= 1e6) return `${Math.round(bytes / 1e6).toLocaleString('fr-FR')} Mo`
   return `${Math.max(1, Math.round(bytes / 1e3)).toLocaleString('fr-FR')} Ko`
-}
-
-function Explain({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1">
-      <span className="type-label text-ink-secondary">{title}</span>
-      <p className="m-0 max-w-[72ch] text-[11.5px] leading-[17px] text-muted">{children}</p>
-    </div>
-  )
 }
 
 const plural = (count: number) => (count > 1 ? 's' : '')
