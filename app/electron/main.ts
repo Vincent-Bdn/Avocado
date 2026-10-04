@@ -184,6 +184,39 @@ app.whenReady().then(async () => {
     })
 
     /**
+     * Opens Google's consent screen, and nothing else.
+     *
+     * The guard is the same one the settings pane gets: shell.openExternal will launch anything with
+     * a scheme, so the renderer is allowed one host and one path. A bug in the UI cannot turn this
+     * into « open any URL », and a URL that came back altered from anywhere cannot send her to a
+     * page that merely looks like Google's.
+     */
+    ipcMain.handle('avocado:openGoogleConsent', async (_event, url: string) => {
+      let parsed: URL
+
+      try {
+        parsed = new URL(url)
+      } catch {
+        return 'Adresse invalide.'
+      }
+
+      if (
+        parsed.protocol !== 'https:'
+        || parsed.host !== 'accounts.google.com'
+        || parsed.pathname !== '/o/oauth2/v2/auth'
+      ) {
+        return 'Adresse inattendue.'
+      }
+
+      try {
+        await shell.openExternal(parsed.toString())
+        return null
+      } catch (failure) {
+        return failure instanceof Error ? failure.message : String(failure)
+      }
+    })
+
+    /**
      * Opens the dossier's folder with one file selected, which is what « ouvrir un document » does now
      * that there is only one way to reach one. showItemInFolder rather than openPath: she is being
      * shown where the file is, among the others, not handed it in isolation.

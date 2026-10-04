@@ -77,6 +77,33 @@ namespace Avocado.Server.Data.Migrations
                     b.ToTable("activities", (string)null);
                 });
 
+            modelBuilder.Entity("Avocado.Server.Features.Agenda.AgendaEvent", b =>
+                {
+                    b.Property<Guid>("DeadlineId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("deadline_id");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("fingerprint");
+
+                    b.Property<string>("GoogleEventId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("google_event_id");
+
+                    b.Property<string>("SyncedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("synced_at");
+
+                    b.HasKey("DeadlineId");
+
+                    b.ToTable("agenda_events", (string)null);
+                });
+
             modelBuilder.Entity("Avocado.Server.Features.Backups.BackupDestination", b =>
                 {
                     b.Property<Guid>("Id")

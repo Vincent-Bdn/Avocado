@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Panel, PanelHeader } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
+import { AgendaDoc } from './docs/Agenda.js'
 import { FacturationDoc } from './docs/Facturation.js'
 
 interface DocPage {
@@ -23,6 +24,12 @@ const pages: DocPage[] = [
     title: 'Facturation',
     summary: 'Taux, forfait, boni et mali',
     view: () => <FacturationDoc />,
+  },
+  {
+    id: 'agenda',
+    title: 'Agenda Google',
+    summary: 'Connecter, et ce qui part',
+    view: () => <AgendaDoc />,
   },
 ]
 

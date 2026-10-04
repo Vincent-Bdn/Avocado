@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('avocado', {
     ipcRenderer.invoke('avocado:revealFile', file) as Promise<string | null>,
   openDiskEncryptionSettings: (pane: string) =>
     ipcRenderer.invoke('avocado:openDiskEncryptionSettings', pane) as Promise<string | null>,
+  /** Google's consent screen only; the main process refuses anything else. */
+  openGoogleConsent: (url: string) =>
+    ipcRenderer.invoke('avocado:openGoogleConsent', url) as Promise<string | null>,
 
   /** Removable volumes only, never this computer's own disk. */
   removableDrives: () =>

@@ -17,6 +17,7 @@ import { Panel } from './components/ui/panel.js'
 import { Unavailable } from './components/ui/unavailable.js'
 import { useToasts } from './components/ui/toast.js'
 import { DiskEncryptionBanner } from './components/DiskEncryptionBanner.js'
+import { Agenda } from './sections/Agenda.js'
 import { Backups } from './sections/Backups.js'
 import { Import } from './sections/Import.js'
 import { Templates } from './sections/Templates.js'
@@ -118,6 +119,16 @@ export function Settings() {
             onToggle={toggle}
           >
             <Stamp />
+          </Section>
+
+          <Section
+            id="agenda"
+            title="Agenda Google"
+            summary="Vos échéances dans votre agenda"
+            open={open === 'agenda'}
+            onToggle={toggle}
+          >
+            <Agenda />
           </Section>
         </Group>
 

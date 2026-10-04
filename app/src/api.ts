@@ -10,6 +10,8 @@ declare global {
       revealFolder: (folder: string) => Promise<string | null>
       revealFile: (file: string) => Promise<string | null>
       openDiskEncryptionSettings: (pane: string) => Promise<string | null>
+      /** Google's consent screen only; the main process refuses anything else. */
+      openGoogleConsent: (url: string) => Promise<string | null>
       removableDrives: () => Promise<{ path: string; label: string; freeBytes: number }[]>
       saveRecoveryKey: (drivePath: string, contents: string) => Promise<string>
       exportRecoverySheet: () => Promise<string | null>

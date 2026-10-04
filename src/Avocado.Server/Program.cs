@@ -12,6 +12,7 @@ using Avocado.Server.Features.Billings.Endpoints;
 using Avocado.Server.Features.Contacts.Endpoints;
 using Avocado.Server.Features.Dashboards.Endpoints;
 using Avocado.Server.Features.Deadlines.Endpoints;
+using Avocado.Server.Features.Agenda.Endpoints;
 using Avocado.Server.Features.Imports.Endpoints;
 using Avocado.Server.Features.Imports.Infrastructure;
 using Avocado.Server.Features.Matters.Endpoints;
@@ -74,6 +75,16 @@ builder.Services.AddSingleton<Avocado.Server.Features.Settings.Infrastructure.Di
 builder.Services.AddSingleton<SinkFactory>();
 builder.Services.AddSingleton<Avocado.Server.Features.Backups.Infrastructure.CaptureProgress>();
 builder.Services.AddSingleton<BackupService>();
+
+// The agenda talks to Google over HTTP, which is the only outbound traffic Avocado makes.
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<Avocado.Server.Features.Agenda.Infrastructure.GoogleOAuth>();
+builder.Services.AddSingleton<Avocado.Server.Features.Agenda.Infrastructure.AgendaConnection>();
+builder.Services.AddSingleton<
+    Avocado.Server.Features.Agenda.Infrastructure.IGoogleCalendar,
+    Avocado.Server.Features.Agenda.Infrastructure.GoogleCalendar>();
+builder.Services.AddScoped<Avocado.Server.Features.Agenda.Infrastructure.AgendaSync>();
+builder.Services.AddHostedService<Avocado.Server.Features.Agenda.Infrastructure.AgendaSyncService>();
 builder.Services.AddHostedService(services => services.GetRequiredService<BackupService>());
 builder.Services.AddScoped(services =>
     new TenantContext(services.GetRequiredService<IVaultStore>().Get(Guid.Empty).Id));
@@ -130,6 +141,7 @@ app.MapSettings();
 app.MapTemplates();
 app.MapBackups();
 app.MapImports();
+app.MapAgenda();
 
 // The shell reads this from stdout to learn where to point the window. Emitted once the host is
 // actually listening, so the URL is real by the time anyone acts on it.

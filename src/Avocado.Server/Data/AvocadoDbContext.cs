@@ -33,6 +33,7 @@ public sealed class AvocadoDbContext(DbContextOptions<AvocadoDbContext> options)
     public DbSet<BackupDestination> BackupDestinations => Set<BackupDestination>();
     public DbSet<Features.Backups.CapturedFile> CapturedFiles => Set<Features.Backups.CapturedFile>();
     public DbSet<DocumentTemplate> Templates => Set<DocumentTemplate>();
+    public DbSet<Features.Agenda.AgendaEvent> AgendaEvents => Set<Features.Agenda.AgendaEvent>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

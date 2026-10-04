@@ -16,9 +16,21 @@ public sealed class LocalApiTokenMiddleware(RequestDelegate next, string expecte
 {
     private readonly byte[] _expected = Encoding.UTF8.GetBytes(expectedToken);
 
+    /// <summary>
+    /// The one path a browser reaches without the token, because Google redirects her there and a
+    /// browser has no way to carry it.
+    ///
+    /// <para>Safe to exempt because the handler refuses anything whose <c>state</c> was not minted by
+    /// this process minutes earlier, and a page that cannot guess thirty-two bytes of randomness can
+    /// do nothing here but read « Demande inconnue ». The reply is HTML sent with nosniff, so a
+    /// cross-origin page cannot read it either.</para>
+    /// </summary>
+    private const string OAuthCallback = "/api/agenda/google/callback";
+
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!IsAuthorised(context.Request))
+        if (!context.Request.Path.Equals(OAuthCallback, StringComparison.Ordinal)
+            && !IsAuthorised(context.Request))
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             await context.Response.WriteAsync("Missing or invalid Avocado API token.");
