@@ -52,21 +52,35 @@ export interface MatterParty {
   role: string | null
 }
 
+/**
+ * What a dossier earned, asked for and received.
+ *
+ * Three figures and two adjustments, in that order, because that is the order she reads them in.
+ */
 export interface BillingSummary {
-  /** Billable time not yet attached to a facture. */
-  billableTimeCents: number
-  billableMinutes: number
-  ledgerCents: number
+  /** Every billable hour at its rate, billed or not. What boni and mali are measured against. */
+  workedCents: number
+  /** Billable time no facture has taken yet. */
+  unbilledTimeCents: number
+  unbilledMinutes: number
+  /** Factures HT. An abandon is not one. */
   invoicedCents: number
-  /** The part of `invoicedCents` recorded by hand rather than built from selected hours. */
-  manualInvoicedCents: number
+  /** Factures payées plus provisions reçues. */
+  collectedCents: number
+  /** `invoicedCents − collectedCents`. Negative means the client has paid in advance. */
+  owedCents: number
+  /** Débours avancés pour le client, still to be recharged. Its own figure, never mixed in. */
+  disbursementsCents: number
   /** Positive = boni, negative = mali. */
   varianceCents: number
   /** Rétrocessions et sous-traitance. Never part of `leftToBillCents`. */
   subcontractedCents: number
   /** `invoicedCents − subcontractedCents`: what the dossier actually brought the cabinet. */
   netCents: number
+  /** At the hour: the time no facture took. At a forfait: `forfait − facturé`, never below zero. */
   leftToBillCents: number
+  /** Set when the dossier is billed at an agreed price, which then decides what is left. */
+  fixedFeeCents: number | null
 }
 
 export interface MatterDetail {

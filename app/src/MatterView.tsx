@@ -305,26 +305,25 @@ function ContextPanel({ matter }: { matter: MatterDetail }) {
 
         {reading.settled ? (
           <div className="mt-1 font-mono text-[10px] tnum opacity-80">
-            tout le temps saisi est facturé
+            il n’y a plus rien à facturer
           </div>
         ) : (
           <>
             <div className="mt-1 font-mono text-[10px] tnum">
-              {formatDuration(matter.billing.billableMinutes)} facturables ·{' '}
-              {formatEuros(matter.hourlyRateCents)}/h
+              {matter.billing.fixedFeeCents !== null
+                ? `forfait de ${formatEuros(matter.billing.fixedFeeCents)}`
+                : `${formatDuration(matter.billing.unbilledMinutes)} à ${formatEuros(matter.hourlyRateCents)}/h`}
             </div>
-
-            {matter.billing.ledgerCents !== 0 && (
-              <div className="font-mono text-[10px] tnum">
-                {matter.billing.ledgerCents > 0 ? '− ' : '+ '}
-                {formatEuros(Math.abs(matter.billing.ledgerCents))}{' '}
-                {matter.billing.ledgerCents > 0 ? 'déjà reçu' : 'avancé'}
-              </div>
-            )}
 
             {matter.billing.invoicedCents > 0 && (
               <div className="font-mono text-[10px] tnum opacity-80">
                 {formatEuros(matter.billing.invoicedCents)} déjà facturé
+              </div>
+            )}
+
+            {matter.billing.owedCents > 0 && (
+              <div className="font-mono text-[10px] tnum opacity-80">
+                {formatEuros(matter.billing.owedCents)} restant dû
               </div>
             )}
           </>

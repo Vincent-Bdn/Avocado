@@ -8,6 +8,7 @@ import { FileGlyph } from './FileGlyph.js'
 import { TierBullet, distance } from '../lib/urgency.js'
 import { urgencyLabels } from '../labels.js'
 import { cn } from '../lib/utils.js'
+import { readBilling } from '../lib/billing.js'
 import type { DeadlineUrgency, MatterDetail } from '../types.js'
 
 /**
@@ -37,6 +38,9 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
   onChanged: () => void
 }) {
   const [editingParty, setEditingParty] = useState<string | null>(null)
+
+  // The same reading as the fiche's strip and the Facturation tab, so the three agree.
+  const reading = readBilling(matter.billing)
 
   /**
    * Nothing has happened here yet.
@@ -310,36 +314,48 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
 
       <div className="grid min-w-0 content-start gap-6 px-7 pt-6 pb-7 max-[1000px]:order-1 max-[1000px]:border-b max-[1000px]:border-line-subtle">
         <section>
-          <div className="text-[12px] leading-4 font-medium text-ink-secondary">Reste à facturer</div>
+          <div className="text-[12px] leading-4 font-medium text-ink-secondary">
+            {reading.caption}
+          </div>
 
           <div
             className={cn(
               'mt-0.5 font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum',
               // A zero is a value and « n/d » is a fact, so neither may use the disabled grey: it is
               // 2.4:1 and reserved for controls that do nothing.
-              matter.billing.leftToBillCents === 0 ? 'text-ink-secondary' : 'text-ink',
+              reading.headline === 0 ? 'text-ink-secondary' : 'text-ink',
             )}
           >
-            {euros(matter.billing.leftToBillCents)}
+            {reading.headline < 0 && '− '}
+            {euros(Math.abs(reading.headline))}
           </div>
 
           <div className="font-mono text-[11.5px] leading-4 text-muted tnum">
-            {matter.billing.leftToBillCents < 0
-              ? 'le client est créditeur'
-              : matter.billing.billableMinutes === 0
-                ? 'aucun temps saisi'
-                : `${hours(matter.billing.billableMinutes)} facturables à ${euros(matter.hourlyRateCents)}/h`}
+            {matter.billing.fixedFeeCents !== null
+              ? `forfait de ${euros(matter.billing.fixedFeeCents)}`
+              : matter.billing.unbilledMinutes === 0
+                ? 'aucun temps à facturer'
+                : `${hours(matter.billing.unbilledMinutes)} à ${euros(matter.hourlyRateCents)}/h`}
           </div>
 
+          {/* Each line is its own question. « Déjà reçu » and « avancé pour le client » used to share
+              one signed figure, which meant the card could state the opposite of what happened. */}
           <div className="mt-3.5 border-t border-line-subtle">
-            <Figure label="Déjà facturé" cents={matter.billing.invoicedCents} />
-            {/* The ledger is signed: positive is money in, negative is money she advanced on the
-                dossier. Labelling both « Déjà reçu » and showing the absolute value would state the
-                opposite of what happened. */}
-            <Figure
-              label={matter.billing.ledgerCents < 0 ? 'Avancé pour le client' : 'Déjà reçu'}
-              cents={matter.billing.ledgerCents}
-            />
+            <Figure label="Travaillé" cents={matter.billing.workedCents} />
+            <Figure label="Facturé" cents={matter.billing.invoicedCents} />
+            <Figure label="Encaissé" cents={matter.billing.collectedCents} />
+
+            {matter.billing.owedCents !== 0 && (
+              <Figure
+                label={matter.billing.owedCents > 0 ? 'Reste dû' : 'Payé d’avance'}
+                cents={matter.billing.owedCents}
+              />
+            )}
+
+            {matter.billing.disbursementsCents !== 0 && (
+              <Figure label="Débours à refacturer" cents={matter.billing.disbursementsCents} />
+            )}
+
             <Figure
               label={matter.billing.varianceCents < 0 ? 'Mali' : 'Boni'}
               cents={matter.billing.varianceCents}

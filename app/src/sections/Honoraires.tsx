@@ -21,6 +21,8 @@ export interface HonoraireMonth {
   netCents: number
   /** The gap the two bars draw. Not « reste à facturer », which is a dossier's and cumulative. */
   gapCents: number
+  /** Boni (positive) or mali: what she billed against what the attached hours were worth. */
+  varianceCents: number
 }
 
 export interface Honoraires {
@@ -34,6 +36,8 @@ export interface Honoraires {
   unpaidCents: number
   subcontractedCents: number
   netCents: number
+  /** The practice's boni or mali over the window. */
+  varianceCents: number
   scaleCents: number
 }
 
@@ -100,6 +104,23 @@ export function HonorairesCard({ data }: { data: Honoraires }) {
             {data.subcontractedCents > 0 ? 'net facturé ' : 'facturé '}
             <Strong>{formatEurosRounded(data.netCents)}</Strong>
           </span>
+
+          {/* The arbitrages on price, summed over the window. It existed on each facture and
+              nowhere else, which made it the one figure two lawyers asked for by name. */}
+          {data.varianceCents !== 0 && (
+            <span
+              title={data.varianceCents > 0
+                ? 'Facturé au-delà de la valeur des heures rattachées, sur 12 mois'
+                : 'Accordé aux clients sur la valeur des heures rattachées, sur 12 mois'}
+              className={cn(
+                'shrink-0 font-mono text-[10.5px] tnum',
+                data.varianceCents > 0 ? 'text-success' : 'text-warning',
+              )}
+            >
+              {data.varianceCents > 0 ? 'boni + ' : 'mali − '}
+              {formatEurosRounded(Math.abs(data.varianceCents))}
+            </span>
+          )}
 
           {data.unpaidCents > 0 && (
             <span className="shrink-0 font-mono text-[10.5px] text-warning tnum">
@@ -318,6 +339,29 @@ function Tooltip({ month, index, count, width, large }: {
             {formatEuros(month.gapCents)}
           </span>
         </div>
+
+        {/* Under the écart and not added to it. The écart says when she billed, this says at what
+            price: work done in février and billed in mars opens a gap nobody decided, where this
+            is 7 200 € of hours deliberately billed 6 000 €. */}
+        {month.varianceCents !== 0 && (
+          <div
+            className={cn(
+              'flex items-center justify-between gap-2',
+              large ? 'text-[11.5px] leading-4' : 'text-[10.5px] leading-[14px]',
+            )}
+          >
+            <span>{month.varianceCents > 0 ? 'Boni' : 'Mali'}</span>
+            <span
+              className={cn(
+                'font-mono tnum',
+                month.varianceCents > 0 ? 'text-success' : 'text-warning',
+              )}
+            >
+              {month.varianceCents > 0 ? '+ ' : '− '}
+              {formatEuros(Math.abs(month.varianceCents))}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

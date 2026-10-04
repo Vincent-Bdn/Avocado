@@ -17,6 +17,9 @@ namespace Avocado.Server.Features.Dashboards;
 /// 7 000 € facturé against nothing worked; left out of the chart altogether, which is where this
 /// went first, the card said « facturé 0 € » for a practice that had invoiced fifty thousand.</para>
 ///
+/// <para>Beside the gap, the boni and mali: the gap is a question of rhythm, and this one is a
+/// question of price. They are deliberately not added together.</para>
+///
 /// <para>The window ends on the current month, which is in progress, its gap is expected, and the
 /// expanded view says so rather than letting it read as a miss.</para>
 /// </summary>
@@ -58,8 +61,10 @@ public static class HonorairesQuery
             {
                 invoice.Date,
                 invoice.AmountExclVatCents,
+                invoice.BilledTimeCents,
                 invoice.IsPaid,
                 invoice.IsHistorical,
+                invoice.IsAbandon,
             })
             .ToListAsync(cancellationToken);
 
@@ -76,17 +81,26 @@ public static class HonorairesQuery
 
             var issued = invoices.Where(invoice => invoice.Date >= month && invoice.Date < next).ToList();
 
+            // An abandon is a facture record because it does a facture's one structural job, taking
+            // lines out of the unbilled total. It is not turnover, so it is out of every bar; it is
+            // an arbitrage on price, so it is in the variance.
+            var billed = issued.Where(invoice => !invoice.IsAbandon).ToList();
+
             months.Add(new HonoraireMonth(
                 month,
                 billable,
-                issued.Sum(invoice => invoice.AmountExclVatCents),
-                issued.Where(invoice => invoice.IsHistorical).Sum(invoice => invoice.AmountExclVatCents),
+                billed.Sum(invoice => invoice.AmountExclVatCents),
+                billed.Where(invoice => invoice.IsHistorical).Sum(invoice => invoice.AmountExclVatCents),
                 // Paid is the settled part of what is not historical, since that is the part the
                 // month's own segments split.
-                issued.Where(invoice => invoice.IsPaid && !invoice.IsHistorical)
+                billed.Where(invoice => invoice.IsPaid && !invoice.IsHistorical)
                     .Sum(invoice => invoice.AmountExclVatCents),
                 costs.Where(cost => cost.Date >= month && cost.Date < next)
-                    .Sum(cost => cost.AmountExclVatCents)));
+                    .Sum(cost => cost.AmountExclVatCents),
+                // Only what attached hours: a facture with none has no gap to report, which is also
+                // what a reprise has.
+                issued.Where(invoice => invoice.BilledTimeCents != 0)
+                    .Sum(invoice => invoice.AmountExclVatCents - invoice.BilledTimeCents)));
         }
 
         return new DashboardHonoraires(
@@ -96,6 +110,7 @@ public static class HonorairesQuery
             months.Sum(month => month.HistoricalCents),
             months.Sum(month => month.PaidCents),
             months.Sum(month => month.SubcontractedCents),
+            months.Sum(month => month.VarianceCents),
             Scale(months));
     }
 

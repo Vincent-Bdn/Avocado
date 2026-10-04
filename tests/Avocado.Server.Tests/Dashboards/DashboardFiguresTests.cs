@@ -33,7 +33,12 @@ public class DashboardFiguresTests : IDisposable
         });
     }
 
-    private BillingInvoice Invoice(DateOnly date, long cents, bool historical = false, long billedTimeCents = 0) =>
+    private BillingInvoice Invoice(
+        DateOnly date,
+        long cents,
+        bool historical = false,
+        long billedTimeCents = 0,
+        bool abandon = false) =>
         _vault.Save(new BillingInvoice
         {
             MatterId = _matter.Id,
@@ -41,6 +46,7 @@ public class DashboardFiguresTests : IDisposable
             AmountExclVatCents = cents,
             BilledTimeCents = billedTimeCents,
             IsHistorical = historical,
+            IsAbandon = abandon,
             IsPaid = true,
         });
 
@@ -124,6 +130,35 @@ public class DashboardFiguresTests : IDisposable
     }
 
     /// <summary>
+    /// A dossier au forfait belongs on the accueil, and its hours do not.
+    ///
+    /// <para>The card put « 13 h » next to a 2 000 € that is a price agreed in advance: not the value
+    /// of those hours, and unmoved when they change. The amount is the forfait's business, the hours
+    /// are nobody's, and the row says « forfait » instead.</para>
+    /// </summary>
+    [Fact]
+    public async Task LeavesAForfaitsHoursOutOfTheHoursBehindTheTotal()
+    {
+        _matter.FixedFeeCents = 300_000;
+
+        // Long ago, so it would also land in « de plus de 60 jours » if it counted at all.
+        Minutes(new DateOnly(2026, 1, 20), 780);
+        Invoice(new DateOnly(2026, 9, 30), 100_000);
+
+        var unbilled = await UnbilledAsync();
+        var row = Assert.Single(unbilled.Matters);
+
+        Assert.True(row.IsFixedFee);
+        Assert.Equal(200_000, row.LeftToBillCents);
+        Assert.Equal(200_000, unbilled.TotalCents);
+
+        // The minutes are on the row, for whoever wants them; they are not behind the headline.
+        Assert.Equal(780, row.BillableMinutes);
+        Assert.Equal(0, unbilled.TotalBillableMinutes);
+        Assert.Equal(0, unbilled.AgedOverSixtyDaysCents);
+    }
+
+    /// <summary>
     /// Hours attached to a facture left the unbilled total when it was issued. The accueil counted
     /// them anyway, which is the other way it disagreed with the fiche.
     /// </summary>
@@ -202,6 +237,55 @@ public class DashboardFiguresTests : IDisposable
         Assert.Equal(600_000, july.InvoicedCents);
         Assert.Equal(100_000, july.CurrentCents);
         Assert.Equal(140_000, july.GapCents);
+    }
+
+    /// <summary>
+    /// The arbitrages on price, which the chart had nowhere until two lawyers asked for them by name.
+    ///
+    /// <para>They are not the écart and are never added to it: the écart is about when she billed,
+    /// this is about at what price. A facture that attached no hours decided nothing and so counts
+    /// zero, which is the same thing a reprise does.</para>
+    /// </summary>
+    [Fact]
+    public async Task AddsUpTheArbitragesOnPrice()
+    {
+        // 7 200 € of hours billed 6 000 €: a mali of 1 200 € she granted.
+        Invoice(new DateOnly(2026, 7, 20), 600_000, billedTimeCents: 720_000);
+        // And 2 000 € of hours billed 2 500 €.
+        Invoice(new DateOnly(2026, 7, 22), 250_000, billedTimeCents: 200_000);
+        // Typed in with no lines behind it: nothing was decided, so it says nothing.
+        Invoice(new DateOnly(2026, 8, 3), 400_000);
+
+        var chart = await ChartAsync();
+        var july = Assert.Single(chart.Months, month => month.Month == new DateOnly(2026, 7, 1));
+        var august = Assert.Single(chart.Months, month => month.Month == new DateOnly(2026, 8, 1));
+
+        Assert.Equal(-70_000, july.VarianceCents);
+        Assert.Equal(0, august.VarianceCents);
+        Assert.Equal(-70_000, chart.VarianceCents);
+    }
+
+    /// <summary>
+    /// An abandon is a facture row because it does a facture's one structural job, taking lines out
+    /// of the unbilled total. It is not turnover, so no bar may show it; it is the largest arbitrage
+    /// there is, so the mali must.
+    ///
+    /// <para>The abandon here carries an amount, which a real one never does: it is the same row as a
+    /// facture and only <see cref="BillingInvoice.IsAbandon"/> separates the two, so a figure that
+    /// happens to come out right because the amount is zero is a figure keyed on the wrong column.
+    /// With the flag ignored, 1 000 € of turnover reads 1 400 €.</para>
+    /// </summary>
+    [Fact]
+    public async Task KeepsAnAbandonOutOfTurnoverAndInsideTheMali()
+    {
+        Invoice(new DateOnly(2026, 7, 20), 100_000, billedTimeCents: 100_000);
+        Invoice(new DateOnly(2026, 7, 28), 40_000, billedTimeCents: 150_000, abandon: true);
+
+        var july = Assert.Single((await ChartAsync()).Months, month => month.Month == new DateOnly(2026, 7, 1));
+
+        Assert.Equal(100_000, july.InvoicedCents);
+        Assert.Equal(100_000, july.PaidCents);
+        Assert.Equal(-110_000, july.VarianceCents);
     }
 
     /// <summary>And what she actually recorded still draws the gap it should.</summary>

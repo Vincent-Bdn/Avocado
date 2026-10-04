@@ -6,10 +6,14 @@ import type { BillingSummary } from '../types.js'
  * The fiche's context panel and the Facturation tab must never disagree, so the reading of a
  * BillingSummary lives here rather than being decided twice.
  *
- * Two states, not one. While there are hours to bill the question is « combien », and the answer is
- * ochre because it is money not yet asked for. Once everything is billed that question has no
- * meaning, « reste à facturer : −150 € » is a provision showing through, and the figure that
- * matters becomes the boni or the mali: where the practice made money and where it gave some away.
+ * Two states, not three. While there is something to bill the question is « combien », and the
+ * answer is ochre because it is money not yet asked for. Once there is nothing left the figure that
+ * matters is what the dossier earned against what its hours were worth.
+ *
+ * It used to switch on « no hours left and something invoiced », because the old « reste à facturer »
+ * went negative whenever a provision outlived the time it stood against, and a negative headline had
+ * to be hidden. Provisions are cash now and the figure cannot go below zero, so the switch is simply
+ * whether anything is left.
  */
 export interface BillingReading {
   settled: boolean
@@ -21,13 +25,11 @@ export interface BillingReading {
 }
 
 export function readBilling(summary: BillingSummary): BillingReading {
-  const settled = summary.billableMinutes === 0 && summary.invoicedCents > 0
-
-  if (!settled) {
+  if (summary.leftToBillCents > 0) {
     return {
       settled: false,
       headline: summary.leftToBillCents,
-      caption: 'Reste à facturer',
+      caption: summary.fixedFeeCents === null ? 'Reste à facturer' : 'Reste du forfait',
       tone: 'accent',
     }
   }

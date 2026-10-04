@@ -157,9 +157,9 @@ public static class GetDashboard
     }
 
     /// <summary>
-    /// « Temps saisi non facturé », the only large number in the application, and the most forgotten
-    /// thing in a solo practice. Per matter it is <c>unbilled time − ledger − factures that reduce
-    /// it</c>, by <see cref="BillingRules"/>, which is the same arithmetic the fiche does.
+    /// « Reste à facturer », the only large number in the application, and the most forgotten thing in
+    /// a solo practice. Per matter it is <see cref="BillingSummary.LeftToBill"/>, the fiche's own
+    /// function rather than a copy of it.
     ///
     /// <para>It used to be its own arithmetic and disagreed with the fiche twice over: it counted
     /// hours already attached to a facture, and subtracted every facture rather than the hand-recorded
@@ -228,10 +228,15 @@ public static class GetDashboard
             {
                 var unbilledCents = group.Sum(entry => entry.RateCents * entry.DurationMinutes / 60);
 
+                var forfait = forfaitByMatter.TryGetValue(group.Key.MatterId, out var agreed)
+                    ? (long?)agreed
+                    : null;
+
                 return new
                 {
                     group.Key.MatterId,
                     group.Key.MatterName,
+                    IsFixedFee = forfait is not null,
                     Minutes = group.Sum(entry => entry.DurationMinutes),
                     // The fiche's own function, not a copy of it. The accueil has disagreed with the
                     // fiche twice already, both times because this arithmetic was written out again.
@@ -239,7 +244,7 @@ public static class GetDashboard
                         unbilledCents,
                         invoicedByMatter.GetValueOrDefault(group.Key.MatterId),
                         legacyByMatter.GetValueOrDefault(group.Key.MatterId),
-                        forfaitByMatter.TryGetValue(group.Key.MatterId, out var forfait) ? forfait : null),
+                        forfait),
                     AgedCents = group
                         .Where(entry => entry.Date < ageingCutoff)
                         .Sum(entry => entry.RateCents * entry.DurationMinutes / 60),
@@ -249,13 +254,17 @@ public static class GetDashboard
             .OrderByDescending(matter => matter.LeftToBillCents)
             .ToList();
 
+        // Hours and ageing describe the dossiers billed at the hour. At a forfait the price was
+        // agreed in advance, so its hours are neither behind the total nor late.
+        var hourly = perMatter.Where(matter => !matter.IsFixedFee).ToList();
+
         return new DashboardUnbilled(
             perMatter.Sum(matter => matter.LeftToBillCents),
-            perMatter.Sum(matter => matter.Minutes),
+            hourly.Sum(matter => matter.Minutes),
             perMatter.Count,
-            perMatter.Sum(matter => matter.AgedCents),
+            hourly.Sum(matter => matter.AgedCents),
             [.. perMatter.Select(matter => new DashboardUnbilledMatter(
-                matter.MatterId, matter.MatterName, matter.Minutes, matter.LeftToBillCents))]);
+                matter.MatterId, matter.MatterName, matter.Minutes, matter.LeftToBillCents, matter.IsFixedFee))]);
     }
 
     /// <summary>One client, deliberately, the first by creation order.</summary>

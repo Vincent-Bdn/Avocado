@@ -32,7 +32,14 @@ interface DashboardSummary {
     totalBillableMinutes: number
     matterCount: number
     agedOverSixtyDaysCents: number
-    matters: { matterId: string; matterName: string; billableMinutes: number; leftToBillCents: number }[]
+    matters: {
+      matterId: string
+      matterName: string
+      billableMinutes: number
+      leftToBillCents: number
+      /** At a forfait the amount is not the value of the hours, so the row stops showing them. */
+      isFixedFee: boolean
+    }[]
   }
   recentMatters: {
     id: string
@@ -305,7 +312,9 @@ function Unbilled({ data, onOpenMatter }: {
   return (
     <section className="overflow-hidden rounded-md border border-[#E8D5AE] bg-[#FDF8ED]">
       <div className="px-3.5 pt-3 pb-2.5 text-[#6E4A0E]">
-        <SectionTitle className="text-[#6E4A0E]">Temps saisi non facturé</SectionTitle>
+        {/* « Temps saisi non facturé » until a dossier au forfait appeared in it, whose amount is
+            a price agreed in advance and not time at all. */}
+        <SectionTitle className="text-[#6E4A0E]">Reste à facturer</SectionTitle>
 
         <div className="font-mono text-[28px] leading-[34px] font-semibold tracking-[-0.02em] tnum">
           {formatEuros(data.unbilled.totalCents)}
@@ -313,7 +322,8 @@ function Unbilled({ data, onOpenMatter }: {
 
         <div className="mt-0.5 flex items-baseline gap-2">
           <span className="font-mono text-[11px] tnum">
-            {formatDuration(data.unbilled.totalBillableMinutes)} facturables sur{' '}
+            {data.unbilled.totalBillableMinutes > 0 &&
+              `${formatDuration(data.unbilled.totalBillableMinutes)} facturables sur `}
             {data.unbilled.matterCount} dossier{data.unbilled.matterCount > 1 ? 's' : ''}
           </span>
 
@@ -337,7 +347,7 @@ function Unbilled({ data, onOpenMatter }: {
           >
             <span className="truncate text-[11.5px]">{matter.matterName}</span>
             <span className="text-right font-mono text-[11px] text-ink-secondary tnum">
-              {formatDuration(matter.billableMinutes)}
+              {matter.isFixedFee ? 'forfait' : formatDuration(matter.billableMinutes)}
             </span>
             <span className="text-right font-mono text-[11.5px] font-medium tnum">
               {formatEuros(matter.leftToBillCents)}
@@ -349,7 +359,9 @@ function Unbilled({ data, onOpenMatter }: {
           <div className="grid h-7 grid-cols-[minmax(0,1fr)_66px_92px] items-center gap-2 border-t border-[#F2E7D2] px-3.5 text-muted">
             <span className="truncate text-[11.5px]">{rest.length} autres dossiers</span>
             <span className="text-right font-mono text-[11px] tnum">
-              {formatDuration(rest.reduce((total, matter) => total + matter.billableMinutes, 0))}
+              {formatDuration(rest
+                .filter((matter) => !matter.isFixedFee)
+                .reduce((total, matter) => total + matter.billableMinutes, 0))}
             </span>
             <span className="text-right font-mono text-[11.5px] tnum">
               {formatEuros(rest.reduce((total, matter) => total + matter.leftToBillCents, 0))}

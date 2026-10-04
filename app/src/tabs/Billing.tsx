@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Check, FileSpreadsheet, FileText, HandCoins, ListChecks, PenLine,
+  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, FileSpreadsheet, FileText, HandCoins, ListChecks, PenLine,
   Pencil, Trash2, X,
 } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
@@ -14,10 +14,10 @@ import { SplitButton, SplitButtonItem } from '../components/ui/split-button.js'
 import { useToasts } from '../components/ui/toast.js'
 import { cn } from '../lib/utils.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
-import { BillingFigures, readBilling } from '../lib/billing.js'
+import { BillingFigures, billingTone, readBilling } from '../lib/billing.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
-import type { ContactSummary } from '../types.js'
+import type { BillingSummary, ContactSummary } from '../types.js'
 
 type MovementKind = 'Receipt' | 'Disbursement'
 
@@ -28,7 +28,7 @@ interface BillingInvoice {
   amountExclVatCents: number
   isPaid: boolean
   paidOn: string | null
-  /** Brought over from before Avocado. Counts as facturé, never against « reste à facturer ». */
+  /** Brought over from before Avocado. Shown as a reprise; otherwise an ordinary facture. */
   isHistorical: boolean
   discountBasisPoints: number | null
   discountReason: string | null
@@ -73,17 +73,7 @@ interface BillingMovement {
 }
 
 interface BillingOverview {
-  summary: {
-    billableTimeCents: number
-    billableMinutes: number
-    ledgerCents: number
-    invoicedCents: number
-    manualInvoicedCents: number
-    varianceCents: number
-    subcontractedCents: number
-    netCents: number
-    leftToBillCents: number
-  }
+  summary: BillingSummary
   invoices: BillingInvoice[]
   invoicedOutstandingCents: number
   ledger: BillingMovement[]
@@ -177,91 +167,82 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
   const { summary, statement } = data
 
   // Same reading as the fiche's context panel, from the same place, so the two cannot disagree.
-  const { settled } = readBilling(summary)
+  const reading = readBilling(summary)
+  const forfait = summary.fixedFeeCents
 
   return (
     <TabPanel className="relative">
       {toasts.view}
 
       {/*
-        Two different questions, and only one of them is ever the live one. While there are hours to
-        bill, the answer is « combien » and the subtraction has to be checkable by eye. Once
-        everything is billed, « reste à facturer : −150 € » is not an answer at all, it is a
-        provision showing through, so the card switches to what she actually wants then: what the
-        dossier earned against what its hours were worth.
+        One card, not two. It used to switch between « combien reste-t-il » and « qu'a rapporté ce
+        dossier », because the old « reste à facturer » went negative whenever a provision outlived
+        the time it stood against, and a negative headline had to be hidden. Provisions are cash now
+        and the figure cannot go below zero, so there is one card and it says what is true.
+
+        Nothing here is a compound subtraction except the forfait, where the subtraction actually
+        ties. Three figures that each answer a question, then the adjustments, each on its own line.
       */}
-      {settled ? (
-        <section className="rounded-md border border-[#BFD3C5] bg-[#F4F8F5] px-4 py-3.5 text-brand-on-subtle">
-          <div className="mb-1.5 flex items-center gap-1.5 text-[12px] font-medium">
-            <Check size={13} strokeWidth={2.5} />
-            Tout le temps saisi est facturé
-          </div>
+      <section className={cn('rounded-md border px-4 py-3.5', billingTone[reading.tone])}>
+        <BillingFigures summary={summary} />
 
-          <BillingFigures summary={summary} />
+        <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
+          <Line label="Travaillé" value={formatEuros(summary.workedCents)} />
 
-          {summary.varianceCents !== 0 && (
-            <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
-              <Line
-                label="Valeur des heures facturées"
-                value={formatEuros(summary.invoicedCents - summary.varianceCents)}
-              />
+          {forfait === null ? (
+            <>
               <Line label="Facturé" value={formatEuros(summary.invoicedCents)} />
-              <div
-                className={cn(
-                  'mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold',
-                  summary.varianceCents > 0 ? 'text-success' : 'text-warning',
-                )}
-              >
-                <span>= {summary.varianceCents > 0 ? 'Boni' : 'Mali'}</span>
-                <span>
-                  {summary.varianceCents > 0 ? '+ ' : '− '}
-                  {formatEuros(Math.abs(summary.varianceCents))}
-                </span>
+              <Line label="Encaissé" value={formatEuros(summary.collectedCents)} />
+            </>
+          ) : (
+            <>
+              <Line label="Encaissé" value={formatEuros(summary.collectedCents)} />
+              <Line label="Forfait convenu" value={formatEuros(forfait)} />
+              <Line label="− Facturé" value={formatEuros(summary.invoicedCents)} />
+              <div className="mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold">
+                <span>= Reste du forfait</span>
+                <span>{formatEuros(summary.leftToBillCents)}</span>
               </div>
-            </div>
+            </>
           )}
+        </div>
 
-          {summary.leftToBillCents < 0 && (
-            <p className="m-0 mt-2 text-[11px] leading-4">
-              Le client est en avance de {formatEuros(-summary.leftToBillCents)}.
-            </p>
-          )}
-        </section>
-      ) : (
-        <section className="rounded-md border border-[#E8D5AE] bg-[#FDF8ED] px-4 py-3.5 text-[#6E4A0E]">
-          <BillingFigures summary={summary} />
-
-          <div className="mt-2.5 grid gap-0.5 rounded-sm bg-panel px-2.5 py-2 font-mono text-[12px] text-ink tnum">
-            <Line label="Temps non facturé" value={formatEuros(summary.billableTimeCents)} />
-            <Line label="− Mouvements" value={formatEuros(summary.ledgerCents)} />
-            <Line label="− Factures libres" value={formatEuros(summary.manualInvoicedCents)} />
-            <div className="mt-1 flex justify-between border-t border-line-subtle pt-1 font-semibold">
-              <span>= Reste à facturer</span>
-              <span>{formatEuros(summary.leftToBillCents)}</span>
-            </div>
-          </div>
-
-          {/* Boni or mali: what she chose to bill above or below the hours, accumulated. */}
+        <div className="mt-2 grid gap-1.5">
           {summary.varianceCents !== 0 && (
-            <div className="mt-2 border-t border-[#E8D5AE] pt-1.5">
-              <div className="type-group opacity-80">
-                {summary.varianceCents > 0 ? 'Boni' : 'Mali'}
-              </div>
-              <div className="font-mono text-[15px] leading-5 font-semibold tnum">
-                {summary.varianceCents > 0 ? '+ ' : '− '}
-                {formatEuros(Math.abs(summary.varianceCents))}
-              </div>
-            </div>
+            <Aside
+              tone={summary.varianceCents > 0 ? 'good' : 'bad'}
+              label={summary.varianceCents > 0 ? 'Boni' : 'Mali'}
+              value={`${summary.varianceCents > 0 ? '+ ' : '− '}${formatEuros(Math.abs(summary.varianceCents))}`}
+              detail="Écart entre ce qui a été facturé et ce que valaient les heures rattachées."
+            />
           )}
 
-          <p className="m-0 mt-2 text-[11px] leading-4">
-            {formatDuration(summary.billableMinutes)} facturables.{' '}
-            {statement.since
-              ? `Dernière facture le ${new Date(statement.since).toLocaleDateString('fr-FR')}.`
-              : 'Aucune facture enregistrée pour l’instant.'}
-          </p>
-        </section>
-      )}
+          {summary.owedCents !== 0 && (
+            <Aside
+              label={summary.owedCents > 0 ? 'Reste dû par le client' : 'Payé d’avance'}
+              value={formatEuros(Math.abs(summary.owedCents))}
+              detail={summary.owedCents > 0
+                ? 'Factures émises, pas encore encaissées.'
+                : 'Provisions reçues au-delà de ce qui a été facturé.'}
+            />
+          )}
+
+          {summary.disbursementsCents !== 0 && (
+            <Aside
+              label="Débours à refacturer"
+              value={formatEuros(summary.disbursementsCents)}
+              detail="Avancés pour le compte du client."
+            />
+          )}
+        </div>
+
+        <p className="m-0 mt-2 text-[11px] leading-4">
+          {formatDuration(summary.unbilledMinutes)} non facturées.{' '}
+          {statement.since
+            ? `Dernière facture le ${new Date(statement.since).toLocaleDateString('fr-FR')}.`
+            : 'Aucune facture enregistrée pour l’instant.'}
+        </p>
+      </section>
 
       {error && <p className="m-0 text-danger">{error}</p>}
 
@@ -363,7 +344,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
 
                 <RowAmount>{formatEuros(invoice.amountExclVatCents)}</RowAmount>
                 {invoice.isHistorical && (
-                  <span title="Reprise de l’ancien logiciel : facturée, hors reste à facturer.">
+                  <span title="Reprise de l’ancien logiciel.">
                     <Badge tone="neutral">antérieure</Badge>
                   </span>
                 )}
@@ -418,7 +399,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
       <section className="grid gap-2">
         <h3 className="type-title m-0">Mouvements</h3>
         <Micro>
-          Provisions reçues et frais avancés pour le client, déduits du reste à facturer.
+          Provisions reçues et frais avancés pour le client. Sans effet sur le reste à facturer.
         </Micro>
 
         {isOpen && (
@@ -587,6 +568,31 @@ const Line = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between">
     <span>{label}</span>
     <span>{value}</span>
+  </div>
+)
+
+/**
+ * One adjustment, with what it means next to it. Boni, reste dû and débours used to be stacked into
+ * a single figure, which is how « reste à facturer » became a number nobody could take apart.
+ */
+const Aside = ({ label, value, detail, tone }: {
+  label: string
+  value: string
+  detail: string
+  tone?: 'good' | 'bad'
+}) => (
+  <div className="flex items-baseline gap-2 text-[11.5px] leading-4">
+    <span className="type-group opacity-80">{label}</span>
+    <span
+      className={cn(
+        'font-mono text-[13px] font-semibold tnum',
+        tone === 'good' && 'text-success',
+        tone === 'bad' && 'text-warning',
+      )}
+    >
+      {value}
+    </span>
+    <span className="min-w-0 flex-1 opacity-80">{detail}</span>
   </div>
 )
 
@@ -818,8 +824,7 @@ function InvoiceDialog({ matterId, onCancel, onSaved }: {
   return (
     <Dialog title="Saisir une facture établie ailleurs" onClose={onCancel}>
       <p className="m-0 text-[12.5px] leading-[19px] text-muted">
-        Pour une facture sans heures saisies ici : forfait, provision, régularisation. Retranchée
-        du reste à facturer.
+        Pour une facture sans heures saisies ici. Comptée comme facturée, sans rattacher de temps.
       </p>
 
       <InvoiceForm matterId={matterId} onSaved={onSaved} onCancel={onCancel} bare />
@@ -923,12 +928,12 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
           Payée
         </label>
 
-        {/* The escape hatch for a facture whose hours were never recorded here. Without it, « reste
-            à facturer » subtracts the whole amount and a dossier repris de Gestisoft opens at
-            − 8 974 €. */}
+        {/* Says where a facture came from, and nothing more. It used to be the escape hatch that
+            kept « reste à facturer » from subtracting a facture whose hours were never recorded
+            here; no facture subtracts anything now, so it is a label. */}
         <label
           className="flex items-center gap-2 text-[13px]"
-          title="Émise ailleurs : facturée, mais pas déduite du reste à facturer."
+          title="Reprise de l’ancien logiciel, émise avant Avocado."
         >
           <input
             type="checkbox"
@@ -1188,8 +1193,8 @@ function MovementDialog({ matterId, kind, onCancel, onSaved }: {
     >
       <p className="m-0 text-[12.5px] leading-[19px] text-muted">
         {kind === 'Receipt'
-          ? 'Reçue du client avant facturation : réduit le reste à facturer.'
-          : 'Avancée pour le compte du client : augmente le reste à facturer.'}
+          ? 'Reçue du client avant facturation : compte comme encaissée.'
+          : 'Avancée pour le compte du client : à lui refacturer.'}
       </p>
 
       <MovementForm matterId={matterId} initialKind={kind} onSaved={onSaved} onCancel={onCancel} bare />

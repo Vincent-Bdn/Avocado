@@ -12,7 +12,7 @@ namespace Avocado.Server.Features.Dashboards.ValueObjects;
 /// <param name="InvoicedCents">
 /// Every facture dated in that month, whatever work it covers, historical ones included. It is real
 /// turnover and belongs on the chart; what it does not belong in is the comparison, which is
-/// <see cref="GapCents"/>'s business and not this one's.
+/// <see cref="GapCents"/>'s business and not this one's. An abandon is not turnover and is absent.
 /// </param>
 /// <param name="HistoricalCents">
 /// The part of that brought over from before Avocado. Drawn as its own segment so a month of migrated
@@ -33,13 +33,28 @@ namespace Avocado.Server.Features.Dashboards.ValueObjects;
 /// charged for them. Netting it off is what makes the gap mean « ai-je facturé ce que j'ai
 /// travaillé » rather than « ai-je facturé plus que je n'ai travaillé moi-même ».
 /// </param>
+/// <param name="VarianceCents">
+/// Boni (positive) or mali (negative) on the factures issued that month: what she billed, less what
+/// the hours she attached to them were worth.
+///
+/// <para><b>Not the same question as <see cref="GapCents"/></b>, and the two are next to each other
+/// so that is visible. The écart is about timing: work recorded in février and billed in mars opens
+/// a gap in février and closes it in mars, and nobody decided anything. This is about price: she
+/// looked at 7 200 € of hours and billed 6 000 €. One is a rhythm, the other is an arbitrage, and
+/// collapsing them into a single « reste à facturer » is what made the figure unreadable.</para>
+///
+/// <para>A facture that attached no hours has nothing to compare and contributes zero. An abandon
+/// attaches hours and bills nothing, so it is a mali of everything it consumed, which is exactly
+/// what it is.</para>
+/// </param>
 public sealed record HonoraireMonth(
     DateOnly Month,
     long BillableCents,
     long InvoicedCents,
     long HistoricalCents,
     long PaidCents,
-    long SubcontractedCents)
+    long SubcontractedCents,
+    long VarianceCents)
 {
     /// <summary>Factures for work Avocado could have recorded. The only ones the gap can speak about.</summary>
     public long CurrentCents => InvoicedCents - HistoricalCents;
@@ -75,6 +90,10 @@ public sealed record HonoraireMonth(
 /// How much of the invoiced total was brought over from before Avocado. Shown on the card so the gap
 /// it is absent from can be explained rather than merely be smaller than expected.
 /// </param>
+/// <param name="VarianceCents">
+/// The practice's boni or mali over the window: every arbitrage she made on price, summed. The
+/// figure two lawyers asked for by name, and it existed per facture and nowhere else.
+/// </param>
 public sealed record DashboardHonoraires(
     IReadOnlyList<HonoraireMonth> Months,
     long BillableCents,
@@ -82,6 +101,7 @@ public sealed record DashboardHonoraires(
     long HistoricalCents,
     long PaidCents,
     long SubcontractedCents,
+    long VarianceCents,
     long ScaleCents)
 {
     public long CurrentCents => InvoicedCents - HistoricalCents;
