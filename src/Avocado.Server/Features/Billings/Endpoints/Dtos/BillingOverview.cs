@@ -15,8 +15,13 @@ public sealed record BillingInvoiceItem(
     /// <summary>Positive = boni, negative = mali. Zero on a hand-recorded facture.</summary>
     long VarianceCents,
     int BilledEntryCount,
-    /// <summary>Brought over for the history. Counts as facturé, never against « reste à facturer ».</summary>
+    /// <summary>Brought over for the history. Shown as a reprise; otherwise an ordinary facture.</summary>
     bool IsHistorical = false,
+    /// <summary>
+    /// Time written off rather than billed. Carries no amount, is not turnover, and is a mali of
+    /// everything it consumed. It shares this row because it does a facture's one structural job.
+    /// </summary>
+    bool IsAbandon = false,
     int? DiscountBasisPoints = null,
     string? DiscountReason = null,
     /// <summary>The facture's own PDF, in her folder. Null while she has only typed it in.</summary>

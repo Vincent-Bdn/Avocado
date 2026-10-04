@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, FileSpreadsheet, FileText, HandCoins, ListChecks, PenLine,
-  Pencil, Trash2, X,
+  ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Eraser, FileSpreadsheet, FileText, HandCoins, ListChecks,
+  PenLine, Pencil, Trash2, X,
 } from 'lucide-react'
 import { ApiError, api, post, saveAs } from '../api.js'
 import { DropFactures } from './DropFactures.js'
@@ -30,6 +30,8 @@ interface BillingInvoice {
   paidOn: string | null
   /** Brought over from before Avocado. Shown as a reprise; otherwise an ordinary facture. */
   isHistorical: boolean
+  /** Temps soldé en mali : pas une facture, pas du chiffre d’affaires. */
+  isAbandon: boolean
   discountBasisPoints: number | null
   discountReason: string | null
   /** The facture's own PDF, in her folder. Null while she has only typed the line in. */
@@ -106,7 +108,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
   const [error, setError] = useState<string | null>(null)
   const [editingInvoice, setEditingInvoice] = useState<string | null>(null)
   const [editingMovement, setEditingMovement] = useState<string | null>(null)
-  const [billing, setBilling] = useState<'time' | 'manual' | null>(null)
+  const [billing, setBilling] = useState<'time' | 'manual' | 'abandon' | null>(null)
   const [movement, setMovement] = useState<MovementKind | null>(null)
   const [addingCost, setAddingCost] = useState(false)
   const [editingCost, setEditingCost] = useState<string | null>(null)
@@ -208,7 +210,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
         </div>
 
         <div className="mt-2 grid gap-1.5">
-          {summary.varianceCents !== 0 && (
+          {summary.varianceCents !== 0 && reading.caption !== 'Mali' && (
             <Aside
               tone={summary.varianceCents > 0 ? 'good' : 'bad'}
               label={summary.varianceCents > 0 ? 'Boni' : 'Mali'}
@@ -237,7 +239,9 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
         </div>
 
         <p className="m-0 mt-2 text-[11px] leading-4">
-          {formatDuration(summary.unbilledMinutes)} non facturées.{' '}
+          {summary.unbilledMinutes === 0
+            ? 'Plus aucune heure en attente.'
+            : `${formatDuration(summary.unbilledMinutes)} non facturées.`}{' '}
           {statement.since
             ? `Dernière facture le ${new Date(statement.since).toLocaleDateString('fr-FR')}.`
             : 'Aucune facture enregistrée pour l’instant.'}
@@ -268,6 +272,14 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
                   detail="Un montant et une référence, sans rattacher d’heures"
                   onClick={() => { close(); setBilling('manual') }}
                 />
+                {/* Without this, hours she has decided never to bill wait in « reste à facturer »
+                    for ever and the dossier never settles. */}
+                <SplitButtonItem
+                  icon={<Eraser size={14} strokeWidth={1.75} />}
+                  title="Solder du temps en mali"
+                  detail="Des heures qui ne seront pas facturées"
+                  onClick={() => { close(); setBilling('abandon') }}
+                />
               </>
             )}
           </SplitButton>
@@ -289,9 +301,10 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
           />
         )}
 
-        {billing === 'time' && (
+        {(billing === 'time' || billing === 'abandon') && (
           <BillTimeDialog
             matterId={matterId}
+            abandon={billing === 'abandon'}
             onCancel={() => setBilling(null)}
             onBilled={() => { setBilling(null); refresh() }}
           />
@@ -319,7 +332,11 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
               <Row key={invoice.id} className="group">
                 <RowDate>{new Date(invoice.date).toLocaleDateString('fr-FR')}</RowDate>
                 <RowMain>
-                  <span>{invoice.externalReference ?? 'Sans référence'}</span>
+                  <span>
+                    {invoice.isAbandon
+                      ? 'Temps non facturé'
+                      : invoice.externalReference ?? 'Sans référence'}
+                  </span>
                   {/* Filed by dropping the PDF on this tab. Opening it is the whole point of having
                       attached it: « la facture 92, c'était quoi déjà » answered without leaving the
                       dossier. */}
@@ -336,22 +353,32 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
                   {invoice.billedEntryCount > 0 && (
                     <Micro>
                       {invoice.billedEntryCount} ligne{invoice.billedEntryCount > 1 ? 's' : ''} de temps
-                      {invoice.varianceCents !== 0 &&
+                      {!invoice.isAbandon && invoice.varianceCents !== 0 &&
                         ` · ${invoice.varianceCents > 0 ? 'boni' : 'mali'} ${formatEuros(Math.abs(invoice.varianceCents))}`}
                     </Micro>
                   )}
                 </RowMain>
 
-                <RowAmount>{formatEuros(invoice.amountExclVatCents)}</RowAmount>
+                {/* An abandon has no amount to show, so it shows what it cost instead. */}
+                <RowAmount className={invoice.isAbandon ? 'text-warning' : undefined}>
+                  {invoice.isAbandon
+                    ? `− ${formatEuros(invoice.billedTimeCents)}`
+                    : formatEuros(invoice.amountExclVatCents)}
+                </RowAmount>
+
                 {invoice.isHistorical && (
                   <span title="Reprise de l’ancien logiciel.">
                     <Badge tone="neutral">antérieure</Badge>
                   </span>
                 )}
 
-                <Badge tone={invoice.isPaid ? 'brand' : 'accent'}>
-                  {invoice.isPaid ? 'Payée' : 'En attente'}
-                </Badge>
+                {invoice.isAbandon ? (
+                  <Badge tone="accent">Soldé en mali</Badge>
+                ) : (
+                  <Badge tone={invoice.isPaid ? 'brand' : 'accent'}>
+                    {invoice.isPaid ? 'Payée' : 'En attente'}
+                  </Badge>
+                )}
 
                 <span className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   {invoice.billedEntryCount > 0 && (
@@ -620,8 +647,10 @@ const Actions = ({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
  * facturer ». Answering that question by date instead would break the first time an old entry is
  * corrected.
  */
-function BillTimeDialog({ matterId, onCancel, onBilled }: {
+function BillTimeDialog({ matterId, abandon, onCancel, onBilled }: {
   matterId: string
+  /** Solder en mali: the same line picker, with nothing billed at the end of it. */
+  abandon?: boolean
   onCancel: () => void
   onBilled: () => void
 }) {
@@ -669,7 +698,7 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
       return
     }
 
-    if (amount.trim() && billedCents === null) {
+    if (!abandon && amount.trim() && billedCents === null) {
       setError('Indiquez un montant positif, par exemple 6 000,00.')
       return
     }
@@ -681,9 +710,10 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
       await post(`/api/matters/${matterId}/invoices/from-time`, {
         timeEntryIds: [...selected],
         date,
-        amountExclVatCents: amount.trim() ? billedCents : null,
-        externalReference: reference.trim() || null,
-        isPaid: paid,
+        amountExclVatCents: abandon ? null : amount.trim() ? billedCents : null,
+        externalReference: abandon ? null : reference.trim() || null,
+        isPaid: !abandon && paid,
+        isAbandon: Boolean(abandon),
       })
 
       onBilled()
@@ -695,11 +725,22 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
   }
 
   return (
-    <Dialog title="Facturer du temps passé" width={640} onClose={onCancel}>
+    <Dialog
+      title={abandon ? 'Solder du temps en mali' : 'Facturer du temps passé'}
+      width={640}
+      onClose={onCancel}
+    >
+      {abandon && (
+        <p className="m-0 text-[12.5px] leading-[19px] text-muted">
+          Ces heures sortent du reste à facturer sans être facturées. Leur valeur devient un mali.
+        </p>
+      )}
+
       {entries.length === 0 ? (
         <p className="m-0 text-[12.5px] text-muted">
           Tout le temps facturable de ce dossier est déjà rattaché à une facture.
         </p>
+
       ) : (
         <>
           <div className="max-h-[280px] overflow-y-auto rounded-sm border border-line-subtle">
@@ -747,8 +788,8 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <Field label="Date de la facture">
+          {abandon ? (
+            <Field label="Date">
               <Input
                 inputSize="lg"
                 type="date"
@@ -756,29 +797,47 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
                 onChange={(event) => setDate(event.target.value)}
               />
             </Field>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Date de la facture">
+                <Input
+                  inputSize="lg"
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                />
+              </Field>
 
-            <Field label="Référence">
-              <Input
-                inputSize="lg"
-                value={reference}
-                placeholder="F-2026-014"
-                onChange={(event) => setReference(event.target.value)}
-              />
-            </Field>
+              <Field label="Référence">
+                <Input
+                  inputSize="lg"
+                  value={reference}
+                  placeholder="F-2026-014"
+                  onChange={(event) => setReference(event.target.value)}
+                />
+              </Field>
 
-            <Field label="Montant facturé HT">
-              <Input
-                inputSize="lg"
-                className="font-mono tnum"
-                value={amount}
-                placeholder={centsToAmount(timeCents)}
-                onChange={(event) => { setAmount(event.target.value); setError(null) }}
-              />
-            </Field>
-          </div>
+              <Field label="Montant facturé HT">
+                <Input
+                  inputSize="lg"
+                  className="font-mono tnum"
+                  value={amount}
+                  placeholder={centsToAmount(timeCents)}
+                  onChange={(event) => { setAmount(event.target.value); setError(null) }}
+                />
+              </Field>
+            </div>
+          )}
+
+          {abandon && timeCents > 0 && (
+            <div className="rounded-sm border border-[#E8D5AE] bg-[#FDF8ED] px-3 py-2 text-[12px] text-[#6E4A0E]">
+              <strong className="font-semibold">Mali de {formatEuros(timeCents)}</strong>{' '}
+              sur {formatDuration(minutes)} qui ne seront pas facturées.
+            </div>
+          )}
 
           {/* Stated the moment she types a different amount, not discovered afterwards. */}
-          {variance !== 0 && (
+          {!abandon && variance !== 0 && (
             <div
               className={cn(
                 'rounded-sm border px-3 py-2 text-[12px]',
@@ -796,10 +855,12 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
             </div>
           )}
 
-          <label className="flex items-center gap-2 text-[13px]">
-            <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
-            Déjà payée
-          </label>
+          {!abandon && (
+            <label className="flex items-center gap-2 text-[13px]">
+              <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
+              Déjà payée
+            </label>
+          )}
         </>
       )}
 
@@ -808,7 +869,7 @@ function BillTimeDialog({ matterId, onCancel, onBilled }: {
       <DialogActions>
         <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
         <Button size="lg" disabled={busy || chosen.length === 0} onClick={() => void bill()}>
-          Établir la facture
+          {abandon ? 'Solder en mali' : 'Établir la facture'}
         </Button>
       </DialogActions>
     </Dialog>

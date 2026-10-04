@@ -42,6 +42,7 @@ public static class GetBilling
                 invoice.AmountExclVatCents - invoice.BilledTimeCents,
                 database.TimeEntries.Count(entry => entry.InvoiceId == invoice.Id),
                 invoice.IsHistorical,
+                invoice.IsAbandon,
                 invoice.DiscountBasisPoints,
                 invoice.DiscountReason,
                 invoice.DocumentPath))
@@ -85,7 +86,10 @@ public static class GetBilling
                 cost.Invoice?.ExternalReference))
             .ToList();
 
-        var lastInvoiceDate = invoices.Count == 0 ? null : (DateOnly?)invoices.Max(i => i.Date);
+        // « Dernière facture le … ». An abandon is not one, and dating the sentence from the day she
+        // gave up on some hours would say the opposite of what happened.
+        var billed = invoices.Where(invoice => !invoice.IsAbandon).ToList();
+        var lastInvoiceDate = billed.Count == 0 ? null : (DateOnly?)billed.Max(i => i.Date);
 
         var sinceEntries = await database.TimeEntries
             .AsNoTracking()
