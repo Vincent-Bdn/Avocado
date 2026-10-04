@@ -14,7 +14,14 @@ import type { ContactSummary, MatterDetail, PracticeSettings } from './types.js'
 /** The one word the application interprets. Everything else is free text the practice can invent. */
 const LITIGATION = 'Contentieux'
 
-const suggestedClassifications = [LITIGATION, 'Conseil']
+/**
+ * Offered when the vault has nothing to offer, which is only ever the first dossier.
+ *
+ * <p>Two, and deliberately not a list of every nature a French practice might have. What gets
+ * suggested after that is what she has already written, so the field learns her vocabulary instead
+ * of teaching her ours, and « Arbitrage » never waits for a release.</p>
+ */
+const defaultClassifications = [LITIGATION, 'Conseil']
 
 /**
  * Creating and correcting a dossier are the same form. Creating also creates the client when there
@@ -30,6 +37,7 @@ export function MatterForm({ matter, onSaved, onCancel }: {
   const existingClient = matter?.parties.find((party) => party.isClient)
 
   const [contacts, setContacts] = useState<ContactSummary[]>([])
+  const [classifications, setClassifications] = useState<string[]>(defaultClassifications)
   const [clientId, setClientId] = useState(existingClient?.contactId ?? '')
   const [creatingClient, setCreatingClient] = useState(false)
   const [name, setName] = useState(matter?.name ?? '')
@@ -61,6 +69,14 @@ export function MatterForm({ matter, onSaved, onCancel }: {
 
   useEffect(() => {
     api<ContactSummary[]>('/api/contacts').then(setContacts).catch(() => setContacts([]))
+  }, [])
+
+  // Her own vocabulary first, ours only to fill the gaps. A vault that already says « Arbitrage »
+  // offers it; one that has never heard of it is not the poorer for our not guessing.
+  useEffect(() => {
+    api<string[]>('/api/matters/classifications')
+      .then((used) => setClassifications([...new Set([...used, ...defaultClassifications])]))
+      .catch(() => setClassifications(defaultClassifications))
   }, [])
 
   // The practice's rate is the starting point for a new dossier, and only that: it is copied onto
@@ -190,7 +206,7 @@ export function MatterForm({ matter, onSaved, onCancel }: {
           />
 
           <datalist id="matter-classifications">
-            {suggestedClassifications.map((candidate) => (
+            {classifications.map((candidate) => (
               <option key={candidate} value={candidate} />
             ))}
           </datalist>

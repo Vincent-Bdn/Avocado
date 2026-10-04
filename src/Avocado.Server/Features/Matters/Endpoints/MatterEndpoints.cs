@@ -8,6 +8,7 @@ public static class MatterEndpoints
 
         group.MapGet("/", ListMatters.HandleAsync);
         group.MapGet("/facets", GetMatterFacets.HandleAsync);
+        group.MapGet("/classifications", ListClassifications.HandleAsync);
         group.MapGet("/{id:guid}", GetMatter.HandleAsync);
         group.MapPost("/", CreateMatter.HandleAsync);
         group.MapPut("/{id:guid}", UpdateMatter.HandleAsync);

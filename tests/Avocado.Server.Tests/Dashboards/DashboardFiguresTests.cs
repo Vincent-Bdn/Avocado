@@ -315,7 +315,12 @@ public class DashboardFiguresTests : IDisposable
 /// </summary>
 internal sealed class FakeTimeProvider(DateTime now) : TimeProvider
 {
-    public override DateTimeOffset GetUtcNow() => new(now, TimeSpan.Zero);
+    private DateTime _now = now;
+
+    public override DateTimeOffset GetUtcNow() => new(_now, TimeSpan.Zero);
 
     public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+
+    /// <summary>For the tests where what is under test is what happens as time passes.</summary>
+    public void Advance(TimeSpan by) => _now = _now.Add(by);
 }

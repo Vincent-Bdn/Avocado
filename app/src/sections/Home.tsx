@@ -206,7 +206,10 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
           <Unbilled data={data} onOpenMatter={onOpenMatter} />
 
           <section>
-            <SectionTitle action="⌘K">Dossiers récemment touchés</SectionTitle>
+            {/* « Touchés » was the latest of five timestamps of work recorded against the
+                dossier, which meant an import floated every dossier in the cabinet to the top at
+                once. These are the ones she has opened. */}
+            <SectionTitle action="⌘K">Dossiers consultés</SectionTitle>
 
             <div className="overflow-hidden rounded-md border border-line-subtle">
               {data.recentMatters.map((matter, index) => (

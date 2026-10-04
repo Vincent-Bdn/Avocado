@@ -68,6 +68,7 @@ public static class GetDashboard
                 matter.Reference,
                 matter.Name,
                 ClientName = ClientNameOf(matter),
+                matter.LastViewedAt,
                 Last = database.Activities
                     .Where(activity => activity.MatterId == matter.Id)
                     .OrderByDescending(activity => activity.OccurredAt)
@@ -99,7 +100,11 @@ public static class GetDashboard
                 matter.Name,
                 matter.ClientName,
                 matter.Last,
-                TouchedAt = MatterTouch.Latest(
+                // « Dossiers consultés » : when she last opened the fiche. For one she has not
+                // opened since views were recorded, the latest work on it is the best guess there
+                // is, so the list is never empty on the day this ships and fills in as she works.
+                matter.LastViewedAt,
+                TouchedAt = matter.LastViewedAt ?? MatterTouch.Latest(
                     matter.Last == null ? null : matter.Last.OccurredAt,
                     matter.LastDocumentAt,
                     matter.LastTimeEntryAt,
@@ -107,7 +112,12 @@ public static class GetDashboard
                     matter.LastMovementAt),
             })
             .Where(matter => matter.TouchedAt != null)
-            .OrderByDescending(matter => matter.TouchedAt)
+            // Anything she has opened outranks anything she has not, whatever the dates say.
+            // Otherwise an import, which touches every dossier in the cabinet within the same
+            // second, buries the three fiches she actually worked in this morning, and that is the
+            // complaint this list exists to answer.
+            .OrderByDescending(matter => matter.LastViewedAt != null)
+            .ThenByDescending(matter => matter.TouchedAt)
             .Take(RecentMatterCount)
             .ToList();
 

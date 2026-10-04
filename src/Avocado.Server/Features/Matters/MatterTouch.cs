@@ -1,7 +1,12 @@
 namespace Avocado.Server.Features.Matters;
 
 /// <summary>
-/// « Dossiers récemment touchés » means every kind of work, not just the journal.
+/// The latest of everything recorded against a dossier.
+///
+/// <para>It used to order « dossiers récemment touchés » on the accueil. That list is « dossiers
+/// consultés » now, ordered by <see cref="Matter.LastViewedAt"/>; this remains the fallback for a
+/// dossier she has not opened since views were recorded, and the answer to « when did anything last
+/// happen here » wherever that is the question.</para>
 /// <para>
 /// An afternoon spent entering time and recording a provision leaves no journal entry, and a dossier
 /// that vanishes from the list on the day you actually worked on it teaches people not to trust the

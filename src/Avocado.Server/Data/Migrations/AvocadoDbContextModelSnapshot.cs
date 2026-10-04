@@ -577,6 +577,10 @@ namespace Avocado.Server.Data.Migrations
                         .HasColumnType("INTEGER")
                         .HasColumnName("is_favourite");
 
+                    b.Property<string>("LastViewedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("last_viewed_at");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(300)

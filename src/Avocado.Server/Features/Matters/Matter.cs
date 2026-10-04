@@ -76,6 +76,21 @@ public class Matter
     /// </summary>
     public string? DocumentsFolder { get; set; }
 
+    /// <summary>
+    /// When she last opened this dossier's fiche.
+    ///
+    /// <para>What « dossiers consultés » is ordered by. The accueil used to list « dossiers récemment
+    /// touchés », the latest of five timestamps of work recorded against the dossier, and a lawyer
+    /// asked for the one she meant: the dossiers she has been in. The two are not the same. Importing
+    /// four thousand messages touches every dossier in the cabinet at once and tells her nothing;
+    /// opening three fiches this morning is the list she wanted.</para>
+    ///
+    /// <para>Null for a dossier she has not opened since this existed, which is all of them on the
+    /// day it ships. The accueil falls back to the old recency for those, so the list is never empty
+    /// and corrects itself as she works.</para>
+    /// </summary>
+    public DateTimeOffset? LastViewedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 

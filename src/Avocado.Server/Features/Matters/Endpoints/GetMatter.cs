@@ -10,6 +10,47 @@ namespace Avocado.Server.Features.Matters.Endpoints;
 
 public static class GetMatter
 {
+    /// <summary>
+    /// How stale a recorded view has to be before opening the fiche writes another one.
+    ///
+    /// <para>The fiche refetches whenever anything on it changes, so recording every read would write
+    /// a row per keystroke in the journal. A minute is finer than « dossiers consultés » can show and
+    /// coarse enough that an afternoon on one dossier is a handful of writes.</para>
+    /// </summary>
+    private static readonly TimeSpan ViewGranularity = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Opening a fiche is what « consulter un dossier » means, so this is where it is recorded.
+    ///
+    /// <para>A write on a GET, deliberately. The alternative is asking the client to announce it, and
+    /// a client that forgets, or a second client that never knew, silently stops the list working.
+    /// Reading the fiche is the event; nothing else has to remember to say so.</para>
+    /// </summary>
+    private static async Task RecordViewAsync(
+        AvocadoDbContext database,
+        Matter matter,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+
+        if (matter.LastViewedAt is { } last && now - last < ViewGranularity)
+        {
+            return;
+        }
+
+        // The matter above is AsNoTracking, for the Include that follows it. One targeted update
+        // rather than loading it a second time, and UpdatedAt is left alone: she consulted the
+        // dossier, she did not change it.
+        await database.Matters
+            .Where(candidate => candidate.Id == matter.Id)
+            .ExecuteUpdateAsync(
+                update => update.SetProperty(candidate => candidate.LastViewedAt, now),
+                cancellationToken);
+
+        matter.LastViewedAt = now;
+    }
+
     public static async Task<IResult> HandleAsync(
         Guid id,
         AvocadoDbContext database,
@@ -26,6 +67,8 @@ public static class GetMatter
         {
             return Results.NotFound();
         }
+
+        await RecordViewAsync(database, matter, clock, cancellationToken);
 
         var today = DateOnly.FromDateTime(clock.GetLocalNow().DateTime);
 
