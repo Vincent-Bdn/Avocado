@@ -98,9 +98,9 @@ export function DropFactures({ matterId, invoices, onFiled }: {
             date: answer.read?.issuedOn?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
             reference: answer.read?.number ?? '',
             paid: answer.read?.paid ?? false,
-            // A facture with no line in Avocado is one whose hours were never recorded here, so it
-            // counts as facturé without reducing « reste à facturer ». That single flag is what
-            // stopped a dossier repris de Gestisoft opening at − 8 794 €.
+            // No matching facture in Avocado means its hours were never recorded here, so it
+            // is marked as a reprise. It changes no arithmetic now, since a facture only
+            // consumes the lines it actually took; it says where the turnover came from.
             historical: answer.suggestedInvoiceId === null,
           }
         }
@@ -293,7 +293,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                       </label>
                       <label
                         className="flex items-center gap-1.5 text-[12px]"
-                        title="Son temps n’a jamais été saisi ici : facturée, sans être déduite du reste à facturer."
+                        title="Émise avant Avocado : son temps n’a jamais été saisi ici."
                       >
                         <input
                           type="checkbox"
