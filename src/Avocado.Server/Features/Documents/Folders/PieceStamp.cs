@@ -42,15 +42,30 @@ public enum StampCorner
 /// False by default, and the default is the one her own tool chose: première page uniquement.
 /// Configurable because « page 3/7 » on every page is how some cabinets prove nothing was removed.
 /// </param>
+/// <param name="OpaqueBackground">
+/// A white rectangle behind the stamp, so the pièce shows through it nowhere.
+///
+/// <para>Most cabinet stamps are a transparent PNG or an SVG drawn on nothing, which is the right
+/// way to store a logo and the wrong way to land it on a scanned pièce: the text of the document
+/// comes through the gaps, crosses the dotted line, and the pièce number becomes hard to read on
+/// exactly the documents where it matters. « Mettre sur fond blanc et pas transparent. »</para>
+///
+/// <para><b>Off by default, deliberately.</b> It covers whatever it is drawn over, and the top-right
+/// corner of a conclusion or a facture is not always empty. Every practice already stamping has
+/// lined its stamp up against what the page looks like now, so this is hers to turn on.</para>
+/// </param>
 public sealed record StampOptions(
     StampCorner Corner = StampCorner.TopRight,
-    double WidthPoints = 120,
+    // About 3 cm. It was 120, which is 4,2 cm and reads as large on an A4: « réduire la taille du
+    // tampon ». A practice that has already saved a width keeps it; this is what a new one starts at.
+    double WidthPoints = 85,
     double MarginPoints = 18,
     double NumberXPercent = 62,
     double NumberYPercent = 92,
     double NumberSizePoints = 11,
     string? NumberColour = null,
-    bool EveryPage = false);
+    bool EveryPage = false,
+    bool OpaqueBackground = false);
 
 /// <summary>
 /// Puts the cabinet's stamp and a pièce number onto a PDF.
@@ -172,6 +187,14 @@ public static class PieceStamp
             var y = options.Corner is StampCorner.TopLeft or StampCorner.TopRight
                 ? options.MarginPoints
                 : pageHeight - stampHeight - options.MarginPoints;
+
+            // Under the stamp, so a transparent logo stops letting the pièce through. Drawn rather
+            // than composited into the image: her file stays the file she gave us, and turning this
+            // off puts the page back exactly as it was.
+            if (options.OpaqueBackground)
+            {
+                canvas.DrawRectangle(XBrushes.White, x, y, options.WidthPoints, stampHeight);
+            }
 
             canvas.DrawImage(image, x, y, options.WidthPoints, stampHeight);
 

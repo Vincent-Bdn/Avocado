@@ -646,7 +646,15 @@ interface StampOptions {
   numberSizePoints: number
   numberColour: string | null
   everyPage: boolean
+  /** A white rectangle under the stamp, so a transparent logo stops letting the pièce through. */
+  opaqueBackground: boolean
 }
+
+/**
+ * About 3 cm, matching <c>StampOptions.WidthPoints</c> on the backend. Only ever used when the
+ * panel has not read the stamp yet; the stored value is what a configured practice sees.
+ */
+const DEFAULT_WIDTH_POINTS = 85
 
 const CORNERS: { value: StampOptions['corner']; label: string }[] = [
   { value: 'TopRight', label: 'en haut à droite' },
@@ -801,7 +809,7 @@ function Stamp() {
    */
   async function render(width?: number) {
     const source = await (await blob('/api/settings/stamp/svg')).text()
-    const derived = await deriveFromSvg(source, width ?? view?.options.widthPoints ?? 120)
+    const derived = await deriveFromSvg(source, width ?? view?.options.widthPoints ?? DEFAULT_WIDTH_POINTS)
 
     await api('/api/settings/stamp/rendered', {
       method: 'PUT',
@@ -813,7 +821,7 @@ function Stamp() {
       method: 'PUT',
       body: JSON.stringify({
         ...(view?.options ?? {}),
-        widthPoints: width ?? view?.options.widthPoints ?? 120,
+        widthPoints: width ?? view?.options.widthPoints ?? DEFAULT_WIDTH_POINTS,
         numberXPercent: derived.numberXPercent,
         numberYPercent: derived.numberYPercent,
         numberSizePoints: derived.numberSizePoints,
@@ -1025,6 +1033,19 @@ function Stamp() {
               onChange={(event) => void save({ ...options, everyPage: event.target.checked })}
             />
             Tamponner toutes les pages, et pas seulement la première
+          </label>
+
+          {/* A transparent logo lets the pièce through it: the text of the document crosses the
+              dotted line and the numéro becomes hard to read on exactly the scans where it matters.
+              Off by default because it covers what it is drawn over, and the top-right corner of a
+              conclusion is not always empty. */}
+          <label className="flex items-center gap-2 text-[12.5px]">
+            <input
+              type="checkbox"
+              checked={options.opaqueBackground}
+              onChange={(event) => void save({ ...options, opaqueBackground: event.target.checked })}
+            />
+            Fond blanc derrière le tampon, plutôt que transparent
           </label>
         </>
       )}

@@ -68,6 +68,46 @@ public class PieceStampTests
         Assert.True(stamped.Length > 0);
     }
 
+    /// <summary>
+    /// « Mettre sur fond blanc et pas transparent. »
+    ///
+    /// <para>A transparent logo lets the pièce through it, so the text of a scan crosses the dotted
+    /// line and the numéro becomes hard to read. The fill operator is the only place the rectangle
+    /// exists: a byte count would be just as happy without it.</para>
+    /// </summary>
+    [Fact]
+    public void PutsAWhiteRectangleUnderTheStampWhenAskedTo()
+    {
+        var opaque = Drawn(PieceStamp.Apply(
+            Pdf(1), Stamp(), 7, new StampOptions(OpaqueBackground: true)));
+
+        // « 1 1 1 rg » is white in a PDF content stream, followed by a rectangle and a fill.
+        Assert.Contains("1 1 1 rg", opaque);
+        Assert.Contains(" re", opaque);
+    }
+
+    /// <summary>
+    /// And nothing at all by default: it covers what it is drawn over, and the top-right corner of a
+    /// conclusion is not always empty. Every practice already stamping has lined its stamp up against
+    /// what the page looks like now.
+    /// </summary>
+    [Fact]
+    public void DrawsNoBackgroundUnlessAsked()
+    {
+        Assert.DoesNotContain("1 1 1 rg", Drawn(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions())));
+    }
+
+    /// <summary>
+    /// The stamp a new practice gets is about 3 cm wide, not 4,2. « Réduire la taille du tampon. »
+    /// A practice that has already saved a width keeps it; this is only the starting point.
+    /// </summary>
+    [Fact]
+    public void StartsAtAboutThreeCentimetres()
+    {
+        // 85 points at 72 to the inch is 2,99 cm.
+        Assert.Equal(85, new StampOptions().WidthPoints);
+    }
+
     [Fact]
     public void LeavesTheOriginalBytesAlone()
     {
