@@ -164,11 +164,11 @@ export function MatterView({ matterId, onChanged, onOpenMatter }: {
             />
           </Button>
 
-          <Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>
-
           {/* Two dossiers that are the same affair: « peut-on merger sur FINANCIERE CN (NIETO) ? »
               Beside Modifier rather than in the facturation tab, because it is a correction of the
-              dossier itself. Definitive, so everything it does is counted before she confirms. */}
+              dossier itself. Definitive, so everything it does is counted before she confirms.
+              Left of Modifier, and never to its right: the rightmost buttons are the ones a hand
+              reaches for without reading, and this one deletes a dossier. */}
           <Button
             variant="secondary"
             size="icon"
@@ -177,6 +177,8 @@ export function MatterView({ matterId, onChanged, onOpenMatter }: {
           >
             <Merge size={14} strokeWidth={2} />
           </Button>
+
+          <Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>
 
           <Button
             variant={matter.isOpen ? 'secondary' : 'primary'}
