@@ -17,6 +17,7 @@ import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
 import { BillingCard } from '../lib/billing.js'
 import { formatDuration, formatEuros } from '../labels.js'
 import { InlineForm, Micro, Row, RowAction, RowAmount, RowDate, RowMain, TabPanel } from './shared.js'
+import { LinePicker, SelectionStrip, VarianceNote, useUnbilledLines } from './TimeLines.js'
 import type { BillingSummary, ContactSummary } from '../types.js'
 
 type MovementKind = 'Receipt' | 'Disbursement'
@@ -39,16 +40,6 @@ interface BillingInvoice {
   billedTimeCents: number
   varianceCents: number
   billedEntryCount: number
-}
-
-interface UnbilledEntry {
-  id: string
-  date: string
-  task: string
-  durationMinutes: number
-  isBillable: boolean
-  amountCents: number
-  invoiceId: string | null
 }
 
 interface BillingCost {
@@ -565,8 +556,9 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
   onCancel: () => void
   onBilled: () => void
 }) {
-  const [entries, setEntries] = useState<UnbilledEntry[]>([])
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const { lines, error: loadError } = useUnbilledLines(matterId)
+  const entries = lines ?? []
+  const [selected, setSelected] = useState<Set<string> | null>(null)
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [reference, setReference] = useState('')
   const [amount, setAmount] = useState(
@@ -576,34 +568,20 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  // Everything is ticked to begin with: billing all of it is the common case here, unlike a facture
+  // dropped as a PDF, which arrives with an amount and therefore with a better guess than « all ».
   useEffect(() => {
-    api<{ items: UnbilledEntry[] }>(`/api/matters/${matterId}/time-entries`)
-      .then((page) => {
-        const billable = page.items.filter((entry) => entry.isBillable && entry.invoiceId === null)
-        setEntries(billable)
-        // Everything is selected to begin with: billing all of it is the common case, and unticking
-        // three lines is less work than ticking twenty.
-        setSelected(new Set(billable.map((entry) => entry.id)))
-      })
-      .catch((failure: unknown) => setError(messageOf(failure)))
-  }, [matterId])
+    if (lines !== null && selected === null) {
+      setSelected(new Set(lines.map((entry) => entry.id)))
+    }
+  }, [lines, selected])
 
-  const chosen = entries.filter((entry) => selected.has(entry.id))
+  const ticked = selected ?? new Set<string>()
+  const chosen = entries.filter((entry) => ticked.has(entry.id))
   const timeCents = chosen.reduce((total, entry) => total + entry.amountCents, 0)
-  const minutes = chosen.reduce((total, entry) => total + entry.durationMinutes, 0)
 
   const billedCents = amount.trim() ? parseAmountToCents(amount) : timeCents
   const variance = billedCents === null ? 0 : billedCents - timeCents
-
-  function toggle(id: string) {
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-
-      return next
-    })
-  }
 
   async function bill() {
     if (chosen.length === 0) {
@@ -621,7 +599,7 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
 
     try {
       await post(`/api/matters/${matterId}/invoices/from-time`, {
-        timeEntryIds: [...selected],
+        timeEntryIds: [...ticked],
         date,
         amountExclVatCents: abandon ? null : amount.trim() ? billedCents : null,
         externalReference: abandon ? null : reference.trim() || null,
@@ -649,72 +627,24 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
         </p>
       )}
 
-      {entries.length === 0 ? (
+      {lines === null ? (
+        <p className="m-0 text-[12.5px] text-muted">Lecture du temps passé…</p>
+
+      ) : entries.length === 0 ? (
         <p className="m-0 text-[12.5px] text-muted">
           Tout le temps facturable de ce dossier est déjà rattaché à une facture.
         </p>
 
       ) : (
         <>
-          <div className="max-h-[280px] overflow-y-auto rounded-sm border border-line-subtle">
-            {entries.map((entry) => (
-              <label
-                key={entry.id}
-                className="flex cursor-pointer items-center gap-2.5 border-b border-line-subtle px-2.5 py-1.5 text-[12px] last:border-b-0 hover:bg-hover"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(entry.id)}
-                  onChange={() => toggle(entry.id)}
-                />
+          <LinePicker
+            lines={entries}
+            selected={ticked}
+            onChange={setSelected}
+            height="max-h-[280px]"
+          />
 
-                <span className="w-[74px] shrink-0 font-mono text-[11.5px] text-ink-secondary tnum">
-                  {new Date(entry.date).toLocaleDateString('fr-FR')}
-                </span>
-
-                <span className="min-w-0 flex-1 truncate">{entry.task}</span>
-
-                <span className="shrink-0 font-mono text-[11.5px] text-muted tnum">
-                  {formatDuration(entry.durationMinutes)}
-                </span>
-
-                <span className="w-[84px] shrink-0 text-right font-mono tnum">
-                  {formatEuros(entry.amountCents)}
-                </span>
-              </label>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-baseline gap-3 rounded-sm bg-sunken px-2.5 py-2 font-mono text-[11.5px] tnum">
-            <span>
-              <span className="text-muted">Sélection</span> {chosen.length} ligne
-              {chosen.length > 1 ? 's' : ''}
-            </span>
-            <span aria-hidden="true" className="h-3 w-px bg-line" />
-            <span>
-              <span className="text-muted">Durée</span> {formatDuration(minutes)}
-            </span>
-            <span className="flex-1" />
-
-            {/* One group, so the two figures being compared wrap together rather than landing on
-                different lines with the question between them. */}
-            <span className="flex items-baseline gap-3">
-              {forfaitLeftCents != null && (
-                <>
-                  <span>
-                    <span className="text-muted">Reste du forfait</span>{' '}
-                    <strong className="font-semibold">{formatEuros(forfaitLeftCents)}</strong>
-                  </span>
-                  <span aria-hidden="true" className="h-3 w-px bg-line" />
-                </>
-              )}
-
-              <span>
-                <span className="text-muted">Valeur des heures</span>{' '}
-                <strong className="font-semibold">{formatEuros(timeCents)}</strong>
-              </span>
-            </span>
-          </div>
+          <SelectionStrip chosen={chosen} forfaitLeftCents={forfaitLeftCents} />
 
           {abandon ? (
             <Field label="Date">
@@ -760,28 +690,13 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
           {abandon && timeCents > 0 && (
             <div className="rounded-sm border border-[#E8D5AE] bg-[#FDF8ED] px-3 py-2 text-[12px] text-[#6E4A0E]">
               <strong className="font-semibold">Mali de {formatEuros(timeCents)}</strong>{' '}
-              sur {formatDuration(minutes)} qui ne seront pas facturées.
+              sur {formatDuration(chosen.reduce((total, entry) => total + entry.durationMinutes, 0))}{' '}
+              qui ne seront pas facturées.
             </div>
           )}
 
           {/* Stated the moment she types a different amount, not discovered afterwards. */}
-          {!abandon && variance !== 0 && (
-            <div
-              className={cn(
-                'rounded-sm border px-3 py-2 text-[12px]',
-                variance > 0
-                  ? 'border-[#BFD3C5] bg-[#F4F8F5] text-brand-on-subtle'
-                  : 'border-[#E8D5AE] bg-[#FDF8ED] text-[#6E4A0E]',
-              )}
-            >
-              <strong className="font-semibold">
-                {variance > 0 ? 'Boni' : 'Mali'} de {formatEuros(Math.abs(variance))}
-              </strong>{' '}
-              {variance > 0
-                ? 'facturé au-delà de la valeur des heures sélectionnées.'
-                : 'accordé au client sur la valeur des heures sélectionnées.'}
-            </div>
-          )}
+          {!abandon && <VarianceNote varianceCents={variance} />}
 
           {!abandon && (
             <label className="flex items-center gap-2 text-[13px]">
@@ -792,7 +707,7 @@ function BillTimeDialog({ matterId, abandon, forfaitLeftCents, onCancel, onBille
         </>
       )}
 
-      {error && <p className="m-0 text-danger">{error}</p>}
+      {(error ?? loadError) && <p className="m-0 text-danger">{error ?? loadError}</p>}
 
       <DialogActions>
         <Button variant="secondary" size="lg" onClick={onCancel}>Annuler</Button>
@@ -811,9 +726,10 @@ function InvoiceDialog({ matterId, onCancel, onSaved }: {
   onSaved: () => void
 }) {
   return (
-    <Dialog title="Saisir une facture établie ailleurs" onClose={onCancel}>
+    <Dialog title="Saisir une facture établie ailleurs" width={640} onClose={onCancel}>
       <p className="m-0 text-[12.5px] leading-[19px] text-muted">
-        Pour une facture sans heures saisies ici. Comptée comme facturée, sans rattacher de temps.
+        Un montant et une référence. Cochez les heures qu’elle solde, s’il y en a : laissées
+        décochées, elles restent dans le reste à facturer.
       </p>
 
       <InvoiceForm matterId={matterId} onSaved={onSaved} onCancel={onCancel} bare />
@@ -834,13 +750,23 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
   const [amount, setAmount] = useState(invoice ? centsToAmount(invoice.amountExclVatCents) : '')
   const [reference, setReference] = useState(invoice?.externalReference ?? '')
   const [paid, setPaid] = useState(invoice?.isPaid ?? false)
-  const [historical, setHistorical] = useState(invoice?.isHistorical ?? false)
   const [discount, setDiscount] = useState(
     invoice?.discountBasisPoints ? String(invoice.discountBasisPoints / 100).replace('.', ',') : '',
   )
   const [discountReason, setDiscountReason] = useState(invoice?.discountReason ?? '')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // Only while creating. Correcting a facture never consumes hours, so there is nothing to read and
+  // nothing to show: fixing a typo in an amount is not the moment to take lines out of « reste à
+  // facturer », and she would have no way of knowing that it had.
+  const { lines } = useUnbilledLines(matterId, invoice === undefined)
+  const [settles, setSettles] = useState<Set<string>>(new Set())
+
+  const waiting = lines ?? []
+  const chosen = waiting.filter((line) => settles.has(line.id))
+  const worth = chosen.reduce((total, line) => total + line.amountCents, 0)
+  const typed = parseAmountToCents(amount)
 
   async function save() {
     const cents = parseAmountToCents(amount)
@@ -871,9 +797,13 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         externalReference: reference.trim() || null,
         isPaid: paid,
         paidOn: paid ? date : null,
-        isHistorical: historical,
+        // No longer asked, and carried through unchanged when she corrects a facture that has it:
+        // « antérieure » decides no arithmetic, and dropping it on an edit would silently move a
+        // reprise into the chart's comparison. Only the Gestisoft import ever sets it now.
+        isHistorical: invoice?.isHistorical ?? false,
         discountBasisPoints: points,
         discountReason: discountReason.trim() || null,
+        timeEntryIds: invoice ? [] : [...settles],
       }
 
       if (invoice) {
@@ -883,7 +813,7 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         setAmount('')
         setReference('')
         setPaid(false)
-        setHistorical(false)
+        setSettles(new Set())
         setDiscount('')
         setDiscountReason('')
       }
@@ -915,21 +845,6 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={paid} onChange={(event) => setPaid(event.target.checked)} />
           Payée
-        </label>
-
-        {/* Says where a facture came from, and nothing more. It used to be the escape hatch that
-            kept « reste à facturer » from subtracting a facture whose hours were never recorded
-            here; no facture subtracts anything now, so it is a label. */}
-        <label
-          className="flex items-center gap-2 text-[13px]"
-          title="Reprise de l’ancien logiciel, émise avant Avocado."
-        >
-          <input
-            type="checkbox"
-            checked={historical}
-            onChange={(event) => setHistorical(event.target.checked)}
-          />
-          Antérieure
         </label>
 
         {/* Printed on the détail, not deducted here: the montant above is already what the client
@@ -969,10 +884,37 @@ function InvoiceForm({ matterId, invoice, onSaved, onCancel, bare }: {
     </>
   )
 
+  /**
+   * The hours this facture settles, offered while creating one.
+   *
+   * <p>Nothing is ticked to begin with, unlike the two other paths. A facture dropped as a PDF
+   * arrives with its amount already read, so « up to the amount » is a better guess than nothing;
+   * « facturer du temps passé » exists to bill the hours, so « all » is right there. Here she is
+   * recording a facture issued elsewhere, and which hours it covers is hers to say — with the strip
+   * stating the consequence of each tick as she makes it.</p>
+   */
+  const settling = waiting.length > 0 && invoice === undefined && (
+    <div className="grid gap-1.5 border-t border-line-subtle pt-2">
+      <span className="type-caption text-muted">
+        Lignes de temps passé que cette facture solde, s’il y en a
+      </span>
+
+      <LinePicker lines={waiting} selected={settles} onChange={setSettles} height="max-h-[180px]" />
+
+      {chosen.length > 0 && (
+        <>
+          <SelectionStrip chosen={chosen} />
+          <VarianceNote compact varianceCents={typed === null ? 0 : typed - worth} />
+        </>
+      )}
+    </div>
+  )
+
   if (bare) {
     return (
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">{fields}</div>
+        {settling}
         {error && <p className="m-0 text-[11.5px] text-danger">{error}</p>}
       </div>
     )

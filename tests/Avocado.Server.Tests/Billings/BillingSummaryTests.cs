@@ -72,6 +72,64 @@ public class BillingSummaryTests
 
         Assert.Equal(0, summary.LeftToBillCents);
         Assert.Equal(50_000, summary.UnbilledTimeCents);
+
+        // And the 500 € she will never bill is a mali, which it was not: this dossier reported a
+        // variance of zero however far past the forfait she worked. « Le mali n'apparaît pas sur les
+        // dossiers », reported twice.
+        Assert.Equal(-150_000, summary.VarianceCents);
+    }
+
+    /// <summary>
+    /// The hours past a fully-billed forfait are a mali even when no facture ever consumed a line.
+    ///
+    /// <para>Which is the state every dossier was in before a facture took its lines: typed in by
+    /// hand, 3 000 € against 4 000 € of recorded time, and nothing to compare them with. The forfait
+    /// is what makes the comparison legitimate anyway — she agreed the price.</para>
+    /// </summary>
+    [Fact]
+    public void ReportsTheForfaitMaliWithoutAnyFactureHavingTakenLines()
+    {
+        var summary = Summary(
+            worked: 400_000, unbilled: 400_000, invoiced: 300_000, variance: 0, forfait: 300_000);
+
+        Assert.Equal(-100_000, summary.VarianceCents);
+        Assert.Equal(0, summary.LeftToBillCents);
+    }
+
+    /// <summary>
+    /// Half a forfait billed is not an arbitrage yet: she can still invoice the rest, and announcing
+    /// the mali now would state a loss she has not taken.
+    /// </summary>
+    [Fact]
+    public void WaitsForTheForfaitToBeBilledBeforeCallingItAMali()
+    {
+        var summary = Summary(worked: 250_000, unbilled: 250_000, invoiced: 100_000, forfait: 300_000);
+
+        Assert.Equal(200_000, summary.LeftToBillCents);
+        Assert.Equal(0, summary.VarianceCents);
+    }
+
+    /// <summary>
+    /// A forfait never invents a boni out of work that was never recorded.
+    ///
+    /// <para>3 000 € billed by hand on a dossier whose hours are not in Avocado makes
+    /// <c>facturé − travaillé</c> read + 3 000, which is not a boni, it is a dossier with no time
+    /// entries. The lower of the two figures is the honest one.</para>
+    /// </summary>
+    [Fact]
+    public void NeverTurnsMissingTimeIntoABoniOnAForfait()
+    {
+        Assert.Equal(0, Summary(worked: 0, invoiced: 300_000, forfait: 300_000).VarianceCents);
+    }
+
+    /// <summary>At the hour, unbilled hours are work waiting, never an arbitrage.</summary>
+    [Fact]
+    public void LeavesUnbilledHoursOutOfTheVarianceAtTheHour()
+    {
+        var summary = Summary(worked: 400_000, unbilled: 100_000, invoiced: 300_000, variance: 0);
+
+        Assert.Equal(0, summary.VarianceCents);
+        Assert.Equal(100_000, summary.LeftToBillCents);
     }
 
     [Fact]

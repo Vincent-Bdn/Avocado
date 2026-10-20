@@ -33,6 +33,14 @@ namespace Avocado.Server.Features.Billings.ValueObjects;
 /// Boni (positive) or mali (negative), summed over everything that consumed lines: what she billed
 /// less what those lines were worth. A facture that consumed nothing has no gap to report and
 /// contributes zero, which is also what a reprise does.
+///
+/// <para><b>A forfait answers this differently</b>, and used not to answer it at all. Once the agreed
+/// price is entirely billed, the hours stop being billable at all, so the arbitrage is no longer the
+/// sum of what each facture decided: it is the price against the whole of the work, and it cannot be
+/// better than that. Without this rule a dossier at 3 000 € with 4 000 € of recorded time reported no
+/// mali whatever she did, which is the « le mali n'apparaît pas sur les dossiers » that two lawyers
+/// reported and that the summary's own documentation already claimed was handled. See
+/// <see cref="Variance"/>.</para>
 /// </param>
 /// <param name="SubcontractedCents">
 /// Rétrocessions and other sous-traitance. Absent from <paramref name="LeftToBillCents"/>: the client
@@ -118,8 +126,12 @@ public sealed record BillingSummary(
         long varianceCents,
         long subcontractedCents,
         long legacyDeductionsCents,
-        long? fixedFeeCents) =>
-        new(
+        long? fixedFeeCents)
+    {
+        var leftToBillCents = LeftToBill(
+            unbilledTimeCents, invoicedCents, legacyDeductionsCents, fixedFeeCents);
+
+        return new(
             workedCents,
             unbilledTimeCents,
             unbilledMinutes,
@@ -127,11 +139,46 @@ public sealed record BillingSummary(
             collectedCents,
             invoicedCents - collectedCents,
             disbursementsCents,
-            varianceCents,
+            Variance(varianceCents, workedCents, invoicedCents, fixedFeeCents, leftToBillCents),
             subcontractedCents,
             invoicedCents - subcontractedCents,
-            LeftToBill(unbilledTimeCents, invoicedCents, legacyDeductionsCents, fixedFeeCents),
+            leftToBillCents,
             fixedFeeCents);
+    }
+
+    /// <summary>
+    /// The arbitrage on price, with the forfait's own answer applied.
+    ///
+    /// <para>At the hour it is simply what the factures decided, one at a time: each one billed an
+    /// amount against lines of a known value, and the gaps add up. Hours nobody has billed yet are
+    /// not an arbitrage, they are work waiting.</para>
+    ///
+    /// <para><b>At a forfait, once there is nothing left to bill, it is the price against the
+    /// work.</b> The hours can never be invoiced now, so « she might still bill them » has stopped
+    /// being true, and every hour past the forfait is a mali she granted by agreeing the price. This
+    /// is the figure she states herself: « je négocie 3 000, je rentre 4 000 de temps passé, donc
+    /// 1 000 de mali ».</para>
+    ///
+    /// <para><b>The lower of the two</b>, never the forfait's figure alone. A facture that consumed no
+    /// lines settled nothing and cannot be compared to hours, so a dossier carrying one must not
+    /// report a boni it did not earn: with 3 000 € typed in by hand and no work recorded,
+    /// <c>facturé − travaillé</c> is + 3 000 and means nothing. Taking the lower keeps the honest
+    /// answer in both directions, and the two coincide exactly when every hour has been consumed,
+    /// which is the normal case.</para>
+    ///
+    /// <para><b>Only once the forfait is fully billed.</b> Half a forfait billed with hours still to
+    /// come is not an arbitrage yet: she can still invoice the rest, and declaring the mali early
+    /// would announce a loss she has not taken.</para>
+    /// </summary>
+    internal static long Variance(
+        long factureVarianceCents,
+        long workedCents,
+        long invoicedCents,
+        long? fixedFeeCents,
+        long leftToBillCents) =>
+        fixedFeeCents is not null && leftToBillCents == 0
+            ? Math.Min(factureVarianceCents, invoicedCents - workedCents)
+            : factureVarianceCents;
 
     /// <summary>
     /// <paramref name="legacyDeductionsCents"/> is the factures recorded before factures consumed

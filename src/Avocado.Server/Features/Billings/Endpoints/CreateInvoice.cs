@@ -1,9 +1,17 @@
 using Avocado.Server.Data;
 using Avocado.Server.Features.Billings.Endpoints.Dtos;
+using Avocado.Server.Features.Billings.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Billings.Endpoints;
 
+/// <summary>
+/// Saisir une facture établie ailleurs.
+///
+/// <para>It takes the lines it settles, like every other way a facture is created. It used to take
+/// none, which meant a facture typed in by hand left its hours in « reste à facturer » for ever and
+/// reported no boni or mali. See <see cref="InvoiceLines"/>.</para>
+/// </summary>
 public static class CreateInvoice
 {
     public static async Task<IResult> HandleAsync(
@@ -17,9 +25,26 @@ public static class CreateInvoice
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["invoice"] = [error] });
         }
 
-        if (!await database.Matters.AnyAsync(matter => matter.Id == matterId, cancellationToken))
+        var matter = await database.Matters
+            .AsNoTracking()
+            .Where(candidate => candidate.Id == matterId)
+            .Select(candidate => new { candidate.HourlyRateCents })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (matter is null)
         {
             return Results.NotFound();
+        }
+
+        var (lines, failure) = await InvoiceLines.ReadAsync(
+            database, matterId, input.TimeEntryIds ?? [], cancellationToken);
+
+        if (failure is not null)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                [InvoiceLines.Field] = [failure],
+            });
         }
 
         var invoice = new BillingInvoice
@@ -36,9 +61,14 @@ public static class CreateInvoice
         };
 
         database.Invoices.Add(invoice);
+
+        InvoiceLines.Attach(lines, invoice, matter.HourlyRateCents);
+
         await database.SaveChangesAsync(cancellationToken);
 
-        return Results.Created($"/api/invoices/{invoice.Id}", new { invoice.Id });
+        return Results.Created(
+            $"/api/invoices/{invoice.Id}",
+            new { invoice.Id, invoice.BilledTimeCents, invoice.VarianceCents });
     }
 
     private static string? Trimmed(string? value) =>

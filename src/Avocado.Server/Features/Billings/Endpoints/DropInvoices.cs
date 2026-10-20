@@ -1,4 +1,5 @@
 using Avocado.Server.Data;
+using Avocado.Server.Features.Billings.Infrastructure;
 using Avocado.Server.Features.Contacts.Enums;
 using Avocado.Server.Features.Documents.Folders;
 using Avocado.Server.Features.Imports.Infrastructure;
@@ -28,6 +29,14 @@ public sealed record DroppedInvoice(
     string? Error);
 
 /// <param name="InvoiceId">Attach to this facture. Null creates one from what was read.</param>
+/// <param name="TimeEntryIds">
+/// The lines this facture settles, as she ticked them.
+///
+/// <para>The reason this parameter exists: a facture dropped on a dossier used to consume nothing, so
+/// its hours went on sitting in « reste à facturer » and its boni/mali was zero. She would then solde
+/// those hours en mali to clear them, and a mali appeared on a dossier that had never granted one.
+/// Empty is still legitimate — a reprise settles nothing.</para>
+/// </param>
 public sealed record FileInvoiceInput(
     string Path,
     Guid? InvoiceId,
@@ -35,7 +44,8 @@ public sealed record FileInvoiceInput(
     long? AmountExclVatCents,
     string? ExternalReference,
     bool IsPaid,
-    bool IsHistorical);
+    bool IsHistorical,
+    IReadOnlyList<Guid>? TimeEntryIds = null);
 
 /// <summary>
 /// Factures dropped onto a dossier, read and filed.
@@ -211,6 +221,16 @@ public static class DropInvoices
             return Problem("Ce fichier n'est plus là.");
         }
 
+        // Before anything is written, and before the file is copied: a selection that is refused must
+        // not leave a PDF filed against a facture that was never completed.
+        var (lines, lineFailure) = await InvoiceLines.ReadAsync(
+            database, matterId, input.TimeEntryIds ?? [], cancellationToken);
+
+        if (lineFailure is not null)
+        {
+            return Problem(lineFailure);
+        }
+
         var invoice = input.InvoiceId is { } id
             ? await database.Invoices.FirstOrDefaultAsync(
                 candidate => candidate.Id == id && candidate.MatterId == matterId, cancellationToken)
@@ -245,6 +265,11 @@ public static class DropInvoices
             database.Invoices.Add(invoice);
         }
 
+        // The lines she ticked, taken by this facture exactly as « facturer du temps passé » takes
+        // them: they stop counting as unbilled, and what they were worth becomes this facture's
+        // boni or mali. See InvoiceLines.
+        InvoiceLines.Attach(lines, invoice, matter.HourlyRateCents);
+
         string relative;
 
         try
@@ -260,7 +285,14 @@ public static class DropInvoices
 
         await database.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(new { invoice.Id, relativePath = relative });
+        return Results.Ok(new
+        {
+            invoice.Id,
+            relativePath = relative,
+            invoice.BilledTimeCents,
+            invoice.VarianceCents,
+            settledLines = lines.Count,
+        });
     }
 
     private static string Copy(string root, string source)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, FileText, Loader2, Upload } from 'lucide-react'
 import { ApiError, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
@@ -6,6 +6,7 @@ import { Input } from '../components/ui/input.js'
 import { centsToAmount, parseAmountToCents } from '../lib/amount.js'
 import { formatEuros } from '../labels.js'
 import { cn } from '../lib/utils.js'
+import { LinePicker, SelectionStrip, VarianceNote, preselect, useUnbilledLines } from './TimeLines.js'
 
 interface ReadInvoice {
   number: string | null
@@ -47,7 +48,8 @@ interface Decision {
   date: string
   reference: string
   paid: boolean
-  historical: boolean
+  /** The lines this facture settles. Null until the temps passé has been read and pre-ticked. */
+  lines: Set<string> | null
 }
 
 /**
@@ -61,6 +63,12 @@ interface Decision {
  * <p>The same gesture does two jobs, which is why there is one zone rather than two. A facture she
  * has just issued lands on the line Avocado already knows about. A facture from before Avocado
  * becomes a line.</p>
+ *
+ * <p><b>And it settles its hours.</b> Dropping a facture used to record it and leave the time it
+ * paid for sitting in « reste à facturer », with no boni and no mali, because nothing here ever
+ * attached a line. On the dossier PIRBAY that meant the hours were then soldées en mali by hand —
+ * and a mali appeared on a dossier that had never granted one. The picker below is the same one as
+ * « facturer du temps passé », and it arrives pre-ticked up to the amount read off the PDF.</p>
  */
 export function DropFactures({ matterId, invoices, onFiled }: {
   matterId: string
@@ -73,6 +81,30 @@ export function DropFactures({ matterId, invoices, onFiled }: {
   const [decisions, setDecisions] = useState<Record<string, Decision>>({})
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Read once for the dossier, not once per file. Reloaded after each facture is filed, so a second
+  // file dropped in the same batch is offered only the lines the first one left.
+  const { lines, reload: reloadLines } = useUnbilledLines(matterId)
+
+  // Pre-ticking waits for both halves: the PDF has to have been read to know the amount, and the
+  // temps passé has to have arrived to know what there is to tick.
+  useEffect(() => {
+    if (lines === null) return
+
+    setDecisions((current) => {
+      let changed = false
+      const next = { ...current }
+
+      for (const [path, decision] of Object.entries(current)) {
+        if (decision.lines !== null) continue
+
+        next[path] = { ...decision, lines: preselect(lines, parseAmountToCents(decision.amount)) }
+        changed = true
+      }
+
+      return changed ? next : current
+    })
+  }, [lines, dropped])
 
   async function take(files: FileList) {
     // Electron 34 removed File.path; the preload resolves it through webUtils instead. The renderer
@@ -98,10 +130,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
             date: answer.read?.issuedOn?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
             reference: answer.read?.number ?? '',
             paid: answer.read?.paid ?? false,
-            // No matching facture in Avocado means its hours were never recorded here, so it
-            // is marked as a reprise. It changes no arithmetic now, since a facture only
-            // consumes the lines it actually took; it says where the turnover came from.
-            historical: answer.suggestedInvoiceId === null,
+            lines: null,
           }
         }
 
@@ -136,10 +165,25 @@ export function DropFactures({ matterId, invoices, onFiled }: {
         amountExclVatCents: cents,
         externalReference: decision.reference.trim() || null,
         isPaid: decision.paid,
-        isHistorical: decision.historical,
+        // « Antérieure » is no longer asked. It decided no arithmetic — a facture consumes the lines
+        // it actually took, so one that took none subtracts nothing — and the question had no
+        // consequence she could act on. The Gestisoft import still sets it, which is the one place
+        // the answer is known.
+        isHistorical: false,
+        timeEntryIds: [...(decision.lines ?? [])],
       })
 
       setDropped((current) => current.filter((other) => other.path !== item.path))
+
+      // The lines this facture took are gone; whatever is still waiting has to be re-read before the
+      // next file in the batch pre-ticks against it.
+      reloadLines()
+      setDecisions((current) => Object.fromEntries(
+        Object.entries(current)
+          .filter(([path]) => path !== item.path)
+          .map(([path, other]) => [path, { ...other, lines: null }]),
+      ))
+
       onFiled()
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : String(failure))
@@ -152,6 +196,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
     setDecisions((current) => ({ ...current, [path]: { ...current[path]!, ...change } }))
 
   const free = invoices.filter((invoice) => !invoice.hasDocument)
+  const waiting = lines ?? []
 
   return (
     <div className="grid gap-2">
@@ -190,6 +235,10 @@ export function DropFactures({ matterId, invoices, onFiled }: {
 
       {dropped.map((item) => {
         const decision = decisions[item.path]
+        const ticked = decision?.lines ?? new Set<string>()
+        const chosen = waiting.filter((line) => ticked.has(line.id))
+        const worth = chosen.reduce((total, line) => total + line.amountCents, 0)
+        const billed = decision ? parseAmountToCents(decision.amount) : null
 
         return (
           <div key={item.path} className="grid gap-2 rounded-md border border-line-strong px-3 py-2.5">
@@ -210,9 +259,15 @@ export function DropFactures({ matterId, invoices, onFiled }: {
 
             {item.read && decision && (
               <>
+                {/* HT first and named as such: it is the figure Avocado records and the only one it
+                    can state honestly. The TTC is kept beside it because that is the number printed
+                    largest on the facture, and seeing them disagree is the point. */}
                 <p className="m-0 text-[11.5px] leading-[17px] text-muted">
                   {item.read.clientName && <>{item.read.clientName} · </>}
                   {item.read.subject}
+                  {item.read.totalExclVatCents !== null && (
+                    <> · {formatEuros(item.read.totalExclVatCents)} HT</>
+                  )}
                   {item.read.totalInclVatCents !== null && (
                     <> · {formatEuros(item.read.totalInclVatCents)} TTC</>
                   )}
@@ -238,10 +293,7 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={decision.attachTo ?? ''}
-                    onChange={(event) => set(item.path, {
-                      attachTo: event.target.value || null,
-                      historical: event.target.value === '',
-                    })}
+                    onChange={(event) => set(item.path, { attachTo: event.target.value || null })}
                     className="h-7 rounded-sm border border-line-strong bg-sunken px-1.5 font-sans text-[12.5px] text-ink"
                   >
                     <option value="">Créer une facture</option>
@@ -291,17 +343,6 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                         />
                         Payée
                       </label>
-                      <label
-                        className="flex items-center gap-1.5 text-[12px]"
-                        title="Émise avant Avocado : son temps n’a jamais été saisi ici."
-                      >
-                        <input
-                          type="checkbox"
-                          checked={decision.historical}
-                          onChange={(event) => set(item.path, { historical: event.target.checked })}
-                        />
-                        Antérieure
-                      </label>
                     </>
                   )}
 
@@ -312,6 +353,31 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                     {decision.attachTo === null ? 'Créer et joindre' : 'Joindre'}
                   </Button>
                 </div>
+
+                {/* The part that was missing entirely. Her own words: « dès que je glisse une
+                    facture, ça me propose de cocher les cases de temps passé correspondant à la
+                    facture ». */}
+                {waiting.length > 0 && (
+                  <div className="grid gap-1.5 border-t border-line-subtle pt-2">
+                    <span className="type-caption text-muted">
+                      Lignes de temps passé que cette facture solde
+                    </span>
+
+                    <LinePicker
+                      lines={waiting}
+                      selected={ticked}
+                      onChange={(next) => set(item.path, { lines: next })}
+                      height="max-h-[180px]"
+                    />
+
+                    <SelectionStrip chosen={chosen} />
+
+                    <VarianceNote
+                      compact
+                      varianceCents={billed === null || chosen.length === 0 ? 0 : billed - worth}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

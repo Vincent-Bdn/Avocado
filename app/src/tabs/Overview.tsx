@@ -339,28 +339,43 @@ export function Overview({ matter, onOpen, onEdit, onChanged }: {
           </div>
 
           {/* Each line is its own question. « Déjà reçu » and « avancé pour le client » used to share
-              one signed figure, which meant the card could state the opposite of what happened. */}
+              one signed figure, which meant the card could state the opposite of what happened.
+              The last row carries no rule, so which rows are present decides which one is last:
+              building the list is what keeps that true as rows come and go. */}
           <div className="mt-3.5 border-t border-line-subtle">
-            <Figure label="Travaillé" cents={matter.billing.workedCents} />
-            <Figure label="Facturé" cents={matter.billing.invoicedCents} />
-            <Figure label="Encaissé" cents={matter.billing.collectedCents} />
-
-            {matter.billing.owedCents !== 0 && (
+            {([
+              ['Travaillé', matter.billing.workedCents, false],
+              ['Facturé', matter.billing.invoicedCents, false],
+              ['Encaissé', matter.billing.collectedCents, false],
+              ...(matter.billing.owedCents !== 0
+                ? [[
+                    matter.billing.owedCents > 0 ? 'Reste dû' : 'Payé d’avance',
+                    matter.billing.owedCents,
+                    false,
+                  ] as const]
+                : []),
+              ...(matter.billing.disbursementsCents !== 0
+                ? [['Débours à refacturer', matter.billing.disbursementsCents, false] as const]
+                : []),
+              // Absent at zero, rather than « Boni 0,00 € », which is what it used to print on every
+              // dossier that had never granted one — and signed, because « Mali 1 200 € » beside a
+              // « Facturé » of the same shape reads as money earned.
+              ...(matter.billing.varianceCents !== 0
+                ? [[
+                    matter.billing.varianceCents < 0 ? 'Mali' : 'Boni',
+                    matter.billing.varianceCents,
+                    true,
+                  ] as const]
+                : []),
+            ] as const).map(([label, cents, signed], index, rows) => (
               <Figure
-                label={matter.billing.owedCents > 0 ? 'Reste dû' : 'Payé d’avance'}
-                cents={matter.billing.owedCents}
+                key={label}
+                label={label}
+                cents={cents}
+                signed={signed}
+                last={index === rows.length - 1}
               />
-            )}
-
-            {matter.billing.disbursementsCents !== 0 && (
-              <Figure label="Débours à refacturer" cents={matter.billing.disbursementsCents} />
-            )}
-
-            <Figure
-              label={matter.billing.varianceCents < 0 ? 'Mali' : 'Boni'}
-              cents={matter.billing.varianceCents}
-              last
-            />
+            ))}
           </div>
 
           <button
@@ -522,7 +537,20 @@ function Entry({ term, value, mono, last }: {
   )
 }
 
-function Figure({ label, cents, last }: { label: string; cents: number; last?: boolean }) {
+/**
+ * One figure of the dossier's facturation.
+ *
+ * <p><code>signed</code> for the ones whose direction is the information. A mali printed unsigned
+ * beside « Facturé » and « Encaissé », in the same mono and the same size, reads as money that came
+ * in; it is the opposite. « Reste dû » and « Payé d'avance » say their direction in the label
+ * instead, which is why they stay unsigned.</p>
+ */
+function Figure({ label, cents, signed, last }: {
+  label: string
+  cents: number
+  signed?: boolean
+  last?: boolean
+}) {
   return (
     <div className={cn('flex justify-between gap-2.5 py-1.5', last || 'border-b border-[#F1F3EE]')}>
       <span className="text-[12px] leading-4 text-muted">{label}</span>
@@ -530,8 +558,10 @@ function Figure({ label, cents, last }: { label: string; cents: number; last?: b
         className={cn(
           'font-mono text-[12.5px] leading-4 tnum',
           Number.isFinite(cents) ? 'text-ink' : 'text-muted',
+          signed && (cents < 0 ? 'text-warning' : 'text-success'),
         )}
       >
+        {signed && (cents < 0 ? '− ' : '+ ')}
         {euros(Math.abs(cents))}
       </span>
     </div>

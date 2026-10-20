@@ -1,4 +1,5 @@
 using Avocado.Server.Data;
+using Avocado.Server.Features.Billings.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace Avocado.Server.Features.Billings.Endpoints;
@@ -38,6 +39,10 @@ public sealed record BillTimeInput(
 /// dossier never settles. It is not turnover and never shows as facturé; it is a mali of everything
 /// it consumed, and deleting it hands the lines back through the same foreign key.
 /// </para>
+/// <para>
+/// Taking the lines is <see cref="InvoiceLines"/>'s job, shared with the two other ways a facture
+/// comes into existence. It used to live here alone, which is why those two did not do it.
+/// </para>
 /// </summary>
 public static class BillTimeEntries
 {
@@ -51,7 +56,7 @@ public static class BillTimeEntries
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["timeEntries"] = ["Choisissez au moins une ligne de temps passé."],
+                [InvoiceLines.Field] = ["Choisissez au moins une ligne de temps passé."],
             });
         }
 
@@ -64,27 +69,18 @@ public static class BillTimeEntries
             return Results.NotFound();
         }
 
-        var entries = await database.TimeEntries
-            .Where(entry => entry.MatterId == matterId && input.TimeEntryIds.Contains(entry.Id))
-            .ToListAsync(cancellationToken);
+        var (lines, failure) = await InvoiceLines.ReadAsync(
+            database, matterId, input.TimeEntryIds, cancellationToken);
 
-        if (entries.Count != input.TimeEntryIds.Count)
+        if (failure is not null)
         {
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["timeEntries"] = ["Certaines lignes n'appartiennent pas à ce dossier."],
+                [InvoiceLines.Field] = [failure],
             });
         }
 
-        if (entries.Any(entry => entry.InvoiceId is not null))
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["timeEntries"] = ["Certaines lignes sont déjà rattachées à une facture."],
-            });
-        }
-
-        var billedTimeCents = entries.Sum(entry => entry.AmountCents(matter.HourlyRateCents));
+        var billedTimeCents = InvoiceLines.Worth(lines, matter.HourlyRateCents);
 
         // An abandon bills nothing by definition, so an amount sent with one is ignored rather than
         // rejected: the client has no field to type it in and would have no way to correct itself.
@@ -103,7 +99,6 @@ public static class BillTimeEntries
             MatterId = matterId,
             Date = input.Date,
             AmountExclVatCents = amount,
-            BilledTimeCents = billedTimeCents,
             IsAbandon = input.IsAbandon,
             ExternalReference = string.IsNullOrWhiteSpace(input.ExternalReference)
                 ? null
@@ -115,10 +110,7 @@ public static class BillTimeEntries
 
         database.Invoices.Add(invoice);
 
-        foreach (var entry in entries)
-        {
-            entry.InvoiceId = invoice.Id;
-        }
+        InvoiceLines.Attach(lines, invoice, matter.HourlyRateCents);
 
         await database.SaveChangesAsync(cancellationToken);
 
