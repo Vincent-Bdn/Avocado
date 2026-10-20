@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { BookOpen, FolderPlus, HardDriveDownload, Search, Timer } from 'lucide-react'
 import { ApiError, api } from '../api.js'
 import { Button, Kbd } from '../components/ui/button.js'
-import { HonorairesCard, type Honoraires } from './Honoraires.js'
+import { Facturation } from './Facturation.js'
 import { PageHeader } from '../components/ui/page-header.js'
 import { Panel } from '../components/ui/panel.js'
 import { cn } from '../lib/utils.js'
@@ -50,7 +50,9 @@ interface DashboardSummary {
     lastActivitySummary: string | null
     lastActivityAt: string | null
   }[]
-  honoraires: Honoraires
+  // The accueil no longer reads this: « Facturation » fetches its own period from /api/honoraires,
+  // because a period selector cannot be served by a payload computed once. The dashboard still sends
+  // it, and whatever else comes to depend on it will find it there.
   exercices: {
     label: string
     from: string
@@ -135,120 +137,124 @@ export function Home({ onOpenMatter, onNewMatter, onNewContact, onSearch }: {
         actions={actions}
       />
 
-      {/* 1.32fr / 1fr: the deadlines column has to hold a label, its dossier and a distance without
-          truncating all three, and the right column is a stack of two summaries. */}
-      <div className="grid flex-1 grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] gap-4 overflow-y-auto px-5 py-4">
-        <section className="grid content-start">
-          <SectionTitle count={data.deadlines.length}>Échéances des 30 prochains jours</SectionTitle>
+      {/* One scroller, and la facturation at the top of it across the full width.
+          « La page de présentation générale doit s'ouvrir sur ça en premier. » It used to be 88px in
+          the right-hand column, under the échéances: the échéances are urgent, the facturation is
+          important, and urgency had quietly won the layout. */}
+      <div className="grid flex-1 content-start gap-4 overflow-y-auto px-5 py-4">
+        <Facturation onOpenMatter={onOpenMatter} />
 
-          {data.deadlines.length === 0 && (
-            <p className="m-0 type-caption text-muted">
-              Rien à surveiller dans les trente prochains jours.
-            </p>
-          )}
+        {/* 1.32fr / 1fr: the deadlines column has to hold a label, its dossier and a distance without
+            truncating all three, and the right column is a stack of summaries. */}
+        <div className="grid grid-cols-[minmax(0,1.32fr)_minmax(0,1fr)] items-start gap-4">
+          <section className="grid content-start">
+            <SectionTitle count={data.deadlines.length}>Échéances des 30 prochains jours</SectionTitle>
 
-          {tiers.map((tier) => {
-            const group = data.deadlines.filter((deadline) => deadline.urgency === tier)
-            if (group.length === 0) return null
+            {data.deadlines.length === 0 && (
+              <p className="m-0 type-caption text-muted">
+                Rien à surveiller dans les trente prochains jours.
+              </p>
+            )}
 
-            return (
-              <div key={tier}>
-                <TierCaption urgency={tier} count={group.length} />
+            {tiers.map((tier) => {
+              const group = data.deadlines.filter((deadline) => deadline.urgency === tier)
+              if (group.length === 0) return null
 
-                <div className="grid gap-1.5">
-                  {group.map((deadline) => (
-                    <button
-                      key={deadline.id}
-                      type="button"
-                      onClick={() => onOpenMatter(deadline.matterId)}
-                      className={cn(
-                        'flex w-full items-center gap-2.5 rounded-sm border border-l-[3px] px-[9px] py-[7px] text-left',
-                        tierRow[tier],
-                      )}
-                    >
-                      <span className="grid min-w-0 flex-1">
-                        <span className="truncate text-[12.5px] leading-[17px] font-medium">
-                          {deadline.label}
+              return (
+                <div key={tier}>
+                  <TierCaption urgency={tier} count={group.length} />
+
+                  <div className="grid gap-1.5">
+                    {group.map((deadline) => (
+                      <button
+                        key={deadline.id}
+                        type="button"
+                        onClick={() => onOpenMatter(deadline.matterId)}
+                        className={cn(
+                          'flex w-full items-center gap-2.5 rounded-sm border border-l-[3px] px-[9px] py-[7px] text-left',
+                          tierRow[tier],
+                        )}
+                      >
+                        <span className="grid min-w-0 flex-1">
+                          <span className="truncate text-[12.5px] leading-[17px] font-medium">
+                            {deadline.label}
+                          </span>
+                          {/* Never the label alone: a deadline without its dossier is unusable. */}
+                          <span className="truncate text-[11px] leading-[15px] opacity-80">
+                            {deadline.matterReference} · {deadline.matterName}
+                            {deadline.clientName && ` · ${deadline.clientName}`}
+                          </span>
                         </span>
-                        {/* Never the label alone: a deadline without its dossier is unusable. */}
-                        <span className="truncate text-[11px] leading-[15px] opacity-80">
-                          {deadline.matterReference} · {deadline.matterName}
-                          {deadline.clientName && ` · ${deadline.clientName}`}
-                        </span>
-                      </span>
 
-                      <span className="shrink-0 font-mono text-[11px] whitespace-nowrap tnum">
-                        {distance(deadline.date, deadline.time)}
-                      </span>
-                    </button>
-                  ))}
+                        <span className="shrink-0 font-mono text-[11px] whitespace-nowrap tnum">
+                          {distance(deadline.date, deadline.time)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
 
-          {/* A closing line rather than a truncation counter: it answers the question the list raises. */}
-          {data.nextDeadlineBeyondHorizon && (
-            <p className="mt-3 mb-0 type-caption text-muted">
-              Aucune autre échéance avant le{' '}
-              {new Date(data.nextDeadlineBeyondHorizon).toLocaleDateString('fr-FR')}.
-            </p>
-          )}
-        </section>
-
-        <div className="grid content-start gap-4">
-          {/* Above the unbilled card, same width: « ai-je facturé ce que j'ai travaillé » comes
-              before « combien reste-t-il à demander ». */}
-          <HonorairesCard data={data.honoraires} />
-
-          <Chiffre exercices={data.exercices} />
-
-          <Unbilled data={data} onOpenMatter={onOpenMatter} />
-
-          <section>
-            {/* « Touchés » was the latest of five timestamps of work recorded against the
-                dossier, which meant an import floated every dossier in the cabinet to the top at
-                once. These are the ones she has opened. */}
-            <SectionTitle action="⌘K">Dossiers consultés</SectionTitle>
-
-            <div className="overflow-hidden rounded-md border border-line-subtle">
-              {data.recentMatters.map((matter, index) => (
-                <button
-                  key={matter.id}
-                  type="button"
-                  onClick={() => onOpenMatter(matter.id)}
-                  className={cn(
-                    'flex h-[38px] w-full items-center gap-2.5 px-2.5 text-left hover:bg-hover',
-                    index > 0 && 'border-t border-line-subtle',
-                    index === 0 && 'bg-[#F8F9F6]',
-                  )}
-                >
-                  <span className="grid min-w-0 flex-1">
-                    <span
-                      className={cn('truncate text-[12.5px] leading-4', index === 0 && 'font-medium')}
-                    >
-                      {matter.name}
-                    </span>
-                    {/* The dossier name alone does not tell her where she was. */}
-                    <span className="truncate text-[11px] leading-[15px] text-muted">
-                      {matter.lastActivityType && `${activityLabels[matter.lastActivityType]} · `}
-                      {matter.lastActivitySummary}
-                    </span>
-                  </span>
-
-                  <span className="shrink-0 font-mono text-[10.5px] whitespace-nowrap text-muted tnum">
-                    {formatRelative(matter.lastActivityAt)}
-                  </span>
-                </button>
-              ))}
-
-              {data.recentMatters.length === 0 && (
-                <p className="m-0 px-2.5 py-3 type-caption text-muted">
-                  Aucun dossier ouvert pour l’instant.
-                </p>
-              )}
-            </div>
+            {/* A closing line rather than a truncation counter: it answers the question the list raises. */}
+            {data.nextDeadlineBeyondHorizon && (
+              <p className="mt-3 mb-0 type-caption text-muted">
+                Aucune autre échéance avant le{' '}
+                {new Date(data.nextDeadlineBeyondHorizon).toLocaleDateString('fr-FR')}.
+              </p>
+            )}
           </section>
+
+          <div className="grid content-start gap-4">
+            <Chiffre exercices={data.exercices} />
+
+            <Unbilled data={data} onOpenMatter={onOpenMatter} />
+
+            <section>
+              {/* « Touchés » was the latest of five timestamps of work recorded against the
+                  dossier, which meant an import floated every dossier in the cabinet to the top at
+                  once. These are the ones she has opened. */}
+              <SectionTitle action="⌘K">Dossiers consultés</SectionTitle>
+
+              <div className="overflow-hidden rounded-md border border-line-subtle">
+                {data.recentMatters.map((matter, index) => (
+                  <button
+                    key={matter.id}
+                    type="button"
+                    onClick={() => onOpenMatter(matter.id)}
+                    className={cn(
+                      'flex h-[38px] w-full items-center gap-2.5 px-2.5 text-left hover:bg-hover',
+                      index > 0 && 'border-t border-line-subtle',
+                      index === 0 && 'bg-[#F8F9F6]',
+                    )}
+                  >
+                    <span className="grid min-w-0 flex-1">
+                      <span
+                        className={cn('truncate text-[12.5px] leading-4', index === 0 && 'font-medium')}
+                      >
+                        {matter.name}
+                      </span>
+                      {/* The dossier name alone does not tell her where she was. */}
+                      <span className="truncate text-[11px] leading-[15px] text-muted">
+                        {matter.lastActivityType && `${activityLabels[matter.lastActivityType]} · `}
+                        {matter.lastActivitySummary}
+                      </span>
+                    </span>
+
+                    <span className="shrink-0 font-mono text-[10.5px] whitespace-nowrap text-muted tnum">
+                      {formatRelative(matter.lastActivityAt)}
+                    </span>
+                  </button>
+                ))}
+
+                {data.recentMatters.length === 0 && (
+                  <p className="m-0 px-2.5 py-3 type-caption text-muted">
+                    Aucun dossier ouvert pour l’instant.
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </Panel>
