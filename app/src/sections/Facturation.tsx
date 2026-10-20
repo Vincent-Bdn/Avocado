@@ -65,6 +65,8 @@ export function Facturation({ onOpenMatter }: { onOpenMatter: (id: string) => vo
    */
   const [picked, setPicked] = useState<number | null>(null)
   const [drill, setDrill] = useState<HonorairesView | null>(null)
+  /** Its own, so a failed drill-down cannot blank the chart and the figures above it. */
+  const [drillError, setDrillError] = useState<string | null>(null)
 
   useEffect(() => {
     api<Period[]>('/api/honoraires/periods')
@@ -82,6 +84,7 @@ export function Facturation({ onOpenMatter }: { onOpenMatter: (id: string) => vo
 
     setPicked(null)
     setDrill(null)
+    setDrillError(null)
 
     api<HonorairesView>(`/api/honoraires?from=${chosen.from}&to=${chosen.to}`)
       .then((fetched) => { setView(fetched); setError(null) })
@@ -90,20 +93,28 @@ export function Facturation({ onOpenMatter }: { onOpenMatter: (id: string) => vo
 
   const pick = useCallback((index: number) => {
     const month = view?.honoraires.months[index]
-    if (month === undefined) return
+    if (view === null || month === undefined) return
 
     if (picked === index) {
       setPicked(null)
       setDrill(null)
+      setDrillError(null)
       return
     }
 
     setPicked(index)
     setDrill(null)
+    setDrillError(null)
 
-    api<HonorairesView>(`/api/honoraires?from=${month.month}&to=${endOfMonth(month.month)}`)
+    // Clamped to the period, exactly as the chart clamps its first and last bucket. Asking for the
+    // whole calendar month would make the list disagree with the column it was opened from: on
+    // « du 12 janvier au 15 mars », janvier's column holds the 12th onward and nothing else.
+    const from = max(month.month, view.from.slice(0, 10))
+    const to = min(endOfMonth(month.month), view.to.slice(0, 10))
+
+    api<HonorairesView>(`/api/honoraires?from=${from}&to=${to}`)
       .then(setDrill)
-      .catch((failure: unknown) => setError(messageOf(failure)))
+      .catch((failure: unknown) => setDrillError(messageOf(failure)))
   }, [view, picked])
 
   if (error !== null) {
@@ -188,13 +199,19 @@ export function Facturation({ onOpenMatter }: { onOpenMatter: (id: string) => vo
         ne calcule aucune TVA.
       </p>
 
-      <HonorairesChart data={honoraires} picked={picked} onPick={pick} />
+      <HonorairesChart
+        data={honoraires}
+        picked={picked}
+        onPick={pick}
+        currentMonth={firstOfThisMonth()}
+      />
 
       {picked !== null && (
         <MonthDossiers
           view={drill}
+          error={drillError}
           onOpenMatter={onOpenMatter}
-          onClose={() => { setPicked(null); setDrill(null) }}
+          onClose={() => { setPicked(null); setDrill(null); setDrillError(null) }}
         />
       )}
     </section>
@@ -208,11 +225,23 @@ export function Facturation({ onOpenMatter }: { onOpenMatter: (id: string) => vo
  * « qui a le plus facturé ». A dossier worked and not billed is in the list too: it is the other half
  * of what the chart draws, and the one she would never think to go looking for.</p>
  */
-function MonthDossiers({ view, onOpenMatter, onClose }: {
+function MonthDossiers({ view, error, onOpenMatter, onClose }: {
   view: HonorairesView | null
+  error: string | null
   onOpenMatter: (id: string) => void
   onClose: () => void
 }) {
+  if (error !== null) {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-[#9DBCA8] bg-panel px-3.5 py-3">
+        <p className="m-0 flex-1 text-[12px] text-danger">{error}</p>
+        <Button variant="secondary" size="iconSm" aria-label="Fermer" onClick={onClose}>
+          <X size={12} strokeWidth={2} />
+        </Button>
+      </div>
+    )
+  }
+
   if (view === null) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-[#9DBCA8] bg-panel px-3.5 py-3 text-[12px] text-muted">
@@ -372,6 +401,22 @@ function Headline({ label, cents, tone, last, children }: {
     </div>
   )
 }
+
+/**
+ * Today's month, as its first day, in **local** time.
+ *
+ * <p>Not `toISOString()`, which is UTC: between local midnight and 02:00 on the first of a month
+ * that answers the previous month, and the chart would stop calling the live column live on exactly
+ * the night somebody is working late.</p>
+ */
+function firstOfThisMonth(): string {
+  const now = new Date()
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+const max = (left: string, right: string) => (left > right ? left : right)
+const min = (left: string, right: string) => (left < right ? left : right)
 
 /** The last day of the month an ISO first-of-month names. */
 function endOfMonth(iso: string): string {

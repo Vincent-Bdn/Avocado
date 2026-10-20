@@ -339,6 +339,12 @@ public static class MergeMatters
     /// screen would be describing a dossier that does not exist. Nothing restorable is lost either
     /// way: the blobs are content-addressed, and every past snapshot carries its own copy of this
     /// table taken at the same instant.</para>
+    ///
+    /// <para><b>Tracked, not <c>ExecuteDelete</c>.</b> The bulk operators issue their statement
+    /// immediately and outside the change tracker, so they commit whatever happens next: a merge that
+    /// then failed to save would roll every row back except the manifest, which would already have
+    /// been destroyed. One <c>SaveChangesAsync</c> does all of this or none of it, and that has to
+    /// include this.</para>
     /// </summary>
     private static async Task MergeCapturedFilesAsync(
         AvocadoDbContext database,
@@ -350,22 +356,24 @@ public static class MergeMatters
     {
         var keepingTheSourceFolder = kept is not null && Same(kept, source.DocumentsFolder);
 
-        if (keepingTheSourceFolder)
+        var mine = await database.CapturedFiles
+            .Where(file => file.MatterId == id)
+            .ToListAsync(cancellationToken);
+
+        if (!keepingTheSourceFolder)
         {
-            await database.CapturedFiles
-                .Where(file => file.MatterId == targetId)
-                .ExecuteDeleteAsync(cancellationToken);
-
-            await database.CapturedFiles
-                .Where(file => file.MatterId == id)
-                .ExecuteUpdateAsync(file => file.SetProperty(row => row.MatterId, targetId), cancellationToken);
-
+            database.CapturedFiles.RemoveRange(mine);
             return;
         }
 
-        await database.CapturedFiles
-            .Where(file => file.MatterId == id)
-            .ExecuteDeleteAsync(cancellationToken);
+        database.CapturedFiles.RemoveRange(await database.CapturedFiles
+            .Where(file => file.MatterId == targetId)
+            .ToListAsync(cancellationToken));
+
+        foreach (var file in mine)
+        {
+            file.MatterId = targetId;
+        }
     }
 
     /// <summary>

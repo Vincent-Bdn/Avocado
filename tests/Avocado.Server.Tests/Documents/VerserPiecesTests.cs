@@ -150,6 +150,46 @@ public sealed class VerserPiecesTests : IDisposable
         Assert.True(File.Exists(Pieces("Pièce 69 - Suite.pdf")));
     }
 
+    /// <summary>
+    /// Two pièces cannot share a number, suffix included.
+    ///
+    /// <para>Two lines of one batch both marked « bis » used to land on 68 bis each, and because
+    /// their libellés differ they are two distinct file names: CreateNew sees no collision, both are
+    /// written, and « la pièce n° 68 bis » cited in conclusions now points at two documents.</para>
+    /// </summary>
+    [Fact]
+    public async Task RefusesASecondPieceUnderTheSameSuffix()
+    {
+        var matter = Dossier();
+
+        var result = await Verse(matter, new VerserPiecesInput(
+        [
+            new PieceToVerse(Pdf("Avenant.pdf"), "Avenant", "bis"),
+            new PieceToVerse(Pdf("Autre.pdf"), "Autre avenant", "bis"),
+        ], StartNumber: 68, Stamp: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Null(result.Pieces[0].Error);
+        Assert.Contains("existe déjà", result.Pieces[1].Error);
+        Assert.True(File.Exists(Pieces("Pièce 68 bis - Avenant.pdf")));
+        Assert.False(File.Exists(Pieces("Pièce 68 bis - Autre avenant.pdf")));
+    }
+
+    /// <summary>And one already on disk from a previous batch is refused the same way.</summary>
+    [Fact]
+    public async Task RefusesASuffixAlreadyVersed()
+    {
+        var matter = Dossier();
+        Directory.CreateDirectory(Path.Combine(_root, Exhibits.Folder));
+        await File.WriteAllTextAsync(Pieces("Pièce 68 bis - Déjà versée.pdf"), "x");
+
+        var result = await Verse(matter, new VerserPiecesInput(
+            [new PieceToVerse(Pdf("Encore.pdf"), "Encore", "bis")], StartNumber: 68, Stamp: false));
+
+        Assert.Equal(1, result.Failed);
+        Assert.Contains("existe déjà", result.Pieces[0].Error);
+    }
+
     /// <summary>A figure wants a hyphen: « 68 1 » would be two numbers.</summary>
     [Fact]
     public async Task WritesANumberedSuffixWithAHyphen()

@@ -43,20 +43,22 @@ export function useUnbilledLines(matterId: string, when = true) {
 }
 
 /**
- * Which lines to tick before she has looked.
+ * Which lines to tick before she has looked, for a facture whose amount is already known.
  *
- * <p><b>Everything, when nothing says otherwise.</b> Billing all of it is the common case and
- * unticking three lines is less work than ticking twenty.</p>
+ * <p>Oldest first until the next line would overshoot, so a 600 € facture on a dossier with 2 000 €
+ * of waiting hours arrives with roughly the right three ticked rather than all of them. It is a
+ * starting point and it is visibly one: the strip states what the selection is worth against what
+ * the facture says, so a wrong guess is obvious rather than silent.</p>
  *
- * <p><b>Up to the amount, when the amount is known</b>, which is what dropping a facture's PDF
- * gives us. Oldest first until the next line would overshoot, so a 600 € facture on a dossier with
- * 2 000 € of waiting hours arrives with roughly the right three ticked rather than all of them. It
- * is a starting point and it is visibly one: the strip above the buttons states what the selection
- * is worth against what the facture says, so a wrong guess is obvious rather than silent.</p>
+ * <p><b>Nothing, when the amount is unknown.</b> It used to fall back to ticking everything, which
+ * is the right default for « facturer du temps passé » — that screen exists to bill the hours, and
+ * it sets its own selection. Here it was the wrong one twice over: a PDF whose HT could not be read
+ * would silently propose to settle every unbilled hour on the dossier, which is the bug this whole
+ * picker was added to fix, pointing the other way.</p>
  */
 export function preselect(lines: UnbilledEntry[], amountCents: number | null): Set<string> {
   if (amountCents === null || amountCents <= 0) {
-    return new Set(lines.map((line) => line.id))
+    return new Set()
   }
 
   const chosen = new Set<string>()

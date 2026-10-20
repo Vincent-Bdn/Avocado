@@ -177,6 +177,9 @@ public static class Exhibits
         return new ExhibitNumber(number, SuffixIn(rest[digits..]));
     }
 
+    /// <summary>The longest a « bis » or a « quater » gets. Past this it is a libellé.</summary>
+    private const int LongestSuffix = 6;
+
     /// <summary>
     /// The suffix in what follows the digits, or null.
     ///
@@ -184,6 +187,13 @@ public static class Exhibits
     /// « - » surrounded by spaces, which is the name separator and never a suffix, while « 68 bis »
     /// and « 68-1 » have no space on both sides of theirs. Reading the libellé as a suffix would make
     /// every pièce ever versed a suffixed one.</para>
+    ///
+    /// <para><b>And the separator alone is not enough.</b> Plenty of files are named by hand without
+    /// one — « Pièce 3 Contrat de bail.pdf » — and those are now read, because Avocado reads the
+    /// « Pièces » folder a cabinet kept itself. That name gave <c>ExhibitNumber(3, "Contrat")</c> and
+    /// displayed as « pièce 3 Contrat ». So what follows the suffix has to be the end of the stem,
+    /// the extension, or the libellé separator: a word with more words after it is a title, and a
+    /// suffix is short.</para>
     /// </summary>
     private static string? SuffixIn(ReadOnlySpan<char> after)
     {
@@ -205,7 +215,18 @@ public static class Exhibits
             length++;
         }
 
-        return length == 0 ? null : token[..length].ToString();
+        if (length is 0 or > LongestSuffix)
+        {
+            return null;
+        }
+
+        var rest = token[length..];
+
+        var ends = rest.IsEmpty
+            || rest.StartsWith(" - ")
+            || (rest[0] == '.' && !rest.Contains(' '));
+
+        return ends ? token[..length].ToString() : null;
     }
 
     /// <summary>

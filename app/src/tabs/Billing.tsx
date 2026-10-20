@@ -222,6 +222,7 @@ export function Billing({ matterId, folder, isOpen, onChanged }: {
               externalReference: invoice.externalReference,
               amountExclVatCents: invoice.amountExclVatCents,
               hasDocument: invoice.documentPath !== null,
+              billedEntryCount: invoice.billedEntryCount,
             }))}
             onFiled={() => { refresh(); onChanged() }}
           />

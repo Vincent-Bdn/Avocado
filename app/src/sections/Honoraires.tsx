@@ -89,12 +89,21 @@ const HISTORICAL = 'bg-[#A9B0A8] border border-[#8A938B]'
  * is for, and the axis is simply always there: « le tableau de factu en plus gros, la page de
  * présentation générale doit s'ouvrir sur ça en premier ».</p>
  */
-export function HonorairesChart({ data, picked, onPick }: {
+export function HonorairesChart({ data, picked, onPick, currentMonth }: {
   data: Honoraires
   /** The month whose dossiers are open below, so the column can say so. */
   picked?: number | null
   /** Clicking a column asks which dossiers it is made of. */
   onPick?: (index: number) => void
+  /**
+   * The first of the month being lived in, ISO, or absent when the period cannot contain it.
+   *
+   * <p>The chart used to take its last bucket for the current month, which was true while the window
+   * was always twelve months ending on today. With the period a parameter it is false for every past
+   * one: « exercice précédent » highlighted its final column and the tooltip announced « mois en
+   * cours » about août of last year.</p>
+   */
+  currentMonth?: string
 }) {
   const steps = [4, 3, 2, 1, 0]
   const height = 188
@@ -144,7 +153,13 @@ export function HonorairesChart({ data, picked, onPick }: {
             ))}
           </div>
 
-          <Plot data={data} height={height} picked={picked} onPick={onPick} />
+          <Plot
+            data={data}
+            height={height}
+            picked={picked}
+            onPick={onPick}
+            currentMonth={currentMonth}
+          />
         </div>
       </div>
     </div>
@@ -158,15 +173,22 @@ export function HonorairesChart({ data, picked, onPick }: {
  * month keeps a resting highlight because it is the one being lived in; a picked month keeps a
  * stronger one because its dossiers are listed below and the two have to be visibly connected.</p>
  */
-function Plot({ data, height, picked, onPick }: {
+function Plot({ data, height, picked, onPick, currentMonth }: {
   data: Honoraires
   height: number
   picked?: number | null
   onPick?: (index: number) => void
+  currentMonth?: string
 }) {
   const [hovered, setHovered] = useState<number | null>(null)
-  const current = data.months.length - 1
-  const highlighted = hovered ?? picked ?? current
+
+  // Found rather than assumed to be last. −1 for a period that has already closed, which is what
+  // leaves every column in its resting state instead of calling one of them « en cours ».
+  const current = currentMonth === undefined
+    ? -1
+    : data.months.findIndex((month) => month.month.slice(0, 7) === currentMonth.slice(0, 7))
+
+  const highlighted = hovered ?? picked ?? (current === -1 ? null : current)
 
   const percent = (cents: number) =>
     data.scaleCents === 0 ? 0 : Math.min(100, (cents / data.scaleCents) * 100)
@@ -181,7 +203,7 @@ function Plot({ data, height, picked, onPick }: {
           month={data.months[hovered]}
           index={hovered}
           count={data.months.length}
-          isCurrent={hovered === current && data.months.length > 1}
+          isCurrent={hovered === current}
         />
       )}
 

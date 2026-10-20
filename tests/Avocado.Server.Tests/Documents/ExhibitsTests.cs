@@ -59,6 +59,11 @@ public class ExhibitsTests
     [InlineData("Pièces jointes.pdf", null, null)]
     [InlineData("Pièce - sans numéro.pdf", null, null)]
     [InlineData("Assignation.pdf", null, null)]
+    // Named by hand, without the libellé separator. Very common in the « Pièces » folder a cabinet
+    // kept itself, which Avocado now reads: « Contrat » is a title, not a suffix.
+    [InlineData("Pièce 3 Contrat de bail.pdf", 3, null)]
+    [InlineData("Pièce 3 Attestation.pdf", 3, null)]
+    [InlineData("Pièce 12 bordereau récapitulatif.pdf", 12, null)]
     public void ReadsTheNumberOffTheName(string fileName, int? number, string? suffix) =>
         Assert.Equal(
             number is null ? null : new ExhibitNumber(number.Value, suffix),
@@ -71,6 +76,14 @@ public class ExhibitsTests
     [Fact]
     public void NeverReadsTheLibelleAsASuffix() =>
         Assert.Null(Exhibits.NumberOf("Pièce 12 - Attestation.pdf")!.Value.Suffix);
+
+    /// <summary>
+    /// A hand-named file still claims its number, suffix or not. Numbering has to keep counting past
+    /// it: that is the whole reason the folder a cabinet kept itself is read at all.
+    /// </summary>
+    [Fact]
+    public void StillCountsAHandNamedPiece() =>
+        Assert.Equal(4, Exhibits.NextNumber(["Pièce 3 Contrat de bail.pdf"]));
 
     /// <summary>« 68 bis » for a word, « 68-1 » for a figure: both spellings are hers.</summary>
     [Theory]

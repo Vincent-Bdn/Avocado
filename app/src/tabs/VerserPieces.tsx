@@ -118,12 +118,18 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  /** The highest number this dossier has used, so « commencer au n° » can be explained. */
+  const [lastUsed, setLastUsed] = useState<number | null>(null)
+
   // The number the dossier is actually at, so the column below shows real numbers and the field
   // opens on a value she can see. « 1 » on a dossier whose Pièces folder is empty, which is what she
   // asked for: « par défaut c'est le n°1 ».
   useEffect(() => {
     api<{ next: number; free: number[] }>(`/api/matters/${matterId}/exhibits/next-number`)
-      .then((answer) => setStartAt((current) => current === '' ? String(answer.next) : current))
+      .then((answer) => {
+        setStartAt((current) => current === '' ? String(answer.next) : current)
+        setLastUsed(answer.next > 1 ? answer.next - 1 : null)
+      })
       .catch(() => setStartAt((current) => current === '' ? '1' : current))
   }, [matterId])
 
@@ -250,6 +256,16 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
             onChange={(event) => setStartAt(event.target.value.replace(/\D/g, ''))}
           />
         </label>
+
+        {/* The field opens on the next free number, which is right for an ordinary versement and
+            one too high for a « bis »: a pièce 68 bis belongs to 68, so she has to come back to 68.
+            Saying where the dossier stopped is what makes that obvious; guessing it from the
+            suffixes she has typed would move the numbering under her hand. */}
+        {lastUsed !== null && (
+          <span className="type-caption text-muted">
+            dernière pièce versée : n° {lastUsed}
+          </span>
+        )}
 
         <button
           type="button"

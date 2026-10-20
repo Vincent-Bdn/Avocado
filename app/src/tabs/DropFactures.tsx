@@ -39,6 +39,8 @@ export interface ExistingInvoice {
   externalReference: string | null
   amountExclVatCents: number
   hasDocument: boolean
+  /** How many lines of temps passé it already settled. Zero for one typed in by hand. */
+  billedEntryCount: number
 }
 
 /** What she decided about one dropped file, before anything is written. */
@@ -98,7 +100,15 @@ export function DropFactures({ matterId, invoices, onFiled }: {
       for (const [path, decision] of Object.entries(current)) {
         if (decision.lines !== null) continue
 
-        next[path] = { ...decision, lines: preselect(lines, parseAmountToCents(decision.amount)) }
+        // Only for a facture this is about to create. Attaching the PDF of a facture Avocado already
+        // knows about must tick nothing: that facture took its lines when it was issued, and adding
+        // more would inflate its boni/mali and quietly remove hours from « reste à facturer ».
+        next[path] = {
+          ...decision,
+          lines: decision.attachTo === null
+            ? preselect(lines, parseAmountToCents(decision.amount))
+            : new Set<string>(),
+        }
         changed = true
       }
 
@@ -293,7 +303,12 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     value={decision.attachTo ?? ''}
-                    onChange={(event) => set(item.path, { attachTo: event.target.value || null })}
+                    onChange={(event) => set(item.path, {
+                      attachTo: event.target.value || null,
+                      // Re-decided rather than carried over: what to tick depends entirely on
+                      // whether this is creating a facture or attaching to one.
+                      lines: null,
+                    })}
                     className="h-7 rounded-sm border border-line-strong bg-sunken px-1.5 font-sans text-[12.5px] text-ink"
                   >
                     <option value="">Créer une facture</option>
@@ -357,10 +372,12 @@ export function DropFactures({ matterId, invoices, onFiled }: {
                 {/* The part that was missing entirely. Her own words: « dès que je glisse une
                     facture, ça me propose de cocher les cases de temps passé correspondant à la
                     facture ». */}
-                {waiting.length > 0 && (
+                {waiting.length > 0 && !settled(decision.attachTo, invoices) && (
                   <div className="grid gap-1.5 border-t border-line-subtle pt-2">
                     <span className="type-caption text-muted">
-                      Lignes de temps passé que cette facture solde
+                      {decision.attachTo === null
+                        ? 'Lignes de temps passé que cette facture solde'
+                        : 'Lignes de temps passé que cette facture solde, s’il y en a'}
                     </span>
 
                     <LinePicker
@@ -385,4 +402,16 @@ export function DropFactures({ matterId, invoices, onFiled }: {
       })}
     </div>
   )
+}
+
+/**
+ * Whether the facture being attached to has already taken its lines.
+ *
+ * <p>One issued from temps passé did, on the day it was issued, and its boni or mali was decided
+ * then. Offering to settle more hours onto it is not a correction, it is a second helping.</p>
+ */
+function settled(attachTo: string | null, invoices: ExistingInvoice[]): boolean {
+  if (attachTo === null) return false
+
+  return (invoices.find((invoice) => invoice.id === attachTo)?.billedEntryCount ?? 0) > 0
 }

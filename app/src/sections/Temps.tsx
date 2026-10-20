@@ -105,9 +105,7 @@ export function Temps({ onOpenMatter }: { onOpenMatter: (id: string) => void }) 
       <Button
         variant="secondary"
         size="sm"
-        onClick={() => setAnchor(span === 'week'
-          ? mondayOf(new Date())
-          : new Date().toISOString().slice(0, 8) + '01')}
+        onClick={() => setAnchor(span === 'week' ? mondayOf(new Date()) : `${localToday().slice(0, 8)}01`)}
       >
         Aujourd’hui
       </Button>
@@ -164,7 +162,7 @@ function Table({ grid, onOpenMatter }: {
   grid: TimeGrid
   onOpenMatter: (id: string) => void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localToday()
 
   return (
     <table className="w-full border-separate border-spacing-0 text-[12px]">
@@ -256,6 +254,20 @@ function Table({ grid, onOpenMatter }: {
       </tfoot>
     </table>
   )
+}
+
+/**
+ * Today, in **local** time.
+ *
+ * <p>Not `toISOString()`, which is UTC. In France that is an hour or two ahead of midnight, so
+ * between local midnight and 01:00 — or 02:00 in summer — it answers yesterday, and the column
+ * marked « today » would be the wrong one on exactly the nights somebody is working late and
+ * recording time.</p>
+ */
+function localToday(): string {
+  const now = new Date()
+
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 /** The Monday of the week containing this date. Monday-based, matching French convention. */

@@ -100,8 +100,13 @@ public static class VerserPieces
         var stampedBytes = new List<byte[]>();
 
         // Whether the current integer has been handed to an ordinary pièce yet. A suffixed one stays
-        // on it — « 68 » then « 68 bis » — and an ordinary one moves to the next. See Numbering.
+        // on it — « 68 » then « 68 bis » — and an ordinary one moves to the next.
         var used = false;
+
+        // What this dossier already carries, so a « 68 bis » versed last month is not versed again
+        // under a different libellé. CreateNew catches an identical file name and nothing else: two
+        // pièces numbered 68 bis with different libellés are two files and one broken citation.
+        var onDisk = Exhibits.FileNamesIn(root).ToList();
 
         foreach (var piece in input.Pieces)
         {
@@ -115,8 +120,19 @@ public static class VerserPieces
                 used = false;
             }
 
+            var numbered = new ExhibitNumber(number, suffix);
+
+            if (Exhibits.IsTaken(onDisk, numbered))
+            {
+                versed.Add(new VersedPiece(
+                    numbered.ToString(), piece.RelativePath, piece.RelativePath, false,
+                    $"La pièce n° {numbered} existe déjà dans ce dossier."));
+
+                continue;
+            }
+
             var outcome = await OneAsync(
-                root, exhibits, piece, new ExhibitNumber(number, suffix),
+                root, exhibits, piece, numbered,
                 stampImage, options, stampedBytes, cancellationToken)
                 .ConfigureAwait(false);
 
@@ -124,9 +140,14 @@ public static class VerserPieces
 
             // The number is consumed only by a pièce that was actually written. A file that failed
             // must not leave a hole in the numbering that nothing accounts for.
-            if (outcome.Error is null && suffix is null)
+            if (outcome.Error is null)
             {
-                used = true;
+                onDisk.Add(outcome.Name);
+
+                if (suffix is null)
+                {
+                    used = true;
+                }
             }
         }
 
