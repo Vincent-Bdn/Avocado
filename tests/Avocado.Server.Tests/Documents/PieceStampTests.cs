@@ -60,7 +60,7 @@ public class PieceStampTests
     [Fact]
     public void StampsAPdfWithoutLosingAPage()
     {
-        var stamped = PieceStamp.Apply(Pdf(3), Stamp(), 7, new StampOptions());
+        var stamped = PieceStamp.Apply(Pdf(3), Stamp(), "7", new StampOptions());
 
         using var document = Reopen(stamped);
 
@@ -79,7 +79,7 @@ public class PieceStampTests
     public void PutsAWhiteRectangleUnderTheStampWhenAskedTo()
     {
         var opaque = Drawn(PieceStamp.Apply(
-            Pdf(1), Stamp(), 7, new StampOptions(OpaqueBackground: true)));
+            Pdf(1), Stamp(), "7", new StampOptions(OpaqueBackground: true)));
 
         // « 1 1 1 rg » is white in a PDF content stream, followed by a rectangle and a fill.
         Assert.Contains("1 1 1 rg", opaque);
@@ -94,7 +94,7 @@ public class PieceStampTests
     [Fact]
     public void DrawsNoBackgroundUnlessAsked()
     {
-        Assert.DoesNotContain("1 1 1 rg", Drawn(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions())));
+        Assert.DoesNotContain("1 1 1 rg", Drawn(PieceStamp.Apply(Pdf(1), Stamp(), "7", new StampOptions())));
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public class PieceStampTests
         var original = Pdf(1);
         var copy = original.ToArray();
 
-        PieceStamp.Apply(original, Stamp(), 1, new StampOptions());
+        PieceStamp.Apply(original, Stamp(), "1", new StampOptions());
 
         // The file in her folder is not ours to modify: stamping produces a new document in Pièces.
         Assert.Equal(copy, original);
@@ -126,11 +126,11 @@ public class PieceStampTests
         // Their own tool's choice, written down in the mode d'emploi: « Pages tamponnées : première
         // page uniquement ». A stamped page is longer than an untouched one, which is what says so.
         var plain = Pdf(2);
-        var stamped = PieceStamp.Apply(plain, Stamp(), 3, new StampOptions());
+        var stamped = PieceStamp.Apply(plain, Stamp(), "3", new StampOptions());
 
         Assert.True(stamped.Length > plain.Length);
 
-        var everyPage = PieceStamp.Apply(plain, Stamp(), 3, new StampOptions(EveryPage: true));
+        var everyPage = PieceStamp.Apply(plain, Stamp(), "3", new StampOptions(EveryPage: true));
 
         Assert.True(
             everyPage.Length > stamped.Length,
@@ -144,7 +144,7 @@ public class PieceStampTests
     [InlineData(StampCorner.BottomLeft)]
     public void PutsTheStampInEveryCornerWithoutFalling(StampCorner corner)
     {
-        var stamped = PieceStamp.Apply(Pdf(1), Stamp(), 12, new StampOptions(Corner: corner));
+        var stamped = PieceStamp.Apply(Pdf(1), Stamp(), "12", new StampOptions(Corner: corner));
 
         using var document = Reopen(stamped);
         Assert.Equal(1, document.PageCount);
@@ -193,7 +193,7 @@ public class PieceStampTests
         Assert.Equal(842, document.Pages[0].Height.Point, 0);
 
         // And it stamps like anything else, which is the whole point of converting it.
-        var landed = Landed(PieceStamp.Apply(page, TransparentStamp(), 4, new StampOptions()));
+        var landed = Landed(PieceStamp.Apply(page, TransparentStamp(), "4", new StampOptions()));
 
         Assert.Equal(new StampOptions().MarginPoints, landed.Top, 1);
     }
@@ -213,7 +213,7 @@ public class PieceStampTests
     {
         var notAPdf = System.Text.Encoding.UTF8.GetBytes("Ceci n'est pas un PDF");
 
-        Assert.ThrowsAny<Exception>(() => PieceStamp.Apply(notAPdf, Stamp(), 1, new StampOptions()));
+        Assert.ThrowsAny<Exception>(() => PieceStamp.Apply(notAPdf, Stamp(), "1", new StampOptions()));
     }
 
     /// <summary>
@@ -248,11 +248,11 @@ public class PieceStampTests
     public void WritesTheNumberInTheColourItWasGiven() =>
         Assert.Equal(
             "1 1 1 rg",
-            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions(NumberColour: "#FFFFFF")), "(7) Tj"));
+            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), "7", new StampOptions(NumberColour: "#FFFFFF")), "(7) Tj"));
 
     [Fact]
     public void StaysBlackWhenNobodyHasChosen() =>
-        Assert.Equal("0 0 0 rg", InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions()), "(7) Tj"));
+        Assert.Equal("0 0 0 rg", InkAt(PieceStamp.Apply(Pdf(1), Stamp(), "7", new StampOptions()), "(7) Tj"));
 
     /// <summary>
     /// Hand-edited nonsense in the settings row costs a badly-coloured number, never the batch.
@@ -266,7 +266,7 @@ public class PieceStampTests
     public void FallsBackToBlackRatherThanThrowing(string colour) =>
         Assert.Equal(
             "0 0 0 rg",
-            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), 7, new StampOptions(NumberColour: colour)), "(7) Tj"));
+            InkAt(PieceStamp.Apply(Pdf(1), Stamp(), "7", new StampOptions(NumberColour: colour)), "(7) Tj"));
 
     [Theory]
     [InlineData("#FFFFFF", 255, 255, 255)]
@@ -323,7 +323,7 @@ public class PieceStampTests
     [Fact]
     public void KeepsAStampTransparentOverAPieceOlderThanSoftMasks()
     {
-        var stamped = PieceStamp.Apply(OldPdf(), TransparentStamp(), 7, new StampOptions());
+        var stamped = PieceStamp.Apply(OldPdf(), TransparentStamp(), "7", new StampOptions());
 
         Assert.True(
             KeptItsTransparency(stamped),
@@ -334,7 +334,7 @@ public class PieceStampTests
     [Fact]
     public void LeavesANewerPieceAtItsOwnVersion()
     {
-        var stamped = PieceStamp.Apply(Pdf(1), TransparentStamp(), 7, new StampOptions());
+        var stamped = PieceStamp.Apply(Pdf(1), TransparentStamp(), "7", new StampOptions());
 
         using var document = PdfReader.Open(new MemoryStream(stamped), PdfDocumentOpenMode.Modify);
 
@@ -394,7 +394,7 @@ public class PieceStampTests
     public void PutsTheStampWhereTheReaderLooksWhateverTheScannerWrote(int degrees)
     {
         var options = new StampOptions();
-        var landed = Landed(PieceStamp.Apply(Rotated(degrees), Stamp(), 7, options));
+        var landed = Landed(PieceStamp.Apply(Rotated(degrees), Stamp(), "7", options));
 
         // Upright: a stamp lying on its side is as wide as it is tall only by accident, so check the
         // width against the width that was asked for.

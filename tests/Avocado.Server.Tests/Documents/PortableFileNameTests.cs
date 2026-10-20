@@ -45,7 +45,7 @@ public class PortableFileNameTests
     public void MakesTheSameNameOnAMacAsOnAPc() =>
         Assert.Equal(
             "Pièce 9 - Contrat du 3 03 2019 avenants.pdf",
-            Exhibits.FileName(9, "Contrat du 3/03/2019 : avenants", "x.pdf"));
+            Exhibits.FileName(new ExhibitNumber(9), "Contrat du 3/03/2019 : avenants", "x.pdf"));
 
     [Fact]
     public void RefusesToEndANameWindowsWouldNotCreate()

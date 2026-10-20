@@ -11,7 +11,8 @@ export interface Picked {
 }
 
 interface VersedPiece {
-  number: number
+  /** « 12 », « 68 bis ». Written, because a pièce number is not an integer. */
+  number: string
   name: string
   relativePath: string
   stamped: boolean
@@ -37,6 +38,53 @@ const suggest = (name: string) => name.replace(/\.[^.]+$/, '')
  */
 const naturally = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' })
 
+/** One line of the panel: a file, its libellé, and the suffix she may give it. */
+interface Line extends Picked {
+  label: string
+  /** « bis », « ter », « 1 ». Empty for an ordinary pièce. */
+  suffix: string
+}
+
+/**
+ * The numbers this batch will take, in order.
+ *
+ * <p><b>This mirrors <c>VerserPieces.HandleAsync</c> and the server stays authoritative</b> — the
+ * result panel reports what was actually written. It exists so the column beside each libellé shows
+ * the real number before she commits, « 68, 68 bis, 68 ter, 69 », rather than after.</p>
+ *
+ * <p>The rule: a pièce with a suffix stays on the current number, an ordinary one moves to the next.
+ * That is what bis means — this document belongs with 68 — and it is why something arriving after
+ * the bordereau was sent cannot simply take 69.</p>
+ */
+function numbering(lines: Line[], first: number | null): string[] {
+  if (first === null) return lines.map(() => '—')
+
+  const numbers: string[] = []
+  let number = first
+  let used = false
+
+  for (const line of lines) {
+    const suffix = line.suffix.trim().replace(/[^\p{L}\p{N}]/gu, '').toLowerCase()
+
+    if (suffix === '' && used) {
+      number += 1
+      used = false
+    }
+
+    numbers.push(
+      suffix === ''
+        ? String(number)
+        : /^\d+$/.test(suffix)
+          ? `${number}-${suffix}`
+          : `${number} ${suffix}`,
+    )
+
+    if (suffix === '') used = true
+  }
+
+  return numbers
+}
+
 /**
  * The panel that turns a selection of documents into numbered pièces.
  *
@@ -60,10 +108,10 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
   // in the sequence they are numbered — so the arrows stay and nothing re-sorts behind her. What
   // changes is the starting point: she ticked fifteen files in whatever order her eye found them,
   // and « scan_12 » after « scan_3 » is the order she meant.
-  const [order, setOrder] = useState(() =>
+  const [order, setOrder] = useState<Line[]>(() =>
     [...picked]
       .sort((left, right) => naturally.compare(left.name, right.name))
-      .map((file) => ({ ...file, label: suggest(file.name) })))
+      .map((file) => ({ ...file, label: suggest(file.name), suffix: '' })))
   const [startAt, setStartAt] = useState('')
   const [stamp, setStamp] = useState(true)
   const [merge, setMerge] = useState(false)
@@ -95,7 +143,11 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
 
     try {
       const result = await post<Result>(`/api/matters/${matterId}/exhibits/verser-batch`, {
-        pieces: order.map((file) => ({ relativePath: file.relativePath, label: file.label.trim() || null })),
+        pieces: order.map((file) => ({
+          relativePath: file.relativePath,
+          label: file.label.trim() || null,
+          suffix: file.suffix.trim() || null,
+        })),
         // Pre-filled from the dossier, so this is normally her own number sent back. Blank only
         // happens if she clears the field, and the backend then continues past the highest number
         // already used, which is the same answer.
@@ -112,11 +164,13 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
   }
 
   const first = startAt.trim() === '' ? null : Number(startAt.trim())
+  const numbers = numbering(order, first)
 
   return (
     <Dialog title={`Verser ${order.length} pièce${order.length > 1 ? 's' : ''}`} width={640} onClose={busy ? undefined : onClose}>
       <p className="m-0 max-w-[72ch] text-[12px] leading-[18px] text-muted">
-        Numérotées dans cet ordre et copiées dans « Pièces ». Vos originaux ne bougent pas.
+        Numérotées dans cet ordre et copiées dans « Pièces Avocado », à côté de vos propres dossiers.
+        Vos originaux ne bougent pas.
       </p>
 
       <div className="max-h-[320px] overflow-y-auto rounded-md border border-line-subtle">
@@ -127,8 +181,8 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
           >
             {/* The number this file will carry, never blank: the column used to be empty until she
                 typed a start number, so the panel showed fifteen libellés and no numbering at all. */}
-            <span className="w-8 shrink-0 text-right font-mono text-[11px] text-ink-secondary tnum">
-              {first === null ? '—' : first + index}
+            <span className="w-[52px] shrink-0 text-right font-mono text-[11px] text-ink-secondary tnum">
+              {numbers[index]}
             </span>
 
             <Input
@@ -138,6 +192,19 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
               aria-label={`Libellé de ${file.name}`}
               onChange={(event) => setOrder(order.map((other, other_index) =>
                 other_index === index ? { ...other, label: event.target.value } : other))}
+            />
+
+            {/* « bis » keeps this pièce on the number above it. Which is what it means: a document
+                that arrives after the bordereau was sent cannot take 69, already cited as something
+                else, and cannot take 68 either. */}
+            <Input
+              inputSize="sm"
+              className="w-[54px] shrink-0 text-center"
+              value={file.suffix}
+              placeholder="bis"
+              aria-label={`Suffixe de ${file.name}`}
+              onChange={(event) => setOrder(order.map((other, other_index) =>
+                other_index === index ? { ...other, suffix: event.target.value } : other))}
             />
 
             <span className="flex shrink-0 gap-0.5">

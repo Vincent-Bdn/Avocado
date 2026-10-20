@@ -137,7 +137,7 @@ public class DossierFolderReaderTests : IDisposable
     {
         File_("Pièces/Pièce 4 - Attestation.pdf");
 
-        Assert.Equal(4, Assert.Single(Read("Pièces").Entries).ExhibitNumber);
+        Assert.Equal("4", Assert.Single(Read("Pièces").Entries).ExhibitNumber);
     }
 
     public void Dispose()

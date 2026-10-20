@@ -8,7 +8,11 @@ namespace Avocado.Server.Features.Documents.Folders;
 
 /// <param name="RelativePath">The file in her folder, as the Documents tab listed it.</param>
 /// <param name="Label">The libellé written for the judge. Empty falls back to the file's own name.</param>
-public sealed record PieceToVerse(string RelativePath, string? Label);
+/// <param name="Suffix">
+/// « bis », « ter », « 1 ». A pièce carrying one stays on the number of the line before it instead of
+/// consuming a new one, which is what « bis » means: this document belongs with 68.
+/// </param>
+public sealed record PieceToVerse(string RelativePath, string? Label, string? Suffix = null);
 
 /// <param name="StartNumber">Null continues from the highest number already used.</param>
 /// <param name="Stamp">False copies without stamping, which is what happens with no stamp image.</param>
@@ -19,8 +23,9 @@ public sealed record VerserPiecesInput(
     bool Stamp = true,
     bool Merge = false);
 
+/// <param name="Number">« 12 », « 68 bis », as it is written on the pièce and in the bordereau.</param>
 /// <param name="Error">Why this one was not versed. Null when it was.</param>
-public sealed record VersedPiece(int Number, string Name, string RelativePath, bool Stamped, string? Error);
+public sealed record VersedPiece(string Number, string Name, string RelativePath, bool Stamped, string? Error);
 
 public sealed record VerserPiecesResult(
     IReadOnlyList<VersedPiece> Pieces,
@@ -87,27 +92,41 @@ public static class VerserPieces
             ? new StampOptions()
             : await CabinetStamp.OptionsAsync(database, cancellationToken).ConfigureAwait(false);
 
-        var number = input.StartNumber ?? Exhibits.NextNumber(
-            Directory.EnumerateFiles(exhibits).Select(Path.GetFileName).OfType<string>());
+        // Both folders, so a dossier versed under the old name keeps counting rather than restarting
+        // at 1 and writing a second « Pièce 1 » beside last year's.
+        var number = input.StartNumber ?? Exhibits.NextNumber(Exhibits.FileNamesIn(root));
 
         var versed = new List<VersedPiece>();
         var stampedBytes = new List<byte[]>();
+
+        // Whether the current integer has been handed to an ordinary pièce yet. A suffixed one stays
+        // on it — « 68 » then « 68 bis » — and an ordinary one moves to the next. See Numbering.
+        var used = false;
 
         foreach (var piece in input.Pieces)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            var suffix = Exhibits.CleanSuffix(piece.Suffix);
+
+            if (suffix is null && used)
+            {
+                number++;
+                used = false;
+            }
+
             var outcome = await OneAsync(
-                root, exhibits, piece, number, stampImage, options, stampedBytes, cancellationToken)
+                root, exhibits, piece, new ExhibitNumber(number, suffix),
+                stampImage, options, stampedBytes, cancellationToken)
                 .ConfigureAwait(false);
 
             versed.Add(outcome);
 
             // The number is consumed only by a pièce that was actually written. A file that failed
             // must not leave a hole in the numbering that nothing accounts for.
-            if (outcome.Error is null)
+            if (outcome.Error is null && suffix is null)
             {
-                number++;
+                used = true;
             }
         }
 
@@ -132,7 +151,7 @@ public static class VerserPieces
         string root,
         string exhibits,
         PieceToVerse piece,
-        int number,
+        ExhibitNumber number,
         byte[]? stampImage,
         StampOptions options,
         List<byte[]> stamped,
@@ -144,7 +163,7 @@ public static class VerserPieces
         // The path comes from the window, so it is checked like any other path from there.
         if (!DossierFolderReader.Inside(root, source) || !File.Exists(source))
         {
-            return new VersedPiece(number, piece.RelativePath, piece.RelativePath, false,
+            return new VersedPiece(number.ToString(), piece.RelativePath, piece.RelativePath, false,
                 "Ce fichier n'est plus dans le dossier.");
         }
 
@@ -169,7 +188,7 @@ public static class VerserPieces
                 var bytes = PieceStamp.Apply(
                     PieceStamp.IsPicture(original) ? PieceStamp.PageFromPicture(read) : read,
                     stampImage!,
-                    number,
+                    number.ToString(),
                     options);
 
                 // CreateNew, never overwrite: two pièces never share a number, so something already
@@ -188,16 +207,16 @@ public static class VerserPieces
                 File.Copy(source, destination, overwrite: false);
             }
 
-            return new VersedPiece(number, name, $"{Exhibits.Folder}/{name}", canStamp, null);
+            return new VersedPiece(number.ToString(), name, $"{Exhibits.Folder}/{name}", canStamp, null);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
-            return new VersedPiece(number, name, piece.RelativePath, false, exception.Message);
+            return new VersedPiece(number.ToString(), name, piece.RelativePath, false, exception.Message);
         }
         catch (Exception exception)
         {
             // A PDF that will not open. Named, and the batch carries on.
-            return new VersedPiece(number, name, piece.RelativePath, false,
+            return new VersedPiece(number.ToString(), name, piece.RelativePath, false,
                 $"Ce PDF n'a pas pu être tamponné : {exception.Message}");
         }
     }

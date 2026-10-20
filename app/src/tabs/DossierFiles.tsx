@@ -19,7 +19,7 @@ interface FolderEntry {
   modifiedAt: string
   isMail: boolean
   /** Set when Avocado produced this file as a pièce. */
-  exhibitNumber: number | null
+  exhibitNumber: string | null
 }
 
 interface FolderListing {
@@ -472,11 +472,11 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
             toasts.succeeded(
               `${written.length} pièce${written.length > 1 ? 's' : ''} versée${written.length > 1 ? 's' : ''}`,
               result.bordereauPath === null
-                ? 'Copiées dans « Pièces ». Vos originaux n’ont pas bougé.'
+                ? 'Copiées dans « Pièces Avocado ». Vos originaux n’ont pas bougé.'
                 : 'Le bordereau a été écrit à côté d’elles. Vos originaux n’ont pas bougé.',
             )
 
-            // « Pièces » may have just been created, so the whole tree is re-read.
+            // « Pièces Avocado » may have just been created, so the whole tree is re-read.
             reload()
             onChanged()
           }}

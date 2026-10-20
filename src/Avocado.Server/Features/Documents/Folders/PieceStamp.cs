@@ -153,7 +153,11 @@ public static class PieceStamp
     /// so it sits on top of the content rather than behind it. A page that is rotated or is not A4 is
     /// handled by asking the page for its own width and height rather than assuming.</para>
     /// </summary>
-    public static byte[] Apply(byte[] pdf, byte[] stampImage, int number, StampOptions options)
+    /// <param name="number">
+    /// « 7 », « 68 bis ». Already written, because what goes on the pièce is whatever the bordereau
+    /// says, and a suffixed pièce is not an integer. See <see cref="ExhibitNumber"/>.
+    /// </param>
+    public static byte[] Apply(byte[] pdf, byte[] stampImage, string number, StampOptions options)
     {
         StampFont.Install();
 
@@ -203,7 +207,7 @@ public static class PieceStamp
             var font = new XFont(StampFont.FaceName, options.NumberSizePoints, XFontStyleEx.Bold);
 
             canvas.DrawString(
-                number.ToString(),
+                number,
                 font,
                 new XSolidBrush(Ink(options.NumberColour)),
                 new XRect(

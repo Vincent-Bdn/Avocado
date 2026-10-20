@@ -3,7 +3,10 @@ using Avocado.Server.Features.Mails.Infrastructure;
 namespace Avocado.Server.Features.Documents.Folders;
 
 /// <param name="RelativePath">From the dossier's folder, with « / » separators whatever the platform.</param>
-/// <param name="ExhibitNumber">Set when Avocado produced this file as a pièce.</param>
+/// <param name="ExhibitNumber">
+/// Set when Avocado produced this file as a pièce. Written, « 12 » or « 68 bis », because a pièce
+/// number is not an integer: see <see cref="ExhibitNumber"/>.
+/// </param>
 public sealed record FolderEntry(
     string Name,
     string RelativePath,
@@ -11,7 +14,7 @@ public sealed record FolderEntry(
     long SizeBytes,
     DateTimeOffset ModifiedAt,
     bool IsMail,
-    int? ExhibitNumber);
+    string? ExhibitNumber);
 
 /// <param name="Path">Absolute. Null when the dossier has no folder yet.</param>
 /// <param name="Missing">The folder is set but not there: a disk unplugged, a folder renamed.</param>
@@ -109,7 +112,7 @@ public static class DossierFolderReader
                     info.Length,
                     info.LastWriteTimeUtc,
                     MailFile.LooksLikeMail(file),
-                    Exhibits.NumberOf(name)));
+                    Exhibits.NumberOf(name)?.ToString()));
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -192,7 +195,7 @@ public static class DossierFolderReader
                         new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
                         IsMail: name.EndsWith(".msg", StringComparison.OrdinalIgnoreCase)
                                 || name.EndsWith(".eml", StringComparison.OrdinalIgnoreCase),
-                        Exhibits.NumberOf(name)));
+                        Exhibits.NumberOf(name)?.ToString()));
                 }
             }
         }
@@ -273,7 +276,7 @@ public static class DossierFolderReader
                     info.Length,
                     info.LastWriteTimeUtc,
                     MailFile.LooksLikeMail(file),
-                    Exhibits.NumberOf(name)));
+                    Exhibits.NumberOf(name)?.ToString()));
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

@@ -75,7 +75,7 @@ public sealed class VerserPiecesTests : IDisposable
         ], Stamp: false));
 
         Assert.Equal(0, result.Failed);
-        Assert.Equal([1, 2, 3], result.Pieces.Select(piece => piece.Number));
+        Assert.Equal(["1", "2", "3"], result.Pieces.Select(piece => piece.Number));
         Assert.True(File.Exists(Pieces("Pièce 1 - Contrat du 3 mars 2019.pdf")));
         Assert.True(File.Exists(Pieces("Pièce 2 - Mise en demeure.pdf")));
         Assert.True(File.Exists(Pieces("Pièce 3 - Assignation.pdf")));
@@ -91,7 +91,7 @@ public sealed class VerserPiecesTests : IDisposable
         var result = await Verse(matter, new VerserPiecesInput(
             [new PieceToVerse(Pdf("Nouvelle.pdf"), "Nouvelle")], Stamp: false));
 
-        Assert.Equal(8, result.Pieces[0].Number);
+        Assert.Equal("8", result.Pieces[0].Number);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class VerserPiecesTests : IDisposable
         var result = await Verse(matter, new VerserPiecesInput(
             [new PieceToVerse(Pdf("Quatre.pdf"), "Quatre")], Stamp: false));
 
-        Assert.Equal(4, result.Pieces[0].Number);
+        Assert.Equal("4", result.Pieces[0].Number);
     }
 
     [Fact]
@@ -120,7 +120,70 @@ public sealed class VerserPiecesTests : IDisposable
             StartNumber: 20,
             Stamp: false));
 
-        Assert.Equal([20, 21], result.Pieces.Select(piece => piece.Number));
+        Assert.Equal(["20", "21"], result.Pieces.Select(piece => piece.Number));
+    }
+
+    /// <summary>
+    /// « Option d'ajouter bis, ex. Pièce 68 bis, ou 68-1 68-2. »
+    ///
+    /// <para>A suffixed pièce stays on the number of the line before it instead of consuming a new
+    /// one, which is what bis means: this document belongs with 68. Something that arrives after the
+    /// bordereau was sent cannot take 69, which is already cited as something else.</para>
+    /// </summary>
+    [Fact]
+    public async Task KeepsTheNumberForASuffixedPiece()
+    {
+        var matter = Dossier();
+
+        var result = await Verse(matter, new VerserPiecesInput(
+        [
+            new PieceToVerse(Pdf("Contrat.pdf"), "Contrat"),
+            new PieceToVerse(Pdf("Avenant.pdf"), "Avenant", "bis"),
+            new PieceToVerse(Pdf("Second.pdf"), "Second avenant", "ter"),
+            new PieceToVerse(Pdf("Suite.pdf"), "Suite"),
+        ], StartNumber: 68, Stamp: false));
+
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(["68", "68 bis", "68 ter", "69"], result.Pieces.Select(piece => piece.Number));
+        Assert.True(File.Exists(Pieces("Pièce 68 - Contrat.pdf")));
+        Assert.True(File.Exists(Pieces("Pièce 68 bis - Avenant.pdf")));
+        Assert.True(File.Exists(Pieces("Pièce 69 - Suite.pdf")));
+    }
+
+    /// <summary>A figure wants a hyphen: « 68 1 » would be two numbers.</summary>
+    [Fact]
+    public async Task WritesANumberedSuffixWithAHyphen()
+    {
+        var matter = Dossier();
+
+        var result = await Verse(matter, new VerserPiecesInput(
+            [new PieceToVerse(Pdf("Annexe.pdf"), "Annexe", "1")], StartNumber: 68, Stamp: false));
+
+        Assert.Equal("68-1", result.Pieces[0].Number);
+        Assert.True(File.Exists(Pieces("Pièce 68-1 - Annexe.pdf")));
+    }
+
+    /// <summary>
+    /// A dossier versed under the old folder name keeps counting. Reading only the new folder would
+    /// restart at 1 and write a second « Pièce 1 » beside one that has been communicated.
+    /// </summary>
+    [Fact]
+    public async Task CountsPastThePiecesVersedUnderTheOldFolderName()
+    {
+        var matter = Dossier();
+        Directory.CreateDirectory(Path.Combine(_root, Exhibits.LegacyFolder));
+        await File.WriteAllTextAsync(
+            Path.Combine(_root, Exhibits.LegacyFolder, "Pièce 12 - Ancienne.pdf"), "x");
+
+        var result = await Verse(matter, new VerserPiecesInput(
+            [new PieceToVerse(Pdf("Nouvelle.pdf"), "Nouvelle")], Stamp: false));
+
+        Assert.Equal("13", result.Pieces[0].Number);
+
+        // Written into Avocado's own folder, and her « Pièces » is left exactly as it was.
+        Assert.True(File.Exists(Pieces("Pièce 13 - Nouvelle.pdf")));
+        Assert.True(File.Exists(Path.Combine(_root, Exhibits.LegacyFolder, "Pièce 12 - Ancienne.pdf")));
+        Assert.Single(Directory.GetFiles(Path.Combine(_root, Exhibits.LegacyFolder)));
     }
 
     /// <summary>The one that must not lose the afternoon.</summary>
@@ -144,7 +207,7 @@ public sealed class VerserPiecesTests : IDisposable
 
         // And the number the missing file would have taken is not spent: the third piece is n° 2,
         // so the bordereau has no hole that nothing accounts for.
-        Assert.Equal(2, result.Pieces[2].Number);
+        Assert.Equal("2", result.Pieces[2].Number);
         Assert.True(File.Exists(Pieces("Pièce 2 - Aussi.pdf")));
     }
 

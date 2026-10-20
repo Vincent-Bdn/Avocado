@@ -22,11 +22,14 @@ public sealed record MatterDeadlineItem(
     DeadlineUrgency Urgency);
 
 /// <param name="RelativePath">From the dossier's folder, which is where the file actually is.</param>
-/// <param name="ExhibitNumber">Set when Avocado wrote this file as a pièce.</param>
+/// <param name="ExhibitNumber">
+/// Set when Avocado wrote this file as a pièce. Written, « 12 » or « 68 bis »: a pièce number is not
+/// an integer once a document arrives after the bordereau has been sent.
+/// </param>
 public sealed record MatterDocumentItem(
     string Name,
     string RelativePath,
-    int? ExhibitNumber,
+    string? ExhibitNumber,
     DateTimeOffset ModifiedAt);
 
 /// <summary>Drives the tab bar's counter pills.</summary>

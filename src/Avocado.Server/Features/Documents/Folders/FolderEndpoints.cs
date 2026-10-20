@@ -49,14 +49,10 @@ public static class FolderEndpoints
             return Results.NotFound();
         }
 
-        // A dossier with no folder yet, or no Pièces folder in it, starts at one. Not an error: it is
-        // the state every dossier is in before its first versement, and the answer is known.
+        // A dossier with no folder yet, or no pièces in it, starts at one. Not an error: it is the
+        // state every dossier is in before its first versement, and the answer is known.
         var names = found.Value.Folder is { Length: > 0 } root
-            && Directory.Exists(System.IO.Path.Combine(root, Exhibits.Folder))
-            ? Directory.EnumerateFiles(System.IO.Path.Combine(root, Exhibits.Folder))
-                .Select(System.IO.Path.GetFileName)
-                .OfType<string>()
-                .ToList()
+            ? Exhibits.FileNamesIn(root)
             : [];
 
         return Results.Ok(new
@@ -179,8 +175,9 @@ public static class FolderEndpoints
         var exhibits = System.IO.Path.Combine(root, Exhibits.Folder);
         Directory.CreateDirectory(exhibits);
 
-        var number = Exhibits.NextNumber(
-            Directory.EnumerateFiles(exhibits).Select(System.IO.Path.GetFileName).OfType<string>());
+        // Both folder names, so a dossier versed under the old one keeps counting rather than
+        // restarting at 1 beside a « Pièce 1 » that has already been communicated.
+        var number = new ExhibitNumber(Exhibits.NextNumber(Exhibits.FileNamesIn(root)));
 
         var name = Exhibits.FileName(number, input.Label?.Trim(), System.IO.Path.GetFileName(source));
         var destination = System.IO.Path.Combine(exhibits, name);
@@ -199,7 +196,7 @@ public static class FolderEndpoints
 
         return Results.Ok(new
         {
-            number,
+            number = number.ToString(),
             name,
             relativePath = $"{Exhibits.Folder}/{name}",
         });

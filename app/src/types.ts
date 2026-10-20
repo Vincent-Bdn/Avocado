@@ -112,7 +112,7 @@ export interface MatterDetail {
   documents: {
     name: string
     relativePath: string
-    exhibitNumber: number | null
+    exhibitNumber: string | null
     modifiedAt: string
   }[]
   counts: { activities: number; documents: number; openDeadlines: number; timeEntries: number }
@@ -138,7 +138,7 @@ export interface ActivityListItem {
   body: string | null
   trackingNumber: string | null
   durationMinutes: number | null
-  attachments: { id: string; name: string; sizeBytes: number; exhibitNumber: number | null }[]
+  attachments: { id: string; name: string; sizeBytes: number; exhibitNumber: string | null }[]
 }
 
 export interface ActivityListPage {

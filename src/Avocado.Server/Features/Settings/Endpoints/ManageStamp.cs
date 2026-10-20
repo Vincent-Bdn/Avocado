@@ -254,7 +254,7 @@ public static class ManageStamp
         try
         {
             return Results.File(
-                PieceStamp.Apply(buffer.ToArray(), stamp, Math.Clamp(numero ?? 7, 1, 9999), options),
+                PieceStamp.Apply(buffer.ToArray(), stamp, Math.Clamp(numero ?? 7, 1, 9999).ToString(), options),
                 "application/pdf");
         }
         catch (Exception exception)
