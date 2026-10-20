@@ -305,12 +305,24 @@ function Chiffre({ exercices }: { exercices: DashboardSummary['exercices'] }) {
   )
 }
 
+/**
+ * « Reste à facturer », and every dossier that makes it up.
+ *
+ * <p>It used to show four and aggregate the others into a row that could not be clicked, which made
+ * the dossiers behind the headline unreachable: « sur le tableau de bord, pouvoir accéder à tous les
+ * dossiers à facturer. Pour l'instant que les premiers sont accessibles. » The backend was sending
+ * all of them all along. Four still show at rest, because the point of the card is the total and a
+ * list of thirty would bury it, and the aggregate row now opens the rest in place.</p>
+ */
 function Unbilled({ data, onOpenMatter }: {
   data: DashboardSummary
   onOpenMatter: (id: string) => void
 }) {
-  const shown = data.unbilled.matters.slice(0, 4)
-  const rest = data.unbilled.matters.slice(4)
+  const [all, setAll] = useState(false)
+
+  const collapsed = 4
+  const shown = all ? data.unbilled.matters : data.unbilled.matters.slice(0, collapsed)
+  const rest = all ? [] : data.unbilled.matters.slice(collapsed)
 
   return (
     <section className="overflow-hidden rounded-md border border-[#E8D5AE] bg-[#FDF8ED]">
@@ -340,7 +352,9 @@ function Unbilled({ data, onOpenMatter }: {
         </div>
       </div>
 
-      <div className="bg-[#FFFDF8]">
+      {/* Capped and scrolled once it is open: thirty dossiers must not push the échéances column
+          off the screen, and the total above has to stay in view while she reads down the list. */}
+      <div className={cn('bg-[#FFFDF8]', all && 'max-h-[320px] overflow-y-auto')}>
         {shown.map((matter) => (
           <button
             key={matter.matterId}
@@ -358,9 +372,17 @@ function Unbilled({ data, onOpenMatter }: {
           </button>
         ))}
 
+        {/* The row that used to be a dead end. It still says what the others add up to, because that
+            is the figure she reads before deciding whether to look. */}
         {rest.length > 0 && (
-          <div className="grid h-7 grid-cols-[minmax(0,1fr)_66px_92px] items-center gap-2 border-t border-[#F2E7D2] px-3.5 text-muted">
-            <span className="truncate text-[11.5px]">{rest.length} autres dossiers</span>
+          <button
+            type="button"
+            onClick={() => setAll(true)}
+            className="grid h-7 w-full grid-cols-[minmax(0,1fr)_66px_92px] items-center gap-2 border-t border-[#F2E7D2] px-3.5 text-left text-[#6E4A0E] hover:bg-[#FBF4E6]"
+          >
+            <span className="truncate text-[11.5px] underline-offset-2 group-hover:underline">
+              Voir les {rest.length} autres dossiers
+            </span>
             <span className="text-right font-mono text-[11px] tnum">
               {formatDuration(rest
                 .filter((matter) => !matter.isFixedFee)
@@ -369,9 +391,19 @@ function Unbilled({ data, onOpenMatter }: {
             <span className="text-right font-mono text-[11.5px] tnum">
               {formatEuros(rest.reduce((total, matter) => total + matter.leftToBillCents, 0))}
             </span>
-          </div>
+          </button>
         )}
       </div>
+
+      {all && data.unbilled.matters.length > collapsed && (
+        <button
+          type="button"
+          onClick={() => setAll(false)}
+          className="w-full border-t border-[#F2E7D2] bg-[#FFFDF8] px-3.5 py-1.5 text-left text-[11px] text-[#6E4A0E] underline-offset-2 hover:underline"
+        >
+          Réduire
+        </button>
+      )}
     </section>
   )
 }

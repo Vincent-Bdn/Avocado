@@ -64,6 +64,16 @@ public static class DestinationReachInspector
                 syncRoot);
         }
 
+        // Before DriveInfo, because DriveInfo cannot answer about one. A UNC path has no drive letter
+        // and `new DriveInfo(@"\\NAS\partage")` throws, so the catch below swallowed it and every NAS
+        // addressed the natural way was reported as « ce dossier est sur cet ordinateur… les deux
+        // copies partiraient ensemble ». The backup was running; the screen said it was pointless.
+        // A mapped drive letter was recognised correctly, which is why this went unnoticed.
+        if (IsUnc(full))
+        {
+            return new ReachVerdict(DestinationReach.OffMachine, "Emplacement réseau.");
+        }
+
         try
         {
             var drive = new DriveInfo(Path.GetPathRoot(full) ?? full);
@@ -88,6 +98,27 @@ public static class DestinationReachInspector
             DestinationReach.SameMachine,
             "Ce dossier est sur cet ordinateur. Il protège d'une fausse manœuvre, pas d'un vol, d'une " +
             "panne de disque ni d'un dégât des eaux : les deux copies partiraient ensemble.");
+    }
+
+    /// <summary>
+    /// <c>\\NAS\partage</c>, and its forward-slash spelling, which Windows accepts everywhere.
+    ///
+    /// <para>Two separators and then something: <c>\\</c> alone is not a path, and a single leading
+    /// separator is a rooted local path on the current drive.</para>
+    /// </summary>
+    private static bool IsUnc(string path)
+    {
+        if (path.Length < 3)
+        {
+            return false;
+        }
+
+        var first = path[0];
+        var second = path[1];
+
+        return (first is '\\' or '/')
+            && (second is '\\' or '/')
+            && path[2] is not ('\\' or '/');
     }
 
     /// <summary>

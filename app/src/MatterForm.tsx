@@ -15,13 +15,19 @@ import type { ContactSummary, MatterDetail, PracticeSettings } from './types.js'
 const LITIGATION = 'Contentieux'
 
 /**
- * Offered when the vault has nothing to offer, which is only ever the first dossier.
+ * Les trois natures, et il n'y en a pas d'autres.
  *
- * <p>Two, and deliberately not a list of every nature a French practice might have. What gets
- * suggested after that is what she has already written, so the field learns her vocabulary instead
- * of teaching her ours, and « Arbitrage » never waits for a release.</p>
+ * <p>This was free text with autocompletion that learned the practice's own vocabulary, so that
+ * « Arbitrage » typed once was offered for ever without waiting for a release. The lawyer who asked
+ * for that asked for the opposite afterwards, having used it: three answers, chosen from a list,
+ * because a field that accepts anything is a field where the same dossier is Conseil on Monday and
+ * conseil on Thursday, and neither groups with the other.</p>
+ *
+ * <p>Anything a vault already holds is still offered, so a dossier recorded as « Arbitrage » keeps
+ * its nature and can be reopened without the form quietly rewriting it. See
+ * <c>otherClassifications</c>.</p>
  */
-const defaultClassifications = [LITIGATION, 'Conseil']
+const CLASSIFICATIONS = [LITIGATION, 'Conseil', 'Autre']
 
 /**
  * Creating and correcting a dossier are the same form. Creating also creates the client when there
@@ -37,7 +43,8 @@ export function MatterForm({ matter, onSaved, onCancel }: {
   const existingClient = matter?.parties.find((party) => party.isClient)
 
   const [contacts, setContacts] = useState<ContactSummary[]>([])
-  const [classifications, setClassifications] = useState<string[]>(defaultClassifications)
+  /** Natures this vault holds that are not one of the three. Offered so none is lost on a reopen. */
+  const [otherClassifications, setOtherClassifications] = useState<string[]>([])
   const [clientId, setClientId] = useState(existingClient?.contactId ?? '')
   const [creatingClient, setCreatingClient] = useState(false)
   const [name, setName] = useState(matter?.name ?? '')
@@ -71,12 +78,15 @@ export function MatterForm({ matter, onSaved, onCancel }: {
     api<ContactSummary[]>('/api/contacts').then(setContacts).catch(() => setContacts([]))
   }, [])
 
-  // Her own vocabulary first, ours only to fill the gaps. A vault that already says « Arbitrage »
-  // offers it; one that has never heard of it is not the poorer for our not guessing.
+  // The three are the list. What this adds is whatever a vault already carries from before the list
+  // was closed, « Arbitrage », « Médiation », so reopening such a dossier does not silently reclass
+  // it as Contentieux the first time she corrects its name.
   useEffect(() => {
     api<string[]>('/api/matters/classifications')
-      .then((used) => setClassifications([...new Set([...used, ...defaultClassifications])]))
-      .catch(() => setClassifications(defaultClassifications))
+      .then((used) => setOtherClassifications(
+        used.filter((candidate) => !CLASSIFICATIONS.includes(candidate)),
+      ))
+      .catch(() => setOtherClassifications([]))
   }, [])
 
   // The practice's rate is the starting point for a new dossier, and only that: it is copied onto
@@ -193,23 +203,27 @@ export function MatterForm({ matter, onSaved, onCancel }: {
       <Field label="Nature du dossier">
         <div className="grid gap-1">
           {/*
-            One field, not a pair of chips above a text box that overrides them. The list offers the
-            two usual answers and anything else can be typed: a practice that also does arbitrage or
-            médiation says so without waiting for a release.
+            Three answers, chosen. It was free text with autocompletion, which meant « Conseil » and
+            « conseil » were two natures and the filters on the dossier list could not group them.
+            Natures already recorded in this vault are kept at the bottom so none is lost.
           */}
-          <Input
-            inputSize="lg"
-            list="matter-classifications"
+          <Select
+            className="h-8"
             value={classification}
-            placeholder="Conseil, Contentieux, Arbitrage…"
             onChange={(event) => setClassification(event.target.value)}
-          />
-
-          <datalist id="matter-classifications">
-            {classifications.map((candidate) => (
-              <option key={candidate} value={candidate} />
+          >
+            {CLASSIFICATIONS.map((candidate) => (
+              <option key={candidate} value={candidate}>{candidate}</option>
             ))}
-          </datalist>
+
+            {otherClassifications.length > 0 && (
+              <optgroup label="Déjà utilisées dans ce coffre">
+                {otherClassifications.map((candidate) => (
+                  <option key={candidate} value={candidate}>{candidate}</option>
+                ))}
+              </optgroup>
+            )}
+          </Select>
 
           {litigation && (
             <p className="m-0 type-caption text-muted">

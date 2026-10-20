@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { ArrowDown, ArrowUp, Loader2, Stamp, X } from 'lucide-react'
-import { ApiError, post } from '../api.js'
+import { useEffect, useState } from 'react'
+import { ArrowDown, ArrowDownAZ, ArrowUp, Loader2, Stamp, X } from 'lucide-react'
+import { ApiError, api, post } from '../api.js'
 import { Button } from '../components/ui/button.js'
 import { Dialog, DialogActions } from '../components/ui/dialog.js'
 import { Input } from '../components/ui/input.js'
@@ -29,6 +29,15 @@ interface Result {
 const suggest = (name: string) => name.replace(/\.[^.]+$/, '')
 
 /**
+ * « 2 » before « 10 », and « Pièce 9 » before « Pièce 10 ».
+ *
+ * <p>Her request was « essayer d'ores et déjà de classer dans l'ordre les pièces (1, 2, 3) ». Plain
+ * alphabetical ordering is the thing that puts 10 before 2, and it is what every file manager hands
+ * her, so sorting by name without this would not have answered it.</p>
+ */
+const naturally = new Intl.Collator('fr', { numeric: true, sensitivity: 'base' })
+
+/**
  * The panel that turns a selection of documents into numbered pièces.
  *
  * <p><b>Order, then libellés, then the number to start at.</b> Those are the three decisions and they
@@ -47,13 +56,28 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
    *  apart from « je n'ai pas demandé de tampon ». */
   onDone: (result: Result, wanted: boolean) => void
 }) {
+  // Sorted to begin with, then hers. The order is the argument — pièces are cited in the conclusions
+  // in the sequence they are numbered — so the arrows stay and nothing re-sorts behind her. What
+  // changes is the starting point: she ticked fifteen files in whatever order her eye found them,
+  // and « scan_12 » after « scan_3 » is the order she meant.
   const [order, setOrder] = useState(() =>
-    picked.map((file) => ({ ...file, label: suggest(file.name) })))
+    [...picked]
+      .sort((left, right) => naturally.compare(left.name, right.name))
+      .map((file) => ({ ...file, label: suggest(file.name) })))
   const [startAt, setStartAt] = useState('')
   const [stamp, setStamp] = useState(true)
   const [merge, setMerge] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The number the dossier is actually at, so the column below shows real numbers and the field
+  // opens on a value she can see. « 1 » on a dossier whose Pièces folder is empty, which is what she
+  // asked for: « par défaut c'est le n°1 ».
+  useEffect(() => {
+    api<{ next: number; free: number[] }>(`/api/matters/${matterId}/exhibits/next-number`)
+      .then((answer) => setStartAt((current) => current === '' ? String(answer.next) : current))
+      .catch(() => setStartAt((current) => current === '' ? '1' : current))
+  }, [matterId])
 
   function move(index: number, by: number) {
     const to = index + by
@@ -72,8 +96,9 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
     try {
       const result = await post<Result>(`/api/matters/${matterId}/exhibits/verser-batch`, {
         pieces: order.map((file) => ({ relativePath: file.relativePath, label: file.label.trim() || null })),
-        // Blank continues past the highest number already used, which is what she wants unless she
-        // is rebuilding a bordereau from scratch.
+        // Pre-filled from the dossier, so this is normally her own number sent back. Blank only
+        // happens if she clears the field, and the backend then continues past the highest number
+        // already used, which is the same answer.
         startNumber: startAt.trim() === '' ? null : Number(startAt.trim()),
         stamp,
         merge,
@@ -100,8 +125,10 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
             key={file.relativePath}
             className="flex items-center gap-2 border-b border-[#F1F3EE] px-2 py-1.5 last:border-b-0"
           >
-            <span className="w-8 shrink-0 text-right font-mono text-[11px] text-muted tnum">
-              {first === null ? '' : first + index}
+            {/* The number this file will carry, never blank: the column used to be empty until she
+                typed a start number, so the panel showed fifteen libellés and no numbering at all. */}
+            <span className="w-8 shrink-0 text-right font-mono text-[11px] text-ink-secondary tnum">
+              {first === null ? '—' : first + index}
             </span>
 
             <Input
@@ -152,11 +179,20 @@ export function VerserPiecesPanel({ matterId, picked, onClose, onDone }: {
             inputSize="sm"
             className="w-[64px] text-center font-mono tnum"
             inputMode="numeric"
-            placeholder="suite"
             value={startAt}
             onChange={(event) => setStartAt(event.target.value.replace(/\D/g, ''))}
           />
         </label>
+
+        <button
+          type="button"
+          onClick={() => setOrder((current) =>
+            [...current].sort((left, right) => naturally.compare(left.name, right.name)))}
+          className="flex items-center gap-1.5 text-[12px] text-brand-on-subtle underline-offset-2 hover:underline"
+        >
+          <ArrowDownAZ size={13} strokeWidth={1.75} />
+          Trier par nom
+        </button>
 
         <label className="flex items-center gap-2 text-[12px]">
           <input type="checkbox" checked={stamp} onChange={(event) => setStamp(event.target.checked)} />

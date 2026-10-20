@@ -19,10 +19,51 @@ public static class FolderEndpoints
 
         group.MapGet("/matters/{matterId:guid}/folder", ListAsync);
         group.MapPut("/matters/{matterId:guid}/folder", SetAsync);
+        group.MapGet("/matters/{matterId:guid}/exhibits/next-number", NextNumberAsync);
         group.MapPost("/matters/{matterId:guid}/exhibits/verser", VerserAsync);
         group.MapPost("/matters/{matterId:guid}/exhibits/verser-batch", VerserPieces.HandleAsync);
 
         return routes;
+    }
+
+    /// <summary>
+    /// The number the next pièce would take, and the ones a withdrawal left free.
+    ///
+    /// <para>So the window can show real numbers down the versement panel rather than a blank column
+    /// and a field whose placeholder said « suite ». She asked for the opposite of a placeholder:
+    /// « plutôt que suite, indiquer le numéro de départ, et par défaut c'est le n° 1 ». A number she
+    /// can see is a number she can correct.</para>
+    ///
+    /// <para>Read off the folder, never from a counter, so that renaming or deleting a pièce in
+    /// Explorer leaves Avocado agreeing with what is on disk.</para>
+    /// </summary>
+    private static async Task<IResult> NextNumberAsync(
+        Guid matterId,
+        AvocadoDbContext database,
+        CancellationToken cancellationToken)
+    {
+        var found = await FolderOfAsync(database, matterId, cancellationToken);
+
+        if (found is null)
+        {
+            return Results.NotFound();
+        }
+
+        // A dossier with no folder yet, or no Pièces folder in it, starts at one. Not an error: it is
+        // the state every dossier is in before its first versement, and the answer is known.
+        var names = found.Value.Folder is { Length: > 0 } root
+            && Directory.Exists(System.IO.Path.Combine(root, Exhibits.Folder))
+            ? Directory.EnumerateFiles(System.IO.Path.Combine(root, Exhibits.Folder))
+                .Select(System.IO.Path.GetFileName)
+                .OfType<string>()
+                .ToList()
+            : [];
+
+        return Results.Ok(new
+        {
+            next = Exhibits.NextNumber(names),
+            free = Exhibits.FreeNumbers(names),
+        });
     }
 
     /// <param name="q">

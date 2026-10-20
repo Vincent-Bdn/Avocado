@@ -31,6 +31,41 @@ public class DestinationReachTests : IDisposable
     }
 
     /// <summary>
+    /// A NAS, addressed the way anyone addresses one.
+    ///
+    /// <para><c>DriveInfo</c> throws on a UNC path, the catch swallowed it, and the cautious fallback
+    /// then announced « ce dossier est sur cet ordinateur… les deux copies partiraient ensemble » to a
+    /// practice whose backups were landing on a share in another room. A mapped drive letter was
+    /// classified correctly all along, which is how this survived: it only misfired for the people who
+    /// typed the share directly.</para>
+    /// </summary>
+    [Theory]
+    [InlineData(@"\\NAS\partage\Sauvegardes")]
+    [InlineData(@"\\192.168.1.40\avocado")]
+    [InlineData(@"\\NAS\partage")]
+    [InlineData("//NAS/partage/Sauvegardes")]
+    public void AShareIsOffMachineHoweverItIsSpelled(string path)
+    {
+        var verdict = DestinationReachInspector.Inspect(path, Vault);
+
+        Assert.Equal(DestinationReach.OffMachine, verdict.Reach);
+        Assert.True(verdict.IsOffMachine);
+        Assert.Contains("réseau", verdict.Detail);
+    }
+
+    /// <summary>
+    /// A rooted local path is not a share. One leading separator means « this drive », and reading it
+    /// as a NAS would hand out the reassurance the whole type exists to withhold.
+    /// </summary>
+    [Fact]
+    public void ARootedLocalPathIsNotAShare()
+    {
+        Assert.NotEqual(
+            DestinationReach.OffMachine,
+            DestinationReachInspector.Inspect(Path.Combine(_root, "ailleurs"), Vault).Reach);
+    }
+
+    /// <summary>
     /// A sibling whose name merely starts the same way is a perfectly good destination. Matching on a
     /// string prefix rather than on path segments would refuse it.
     /// </summary>
