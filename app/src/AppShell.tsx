@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  BookOpen, CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Users,
+  BookOpen, CalendarClock, FolderClosed, Home as HomeIcon, Plus, Settings as Gear, Star, Timer, Users,
 } from 'lucide-react'
 import { ApiError, api } from './api.js'
 import { CommandPalette } from './CommandPalette.js'
@@ -10,6 +10,7 @@ import { Settings } from './Settings.js'
 import { Contacts, NewContact } from './sections/Contacts.js'
 import { Docs } from './sections/Docs.js'
 import { Home } from './sections/Home.js'
+import { Temps } from './sections/Temps.js'
 import { UpcomingDeadlines } from './sections/UpcomingDeadlines.js'
 import { Button } from './components/ui/button.js'
 import { EmptyState } from './components/ui/empty-state.js'
@@ -19,7 +20,7 @@ import { cn } from './lib/utils.js'
 import { formatRelative } from './labels.js'
 import type { MatterListPage } from './types.js'
 
-type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'docs' | 'settings'
+type Section = 'home' | 'matters' | 'contacts' | 'deadlines' | 'temps' | 'docs' | 'settings'
 
 /**
  * The shell: rail 48, secondary panel 232, content, 6px gutters, panels at radius 8 with no shadow
@@ -98,6 +99,7 @@ export function AppShell() {
       )}
 
       {section === 'deadlines' && <UpcomingDeadlines onOpenMatter={openMatter} />}
+      {section === 'temps' && <Temps key={reloadToken} onOpenMatter={openMatter} />}
       {section === 'docs' && <Docs page={docsPage} />}
       {section === 'settings' && <Settings onOpenDocs={openDocs} />}
 
@@ -310,6 +312,9 @@ function Rail({ section, onSection }: { section: Section; onSection: (next: Sect
     ['matters', 'Dossiers', FolderClosed],
     ['contacts', 'Tiers', Users],
     ['deadlines', 'Échéances', CalendarClock],
+    // « Ajouter un onglet pour voir ce que j'ai rentré comme temps chaque jour/semaine, sur quel
+    // dossier. » Beside the échéances, because both are read rather than filled in.
+    ['temps', 'Temps passé', Timer],
   ]
 
   return (
