@@ -46,10 +46,17 @@ public class Matter
     public string? CourtCaseNumber { get; set; }
 
     /// <summary>
-    /// « Conseil » or « Contentieux » in practice, but stored as free text: a practice that also does
-    /// arbitrage or médiation should be able to say so without waiting for a release. Only the exact
-    /// word « Contentieux » unlocks the two litigation fields below, and that comparison is the one
-    /// piece of vocabulary the application interprets.
+    /// « Contentieux », « Conseil » or « Autre », which is the whole list the window offers.
+    ///
+    /// <para>Still a string in the database, and deliberately. It was free text with autocompletion
+    /// that learned the practice's own vocabulary; the lawyer who asked for that asked for the
+    /// opposite once she had used it, because a field accepting anything made « Conseil » and
+    /// « conseil » two natures the filters could not group. The column stays open so the dossiers
+    /// already recorded as « Arbitrage » keep their nature rather than being rewritten by a
+    /// migration, and the window offers those too wherever a vault holds them.</para>
+    ///
+    /// <para>Only the exact word « Contentieux » unlocks the two litigation fields below, and that
+    /// comparison is the one piece of vocabulary the application interprets.</para>
     /// </summary>
     public string? Classification { get; set; }
 

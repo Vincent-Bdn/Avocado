@@ -20,6 +20,11 @@ public static class MatterEndpoints
         group.MapPost("/{matterId:guid}/parties", ManageParties.AddAsync);
         group.MapPut("/{id:guid}/favourite", SetFavourite.HandleAsync);
 
+        // Two dossiers that are the same affair. The preview counts everything and names what it is
+        // worried about, because the merge itself cannot be undone. See MergeMatters.
+        group.MapGet("/{id:guid}/merge-into/{targetId:guid}/preview", MergeMatters.PreviewAsync);
+        group.MapPost("/{id:guid}/merge-into/{targetId:guid}", MergeMatters.HandleAsync);
+
         routes.MapPut("/api/parties/{id:guid}", ManageParties.UpdateAsync).WithTags("Matters");
         routes.MapDelete("/api/parties/{id:guid}", ManageParties.RemoveAsync).WithTags("Matters");
 

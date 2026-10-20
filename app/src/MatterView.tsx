@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Check, Star } from 'lucide-react'
+import { Check, Merge, Star } from 'lucide-react'
 import { ApiError, api, post } from './api.js'
 import { Journal } from './Journal.js'
 import { MatterForm } from './MatterForm.js'
+import { MergeMatter } from './MergeMatter.js'
 import { Billing } from './tabs/Billing.js'
 import { Deadlines } from './tabs/Deadlines.js'
 import { DossierFiles } from './tabs/DossierFiles.js'
@@ -22,7 +23,12 @@ import type { MatterDetail } from './types.js'
 type Tab = 'overview' | 'parties' | 'journal' | 'documents' | 'deadlines' | 'time' | 'billing'
 
 /** The fiche dossier: header 52, tab bar 32 sticky, body, and the 208px context panel. */
-export function MatterView({ matterId, onChanged }: { matterId: string; onChanged: () => void }) {
+export function MatterView({ matterId, onChanged, onOpenMatter }: {
+  matterId: string
+  onChanged: () => void
+  /** Where to go once this dossier has been merged away: the one it became. */
+  onOpenMatter?: (id: string) => void
+}) {
   const [matter, setMatter] = useState<MatterDetail | null>(null)
   /**
    * Aperçu, not the journal.
@@ -33,6 +39,7 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
    */
   const [tab, setTab] = useState<Tab>('overview')
   const [editing, setEditing] = useState(false)
+  const [merging, setMerging] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -159,6 +166,18 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
 
           <Button variant="secondary" onClick={() => setEditing(true)}>Modifier</Button>
 
+          {/* Two dossiers that are the same affair: « peut-on merger sur FINANCIERE CN (NIETO) ? »
+              Beside Modifier rather than in the facturation tab, because it is a correction of the
+              dossier itself. Definitive, so everything it does is counted before she confirms. */}
+          <Button
+            variant="secondary"
+            size="icon"
+            title="Fusionner ce dossier dans un autre"
+            onClick={() => setMerging(true)}
+          >
+            <Merge size={14} strokeWidth={2} />
+          </Button>
+
           <Button
             variant={matter.isOpen ? 'secondary' : 'primary'}
             onClick={() => void toggleClosed()}
@@ -255,6 +274,21 @@ export function MatterView({ matterId, onChanged }: { matterId: string; onChange
           matter={matter}
           onCancel={() => setEditing(false)}
           onSaved={() => { setEditing(false); refreshAll() }}
+        />
+      )}
+
+      {merging && (
+        <MergeMatter
+          matterId={matterId}
+          matterName={matter.name}
+          onCancel={() => setMerging(false)}
+          onMerged={(targetId) => {
+            setMerging(false)
+            // This dossier no longer exists, so staying on it would read a 404. The window follows
+            // the history to where it went.
+            onChanged()
+            onOpenMatter?.(targetId)
+          }}
         />
       )}
     </Panel>

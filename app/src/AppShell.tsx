@@ -288,7 +288,7 @@ function Matters({ selected, onSelect, onNewMatter }: {
       </Panel>
 
       {selected ? (
-        <MatterView matterId={selected} onChanged={reload} />
+        <MatterView matterId={selected} onChanged={reload} onOpenMatter={onSelect} />
       ) : (
         <Panel className="items-center justify-center">
           <EmptyState
