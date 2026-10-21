@@ -31,26 +31,43 @@ public class DestinationReachTests : IDisposable
     }
 
     /// <summary>
-    /// A NAS, addressed the way anyone addresses one.
+    /// A NAS, addressed the way anyone addresses one on Windows.
     ///
     /// <para><c>DriveInfo</c> throws on a UNC path, the catch swallowed it, and the cautious fallback
     /// then announced « ce dossier est sur cet ordinateur… les deux copies partiraient ensemble » to a
     /// practice whose backups were landing on a share in another room. A mapped drive letter was
     /// classified correctly all along, which is how this survived: it only misfired for the people who
     /// typed the share directly.</para>
+    ///
+    /// <para><b>And the answer differs by platform, because the question does.</b> A UNC path is a
+    /// Windows spelling. On a Mac or on Linux every character of <c>\\NAS\partage</c> is legal in a
+    /// file name, so that string is a relative local path and « same machine » is the correct verdict
+    /// rather than a missed case. A share really mounted on a Mac is <c>/Volumes/NAS/…</c>, looks like
+    /// any other absolute path, and is caught by the <c>DriveType.Network</c> branch instead — which
+    /// is why that branch stays and this one is additional.</para>
+    ///
+    /// <para>Asserted on both sides rather than skipped off Windows: a test that returns early says
+    /// nothing, and what it would be hiding here is a real difference worth writing down.</para>
     /// </summary>
     [Theory]
     [InlineData(@"\\NAS\partage\Sauvegardes")]
     [InlineData(@"\\192.168.1.40\avocado")]
     [InlineData(@"\\NAS\partage")]
     [InlineData("//NAS/partage/Sauvegardes")]
-    public void AShareIsOffMachineHoweverItIsSpelled(string path)
+    public void AShareIsOffMachineHoweverItIsSpelledOnWindows(string path)
     {
         var verdict = DestinationReachInspector.Inspect(path, Vault);
 
-        Assert.Equal(DestinationReach.OffMachine, verdict.Reach);
-        Assert.True(verdict.IsOffMachine);
-        Assert.Contains("réseau", verdict.Detail);
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.Equal(DestinationReach.OffMachine, verdict.Reach);
+            Assert.True(verdict.IsOffMachine);
+            Assert.Contains("réseau", verdict.Detail);
+
+            return;
+        }
+
+        Assert.Equal(DestinationReach.SameMachine, verdict.Reach);
     }
 
     /// <summary>

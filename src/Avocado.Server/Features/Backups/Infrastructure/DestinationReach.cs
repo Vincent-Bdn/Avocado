@@ -69,6 +69,12 @@ public static class DestinationReachInspector
         // addressed the natural way was reported as « ce dossier est sur cet ordinateur… les deux
         // copies partiraient ensemble ». The backup was running; the screen said it was pointless.
         // A mapped drive letter was recognised correctly, which is why this went unnoticed.
+        //
+        // Windows only in practice, and that is correct rather than a gap: on a Mac or on Linux
+        // every character of « \\NAS\partage » is legal in a file name, so GetFullPath above has
+        // already turned that string into a relative local path and it is not a share. A share
+        // genuinely mounted there is /Volumes/NAS/… or /mnt/nas/…, indistinguishable from any other
+        // absolute path, and the DriveType.Network test below is what catches it.
         if (IsUnc(full))
         {
             return new ReachVerdict(DestinationReach.OffMachine, "Emplacement réseau.");
