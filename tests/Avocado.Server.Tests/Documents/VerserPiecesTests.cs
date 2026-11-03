@@ -151,6 +151,54 @@ public sealed class VerserPiecesTests : IDisposable
     }
 
     /// <summary>
+    /// An occupied start number slides past, it does not stop the batch.
+    ///
+    /// <para>The regression that broke versement outright. Refusing an already-used number looked
+    /// careful, but the refusal left the counter where it was: the second file was offered the same
+    /// number and refused too, and so was every one after it. Nothing could be versed at all on a
+    /// dossier whose start number happened to be taken.</para>
+    ///
+    /// <para>A taken number is taken by a pièce that exists, so it is spent, and the next ordinary
+    /// pièce is the one after it — which is all « commencer au n° » ever meant.</para>
+    /// </summary>
+    [Fact]
+    public async Task SlidesPastNumbersAlreadyUsedInsteadOfStalling()
+    {
+        var matter = Dossier();
+        Directory.CreateDirectory(Path.Combine(_root, Exhibits.Folder));
+        await File.WriteAllTextAsync(Pieces("Pièce 3 - Déjà là.pdf"), "x");
+        await File.WriteAllTextAsync(Pieces("Pièce 4 - Aussi.pdf"), "x");
+
+        var result = await Verse(matter, new VerserPiecesInput(
+        [
+            new PieceToVerse(Pdf("Une.pdf"), "Une"),
+            new PieceToVerse(Pdf("Deux.pdf"), "Deux"),
+            new PieceToVerse(Pdf("Trois.pdf"), "Trois"),
+        ], StartNumber: 3, Stamp: false));
+
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(["5", "6", "7"], result.Pieces.Select(piece => piece.Number));
+        Assert.True(File.Exists(Pieces("Pièce 5 - Une.pdf")));
+        Assert.True(File.Exists(Pieces("Pièce 7 - Trois.pdf")));
+    }
+
+    /// <summary>And the same when the collision is with the old folder name, which is still read.</summary>
+    [Fact]
+    public async Task SlidesPastNumbersVersedUnderTheOldFolderName()
+    {
+        var matter = Dossier();
+        Directory.CreateDirectory(Path.Combine(_root, Exhibits.LegacyFolder));
+        await File.WriteAllTextAsync(
+            Path.Combine(_root, Exhibits.LegacyFolder, "Pièce 2 - Ancienne.pdf"), "x");
+
+        var result = await Verse(matter, new VerserPiecesInput(
+            [new PieceToVerse(Pdf("Nouvelle.pdf"), "Nouvelle")], StartNumber: 2, Stamp: false));
+
+        Assert.Equal(0, result.Failed);
+        Assert.Equal("3", result.Pieces[0].Number);
+    }
+
+    /// <summary>
     /// Two pièces cannot share a number, suffix included.
     ///
     /// <para>Two lines of one batch both marked « bis » used to land on 68 bis each, and because

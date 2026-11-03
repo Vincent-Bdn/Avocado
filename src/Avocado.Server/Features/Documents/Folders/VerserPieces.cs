@@ -114,15 +114,37 @@ public static class VerserPieces
 
             var suffix = Exhibits.CleanSuffix(piece.Suffix);
 
-            if (suffix is null && used)
+            if (suffix is null)
             {
-                number++;
+                if (used)
+                {
+                    number++;
+                }
+
+                // Past whatever is already on disk.
+                //
+                // A number that is taken is taken by a pièce that exists, so it is spent, and the
+                // next ordinary pièce is the one after it — which is all « commencer au n° » ever
+                // meant. Refusing it instead stalled the entire batch on the first occupied number:
+                // nothing advanced, so every remaining file was offered that same number and refused
+                // in turn, and « verser des pièces » stopped working outright on any dossier whose
+                // start number was already used.
+                //
+                // Terminates: onDisk is finite, so some number above its highest is free.
+                while (Exhibits.IsTaken(onDisk, new ExhibitNumber(number)))
+                {
+                    number++;
+                }
+
                 used = false;
             }
 
             var numbered = new ExhibitNumber(number, suffix);
 
-            if (Exhibits.IsTaken(onDisk, numbered))
+            // A suffix is refused rather than slid past, because it is a specific claim: « 68 bis »
+            // says this document belongs with 68, and quietly writing « 68 ter » instead would
+            // answer a question she did not ask.
+            if (suffix is not null && Exhibits.IsTaken(onDisk, numbered))
             {
                 versed.Add(new VersedPiece(
                     numbered.ToString(), piece.RelativePath, piece.RelativePath, false,
