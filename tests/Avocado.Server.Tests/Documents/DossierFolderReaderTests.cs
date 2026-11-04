@@ -133,11 +133,60 @@ public class DossierFolderReaderTests : IDisposable
     }
 
     [Fact]
-    public void MarksThePiecesInTheListing()
+    public void MarksThePiecesItWroteItself()
+    {
+        File_("Pièces Avocado/Pièce 4 - Attestation.pdf");
+
+        Assert.Equal("4", Assert.Single(Read("Pièces Avocado").Entries).ExhibitNumber);
+    }
+
+    /// <summary>
+    /// The one that made documents unversable.
+    ///
+    /// <para>The badge was read off the file name anywhere in the dossier, so every file a cabinet
+    /// had named « Pièce 1 - … » or « Pièce 4.1 - … » by hand — in Correspondance, in Procédure, in a
+    /// sub-folder per partie — was marked as a pièce. The tree then withheld the versement tick-box
+    /// from anything marked, so those files could never be versed: « il apparaît avec un numéro de
+    /// pièce dans un cadre sur la gauche mais n'a jamais été versé pour autant ».</para>
+    ///
+    /// <para>Her own numbering is hers. The same document under several numbers in several
+    /// sub-folders is an ordinary way to work, because a document produced in two instances carries
+    /// two numbers.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("Pièce 1 - Contrat.pdf")]
+    [InlineData("Pièce 4.1 - Annexe.pdf")]
+    [InlineData("Pièce 12 - Attestation.pdf")]
+    public void LeavesHerOwnNumberingAlone(string fileName)
+    {
+        File_($"01 Procédure/{fileName}");
+        File_(fileName);
+
+        Assert.Null(Assert.Single(Read("01 Procédure").Entries).ExhibitNumber);
+        Assert.Null(Read().Entries.Single(entry => entry.Name == fileName).ExhibitNumber);
+    }
+
+    /// <summary>
+    /// The folder Avocado used to write into is also the one cabinets keep by hand, so inside it its
+    /// own output and her naming cannot be told apart. No badge is claimed there — but the numbers
+    /// stay spoken for, which is what stops one being handed out twice.
+    /// </summary>
+    [Fact]
+    public void ClaimsNothingInTheFolderItNoLongerWritesTo()
     {
         File_("Pièces/Pièce 4 - Attestation.pdf");
 
-        Assert.Equal("4", Assert.Single(Read("Pièces").Entries).ExhibitNumber);
+        Assert.Null(Assert.Single(Read("Pièces").Entries).ExhibitNumber);
+        Assert.Equal(5, Exhibits.NextNumber(Exhibits.FileNamesIn(_root)));
+    }
+
+    /// <summary>A sub-folder she made inside Avocado's own folder is her filing again.</summary>
+    [Fact]
+    public void ClaimsNothingBelowItsOwnFolder()
+    {
+        File_("Pièces Avocado/Annexes/Pièce 9 - Plan.pdf");
+
+        Assert.Null(Assert.Single(Read("Pièces Avocado/Annexes").Entries).ExhibitNumber);
     }
 
     public void Dispose()

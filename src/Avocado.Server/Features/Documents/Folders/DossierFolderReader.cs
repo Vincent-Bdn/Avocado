@@ -104,15 +104,16 @@ public static class DossierFolderReader
                 }
 
                 var info = new FileInfo(file);
+                var fromRoot = Relative(root, file);
 
                 entries.Add(new FolderEntry(
                     name,
-                    Relative(root, file),
+                    fromRoot,
                     false,
                     info.Length,
                     info.LastWriteTimeUtc,
                     MailFile.LooksLikeMail(file),
-                    Exhibits.NumberOf(name)?.ToString()));
+                    Exhibits.NumberInTree(fromRoot)?.ToString()));
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -187,15 +188,17 @@ public static class DossierFolderReader
 
                 if (found.Count < take)
                 {
+                    var relative = Relative(root, file);
+
                     found.Add(new FolderEntry(
                         name,
-                        Relative(root, file),
+                        relative,
                         IsFolder: false,
                         info.Length,
                         new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
                         IsMail: name.EndsWith(".msg", StringComparison.OrdinalIgnoreCase)
                                 || name.EndsWith(".eml", StringComparison.OrdinalIgnoreCase),
-                        Exhibits.NumberOf(name)?.ToString()));
+                        Exhibits.NumberInTree(relative)?.ToString()));
                 }
             }
         }
@@ -268,15 +271,16 @@ public static class DossierFolderReader
                 files++;
 
                 var info = new FileInfo(file);
+                var relative = Relative(root, file);
 
                 recent.Add(new FolderEntry(
                     name,
-                    Relative(root, file),
+                    relative,
                     false,
                     info.Length,
                     info.LastWriteTimeUtc,
                     MailFile.LooksLikeMail(file),
-                    Exhibits.NumberOf(name)?.ToString()));
+                    Exhibits.NumberInTree(relative)?.ToString()));
             }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)

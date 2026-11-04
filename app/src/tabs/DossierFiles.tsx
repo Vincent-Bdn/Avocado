@@ -282,11 +282,17 @@ export function DossierFiles({ matterId, folder, isOpen, onEdit, onChanged }: {
             {when(entry.modifiedAt)}
           </span>
 
-          {/* Ticked for versement. Not offered on a pièce, which is already one, nor on a folder,
-              nor on a dossier clôturé. The box stays visible once ticked, so a selection spread over
-              three open sub-folders is still visible as one. */}
+          {/* Ticked for versement: any file, on an open dossier. The box stays visible once ticked,
+              so a selection spread over three open sub-folders is still visible as one.
+
+              It used to be withheld from anything the tree had marked as a pièce, on the reasoning
+              that a pièce is already one. Both halves of that were wrong. The mark was read off the
+              file name anywhere in the dossier, so everything a cabinet had named « Pièce 1 - … » by
+              hand became unselectable although it had never been versed; and versing a document that
+              is already a pièce is an ordinary act, because the same document produced in two
+              instances carries two numbers. The badge is information now, never a prohibition. */}
           <span className="grid h-6 w-6 shrink-0 place-items-center">
-            {isOpen && !entry.isFolder && entry.exhibitNumber === null && (
+            {isOpen && !entry.isFolder && (
               <input
                 type="checkbox"
                 aria-label={`Verser ${entry.name} comme pièce`}
