@@ -149,8 +149,46 @@ public static class Exhibits
         [.. fileNames.Select(NumberOf).OfType<ExhibitNumber>().Select(number => number.Number)];
 
     /// <summary>
+    /// The number to show against a file in the dossier's tree, or null for an ordinary document.
+    ///
+    /// <para><b>Only inside Avocado's own folder.</b> The number was read off any file name anywhere
+    /// in the dossier, so the tree put a pièce badge on everything a cabinet had ever named
+    /// « Pièce 1 - … » or « Pièce 4.1 - … » by hand — in Correspondance, in Procédure, in a
+    /// sub-folder per partie. Those are her filing, not pièces Avocado produced, and one lawyer has
+    /// the same document under several numbers in several sub-folders, which is an ordinary way to
+    /// work: a document produced in two instances carries two numbers.</para>
+    ///
+    /// <para>And the badge was not merely decorative. The tree hid the versement tick-box on
+    /// anything carrying a number, so a document she had named that way could never be versed at
+    /// all — « impossible de sélectionner le document », on a file that had never been versed.</para>
+    ///
+    /// <para><b>The legacy folder is deliberately out.</b> Avocado used to write into « Pièces », the
+    /// folder cabinets also keep by hand, so inside it its own output and her naming are
+    /// indistinguishable. Claiming a badge there would be guessing; leaving it off costs a badge and
+    /// lets her verse those files properly. Numbering still reads both folders, so nothing there can
+    /// have its number handed out twice — see <see cref="FileNamesIn"/>.</para>
+    /// </summary>
+    /// <param name="relativePath">From the dossier's folder, « / »-separated, as the tree lists it.</param>
+    public static ExhibitNumber? NumberInTree(string relativePath)
+    {
+        var separator = relativePath.LastIndexOf('/');
+
+        // Directly inside the folder, not merely somewhere beneath it: a sub-folder she made inside
+        // « Pièces Avocado » is her filing again, not something Avocado wrote.
+        var folder = separator < 0 ? string.Empty : relativePath[..separator];
+
+        return folder.Equals(Folder, StringComparison.OrdinalIgnoreCase)
+            ? NumberOf(relativePath[(separator + 1)..])
+            : null;
+    }
+
+    /// <summary>
     /// « Pièce 12 - Attestation.pdf » gives 12, « Pièce 68 bis - … » gives 68 bis, « Pièce 68-1 - … »
     /// gives 68-1. Anything else gives nothing.
+    ///
+    /// <para>A name, with no idea where the file is. For the tree's badge use
+    /// <see cref="NumberInTree"/>; this one answers « which numbers are spoken for », which is a
+    /// question about names wherever they are.</para>
     /// </summary>
     public static ExhibitNumber? NumberOf(string fileName)
     {
